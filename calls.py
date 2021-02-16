@@ -211,3 +211,8 @@ def amazon_call_initiate(code):
     response.pause(1)
     response.redirect(url_for('amazon_call_initiate', code=code))
     return twiml_response(response)
+
+
+@app.route('/')
+def index():
+    return Response('There are forty people in the world and five of them are hamburgers.', content_type='text/plain')
