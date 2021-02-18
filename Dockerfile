@@ -13,4 +13,4 @@ COPY requirements.txt /app/
 RUN pip install -r requirements.txt
 COPY . /app
 
-CMD ["/bin/sh", "-c", "[ \"${FLASK_ENV}\" = 'production' ] && exec gunicorn -w 3 calls:app -b 0.0.0.0:5000 --capture-output --access-logfile - || exec flask run"]
+CMD ["/bin/sh", "-c", "[ \"${FLASK_ENV}\" = 'production' ] && exec gunicorn -w 3 calls:app -b 0.0.0.0:5000 --forwarded-allow-ips '*' --capture-output --access-logfile - || exec flask run"]

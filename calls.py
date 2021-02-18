@@ -10,6 +10,42 @@ from twilio.twiml.voice_response import VoiceResponse
 from flask import Flask, Response, jsonify, request, render_template, url_for
 
 app = Flask(__name__)
+if app.env == 'development':
+    import json
+    import pprint
+    import xml.dom.minidom
+
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
+
+    @app.after_request
+    def log_request(response):
+        print(' Headers '.center(40, '='))
+        pprint.pprint(dict(request.headers))
+
+        if request.method == 'POST':
+            print(' POST '.center(40, '='))
+            pprint.pprint(dict(request.form))
+
+        content_type = response.headers.get('Content-Type')
+
+        if content_type == 'text/xml':
+            print(' TwiML '.center(40, '='))
+            dom = xml.dom.minidom.parseString(response.data)
+            print(dom.toprettyxml())
+        elif content_type == 'application/json':
+            print(' JSON '.center(40, '='))
+            print(json.dumps(json.loads(response.data), indent=2, sort_keys=True))
+
+        return response
+
+else:
+    import logging
+
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
 
 # sip password = ***REMOVED***
 TWILIO_ACCOUNT_SID = '***REMOVED***'
@@ -17,16 +53,13 @@ TWILIO_AUTH_TOKEN = '***REMOVED***'
 DEFAULT_AREA_CODE = '***REMOVED***'
 SMS_ADMIN_NUMBER = '***REMOVED***'
 NUMBERS_TO_SIP_ADDRESSES = {'***REMOVED***': 'tigwit', '***REMOVED***': 'poolabs'}
-SIP_DOMAIN = 'radio-shows.sip.us1.twilio.com'
+SIP_DOMAIN = '***REMOVED***'
 VOICEMAIL_EMAIL = '***REMOVED***'
 
-ASSET_URLS_VOICEMAIL_TO_NUMBERS = {'***REMOVED***': 'https://linen-reindeer-4385.twil.io/assets/voicemail.mp3',
-                                   '***REMOVED***': 'https://linen-reindeer-4385.twil.io/assets/poolabs-voicemail.mp3'}
-ASSET_URLS_HOLD_MUSIC = ('https://linen-reindeer-4385.twil.io/assets/hold-music-1.mp3',
-                         'https://linen-reindeer-4385.twil.io/assets/hold-music-2.mp3',
-                         'https://linen-reindeer-4385.twil.io/assets/hold-music-3.mp3')
-ASSET_URL_COMPLETED_MUSIC = 'https://linen-reindeer-4385.twil.io/assets/completed-music.mp3'
-ASSET_URL_NOT_IN_SERVICE = 'https://linen-reindeer-4385.twil.io/assets/not-in-service.mp3'
+AUDIO_VOICEMAIL_TO_NUMBERS = {'***REMOVED***': 'voicemail', '***REMOVED***': 'poolabs-voicemail'}
+AUDIO_HOLD_MUSIC_LIST = ('hold-music-1', 'hold-music-2', 'hold-music-3')
+AUDIO_COMPLETED_MUSIC = 'completed-music'
+AUDIO_NOT_IN_SERVICE = 'not-in-service'
 
 SIP_ADDRESSES_TO_NUMBERS = {v: k for k, v in NUMBERS_TO_SIP_ADDRESSES.items()}
 
@@ -65,6 +98,10 @@ def parse_sip_address(address):
     return None
 
 
+def audio_url(filename, external=False):
+    return url_for('static', filename=f'audio/{filename}.mp3', _external=external)
+
+
 @app.route('/sip-outgoing', methods=('POST',))
 def sip_outgoing():
     response = VoiceResponse()
@@ -77,7 +114,7 @@ def sip_outgoing():
             response.dial(to_number, answer_on_bridge=True, caller_id=from_number)
 
         else:
-            response.play(ASSET_URL_NOT_IN_SERVICE)
+            response.play(audio_url(AUDIO_NOT_IN_SERVICE))
     else:
         response.say('Error. No number for SIP address.')
 
@@ -110,16 +147,17 @@ def voice_incoming():
 def voice_incoming_done():
     response = VoiceResponse()
     to_number = request.form['To']
-    status = request.form['DialCallStatus']
-    sip_code = request.form['DialSipResponseCode']
+    status = request.form.get('DialCallStatus')
+    sip_code = request.form.get('DialSipResponseCode')
 
     if status == 'completed':
-        response.play(ASSET_URL_COMPLETED_MUSIC)
+        response.play(audio_url(AUDIO_COMPLETED_MUSIC))
     elif status == 'busy' and sip_code == '486':  # 486 = Busy Here
-        response.play(random.choice(ASSET_URLS_HOLD_MUSIC))
+        response.play(audio_url(random.choice(AUDIO_HOLD_MUSIC_LIST)))
         response.redirect(url_for('voice_incoming'))
     else:
-        message = ASSET_URLS_VOICEMAIL_TO_NUMBERS.get(to_number, 'Please leave a message after the tone.')
+        audio = AUDIO_VOICEMAIL_TO_NUMBERS.get(to_number)
+        message = audio_url(audio, external=True) if audio else 'Please leave a message after the tone.'
         response.redirect('http://twimlets.com/voicemail?' + urlencode(
             {'Email': VOICEMAIL_EMAIL, 'Message': message, 'Transcribe': 'True'}))
 
