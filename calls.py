@@ -273,7 +273,7 @@ def amazon_voice_request():
                 response.redirect(url_for('amazon_voice_request_pin', AmazonPinCode=pin))
                 return twiml_response(response)
             else:
-                response.say(f'Incorrect. {speech_result}')
+                response.say(f'Incorrect word. Try again.')
         else:
             response.say("I could not hear you. Are you sure that your microphone is working?")
     else:
