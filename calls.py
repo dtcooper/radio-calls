@@ -6,8 +6,27 @@ from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client as TwilioClient
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.twiml.voice_response import VoiceResponse
+from twilio.jwt.client import ClientCapabilityToken
 
 from flask import Flask, Response, jsonify, request, render_template, url_for
+
+# sip password = ***REMOVED***
+TWILIO_ACCOUNT_SID = '***REMOVED***'
+TWILIO_AUTH_TOKEN = '***REMOVED***'
+AMAZON_TWIML_APP_SID = '***REMOVED***'
+DEFAULT_AREA_CODE = '***REMOVED***'
+SMS_ADMIN_NUMBER = '***REMOVED***'
+NUMBERS_TO_SIP_ADDRESSES = {'***REMOVED***': 'tigwit', '***REMOVED***': 'poolabs'}
+SIP_DOMAIN = '***REMOVED***'
+VOICEMAIL_EMAIL = '***REMOVED***'
+
+AUDIO_VOICEMAIL_TO_NUMBERS = {'***REMOVED***': 'voicemail', '***REMOVED***': 'poolabs-voicemail'}
+AUDIO_HOLD_MUSIC_LIST = ('hold-music-1', 'hold-music-2', 'hold-music-3')
+AUDIO_COMPLETED_MUSIC = 'completed-music'
+AUDIO_NOT_IN_SERVICE = 'not-in-service'
+AUDIO_BEEP = 'beep'
+GATHER_WORDS = ('apple', 'banana', 'orange', 'tomato', 'lemon', 'mango')
+
 
 app = Flask(__name__)
 if app.env == 'development':
@@ -46,20 +65,6 @@ else:
     gunicorn_logger = logging.getLogger('gunicorn.error')
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
-
-# sip password = ***REMOVED***
-TWILIO_ACCOUNT_SID = '***REMOVED***'
-TWILIO_AUTH_TOKEN = '***REMOVED***'
-DEFAULT_AREA_CODE = '***REMOVED***'
-SMS_ADMIN_NUMBER = '***REMOVED***'
-NUMBERS_TO_SIP_ADDRESSES = {'***REMOVED***': 'tigwit', '***REMOVED***': 'poolabs'}
-SIP_DOMAIN = '***REMOVED***'
-VOICEMAIL_EMAIL = '***REMOVED***'
-
-AUDIO_VOICEMAIL_TO_NUMBERS = {'***REMOVED***': 'voicemail', '***REMOVED***': 'poolabs-voicemail'}
-AUDIO_HOLD_MUSIC_LIST = ('hold-music-1', 'hold-music-2', 'hold-music-3')
-AUDIO_COMPLETED_MUSIC = 'completed-music'
-AUDIO_NOT_IN_SERVICE = 'not-in-service'
 
 SIP_ADDRESSES_TO_NUMBERS = {v: k for k, v in NUMBERS_TO_SIP_ADDRESSES.items()}
 
@@ -100,6 +105,12 @@ def parse_sip_address(address):
 
 def audio_url(filename, external=False):
     return url_for('static', filename=f'audio/{filename}.mp3', _external=external)
+
+
+def cors_jsonify(data):
+    response = jsonify(data)
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
 
 @app.route('/sip-outgoing', methods=('POST',))
@@ -201,56 +212,83 @@ def sms():
         return Response(status=204)
 
 
-@app.route('/amazon-call/ajax/initiate', methods=('POST',))
-def amazon_call_ajax_initiate():
-    to_number = sanitize_phone_number(''.join(filter(str.isdigit, request.form['number'])))
-    from_number = SIP_ADDRESSES_TO_NUMBERS.get(request.form['show'])
+@app.route('/amazon/token')
+def amazon_token():
+    capability = ClientCapabilityToken(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    capability.allow_client_outgoing(AMAZON_TWIML_APP_SID)
 
-    if to_number:
-        code = str(random.randint(0, 9999)).zfill(4)
-
-        call = twilio_client.calls.create(
-            url=url_for('amazon_call_initiate', code=code, _external=True, _scheme='https'),
-            to=to_number,
-            from_=from_number,
-        )
-
-        data = {'success': True, 'code': code, 'call_sid': call.sid}
-    else:
-        data = {'success': False, 'error': 'Invalid phone number. Try again.'}
-
-    response = jsonify(data)
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    return response
+    return cors_jsonify({'token': capability.to_jwt().decode()})
 
 
-@app.route('/amazon-call/ajax/confirm', methods=('POST',))
-def amazon_call_ajax_confirm():
-    call_sid = request.form['call_sid']
+@app.route('/amazon/update-sid/<call_sid>', methods=('POST',))
+def amazon_update_sid(call_sid):
+    success = True
 
     try:
-        call = client.calls(call_sid).update(
-            method='POST',
-            url=url_for('voice_incoming', from_amazon='1', _external=True, _scheme='https'),
-        )
-        data = {'success': True}
+        twilio_client.calls(call_sid).update(method='POST', url=url_for('amazon_voice_request_connect', _external=True))
     except TwilioRestException:
-        data = {'success': False, 'error': 'Did you hang up? Error. Please try again.'}
+        success = False
 
-    response = jsonify(data)
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    return response
+    return cors_jsonify({'success': success})
 
 
-@app.route('/amazon-call/initiate/<code>', methods=('POST',))
-def amazon_call_initiate(code):
+@app.route('/amazon/voice-request', methods=('POST',))
+def amazon_voice_request():
+    pin = request.values['AmazonPinCode']
+    word = request.args.get('word')
+    speech_result = request.form.get('SpeechResult')
+
     response = VoiceResponse()
-    response.say(f'The pin code is {", ".join(code)}. Enter the pin code and do not hang up.')
-    response.pause(1)
-    response.redirect(url_for('amazon_call_initiate', code=code))
+
+    if word:
+        if speech_result:
+            if word.lower() in filter(None, re.split(r"[^a-z']", speech_result.lower())):
+                response.say('Correct! Please press the button that says Ready for Step 4.')
+                response.redirect(url_for('amazon_voice_request_pin', AmazonPinCode=pin))
+                return twiml_response(response)
+            else:
+                response.say(f'Incorrect. {speech_result}')
+        else:
+            response.say("I could not hear you. Are you sure that your microphone is working?")
+    else:
+        word = random.choice(GATHER_WORDS)
+        response.say('Welcome to step 3!')
+        response.pause(1)
+
+    say = response.say(f'Your word is {word}.')
+
+    gather = response.gather(
+        action_on_empty_result=True,
+        action=url_for('amazon_voice_request', AmazonPinCode=pin, word=word),
+        enhanced=True,
+        hints=', '.join(GATHER_WORDS),
+        input='speech',
+        speech_model='numbers_and_commands',
+        timeout=4,
+    )
+    gather.say(f'After the tone, please say the word {word}.')
+    gather.play(audio_url(AUDIO_BEEP))
+
     return twiml_response(response)
 
 
-@app.route('/')
-def index():
-    return Response('There are forty people in the world and five of them are hamburgers.', content_type='text/plain')
+@app.route('/amazon/voice-request/pin', methods=('POST',))
+def amazon_voice_request_pin():
+    pin = request.args['AmazonPinCode']
+
+    response = VoiceResponse()
+    if not request.args.get('said_step_four'):
+        response.say('Welcome to step 4!')
+
+    response.say(f'Your pin is {", ".join(pin)}.')
+    response.pause(2)
+    response.redirect(url_for('amazon_voice_request_pin', AmazonPinCode=pin, said_step_four='1'))
+    return twiml_response(response)
+
+
+@app.route('/amazon/voice-request/connect', methods=('POST',))
+def amazon_voice_request_connect():
+    response = VoiceResponse()
+    response.say('It worked!')
+    response.hangup()
+    return twiml_response(response)
