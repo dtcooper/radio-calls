@@ -133,20 +133,24 @@ def sip_outgoing():
 
 
 @app.route('/voice-incoming', methods=('POST',))
-def voice_incoming():
+@app.route('/voice-incoming/<sip_addr>', methods=('POST',))
+def voice_incoming(sip_addr=None):
     response = VoiceResponse()
 
-    from_number = sanitize_phone_number(request.form['From'])
-    to_number = request.form['To']
-
-    if request.args.get('from_amazon'):
-        from_number, to_number = to_number, from_number
-
-    to_sip = NUMBERS_TO_SIP_ADDRESSES.get(to_number)
+    if sip_addr:
+        to_sip = sip_addr
+        from_number = SIP_ADDRESSES_TO_NUMBERS.get(sip_addr)
+    else:
+        from_number = sanitize_phone_number(request.form['From'])
+        to_number = request.form['To']
 
     if to_sip:
         to_sip = f'{to_sip}@{SIP_DOMAIN}'
-        dial = response.dial(answer_on_bridge=True, action='/voice-incoming/done', caller_id=from_number)
+        dial = response.dial(
+            answer_on_bridge=True,
+            action=url_for('voice_incoming_done', sip_addr=sip_addr),
+            caller_id=from_number,
+        )
         dial.sip(to_sip)
     else:
         response.say('Error. No SIP address for number.')
@@ -160,15 +164,17 @@ def voice_incoming_done():
     to_number = request.form['To']
     status = request.form.get('DialCallStatus')
     sip_code = request.form.get('DialSipResponseCode')
+    sip_addr = request.args.get('sip_addr')
 
     if status == 'completed':
         response.play(audio_url(AUDIO_COMPLETED_MUSIC))
     elif status == 'busy' and sip_code == '486':  # 486 = Busy Here
         response.play(audio_url(random.choice(AUDIO_HOLD_MUSIC_LIST)))
-        response.redirect(url_for('voice_incoming'))
+        response.redirect(url_for('voice_incoming', sip_addr=sip_addr))
     else:
         audio = AUDIO_VOICEMAIL_TO_NUMBERS.get(to_number)
-        message = audio_url(audio, external=True) if audio else 'Please leave a message after the tone.'
+        message = audio_url(audio, external=True) if audio else (
+            'The radio show can not take your call right now. Please leave a message after the tone.')
         response.redirect('http://twimlets.com/voicemail?' + urlencode(
             {'Email': VOICEMAIL_EMAIL, 'Message': message, 'Transcribe': 'True'}))
 
@@ -220,12 +226,17 @@ def amazon_token():
     return cors_jsonify({'token': capability.to_jwt().decode()})
 
 
-@app.route('/amazon/update-sid/<call_sid>', methods=('POST',))
-def amazon_update_sid(call_sid):
+@app.route('/amazon/update-sid/<sip_addr>/<pin_code>/<call_sid>', methods=('POST',))
+def amazon_update_sid(sip_addr, pin_code, call_sid):
     success = True
 
+    response = VoiceResponse()
+    response.say('Step 5! You are being connected to a live radio show. When your call is complete, you '
+                 'will be able to submit the assignment.')
+    response.redirect(url_for('voice_incoming', sip_addr=sip_addr, AmazonPinCode=pin_code, _external=True))
+
     try:
-        twilio_client.calls(call_sid).update(method='POST', url=url_for('amazon_voice_request_connect', _external=True))
+        twilio_client.calls(call_sid).update(twiml=str(response))
     except TwilioRestException:
         success = False
 
@@ -252,7 +263,7 @@ def amazon_voice_request():
             response.say("I could not hear you. Are you sure that your microphone is working?")
     else:
         word = random.choice(GATHER_WORDS)
-        response.say('Welcome to step 3!')
+        response.say('Step 3!')
         response.pause(1)
 
     say = response.say(f'Your word is {word}.')
@@ -264,7 +275,7 @@ def amazon_voice_request():
         hints=', '.join(GATHER_WORDS),
         input='speech',
         speech_model='numbers_and_commands',
-        timeout=4,
+        timeout=3,
     )
     gather.say(f'After the tone, please say the word {word}.')
     gather.play(audio_url(AUDIO_BEEP))
@@ -278,17 +289,9 @@ def amazon_voice_request_pin():
 
     response = VoiceResponse()
     if not request.args.get('said_step_four'):
-        response.say('Welcome to step 4!')
+        response.say('Step 4!')
 
     response.say(f'Your pin is {", ".join(pin)}.')
     response.pause(2)
     response.redirect(url_for('amazon_voice_request_pin', AmazonPinCode=pin, said_step_four='1'))
-    return twiml_response(response)
-
-
-@app.route('/amazon/voice-request/connect', methods=('POST',))
-def amazon_voice_request_connect():
-    response = VoiceResponse()
-    response.say('It worked!')
-    response.hangup()
     return twiml_response(response)

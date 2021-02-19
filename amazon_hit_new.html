@@ -11,13 +11,13 @@
 <section x-data="radioCall()" x-init="init(); setStep(0)" class="container" x-cloak>
   <div id="volume-nav" class="grid text-center is-marginless is-paddingless" x-show="device !== null && connection !== null">
     <div class="row">
-      <div class="col-2">Speaker Volume:</div>
-      <div class="col-4 is-vertical-align">
-        <progress class="is-full-width" x-bind:value="outputVolume.toString()" min="0" max="0.5"></progress>
-      </div>
       <div class="col-2">Mic Volume:</div>
       <div class="col-4 is-vertical-align">
         <progress class="is-full-width" x-bind:value="inputVolume.toString()" min="0" max="0.5"></progress>
+      </div>
+      <div class="col-2">Speaker Volume:</div>
+      <div class="col-4 is-vertical-align">
+        <progress class="is-full-width" x-bind:value="outputVolume.toString()" min="0" max="0.5"></progress>
       </div>
     </div>
   </div>
@@ -26,12 +26,29 @@
     <h1 id="step0" class="text-center"><u>Call a Live Radio Show and Talk About Poop</u></h1>
 
     <p>
+      This is supposed to be a <strong>funny assignment</strong> where you talk to people
+      on a live radio show about your poop..
+    </p>
+
+    <p>
       You will make a call in your web broswer to a radio show to tell the hosts
       about your <u>most recent poop</u>.
     </p>
 
+    <strong>Rules:</strong>
+    <ul>
+      <li><strong><u>You must speak in English</u></strong>.</li>
+      <li>You must have a working microphone and headset (or speaker)</li>
+      <li class="text-error">You must <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.</li>
+      <li>Feel free to have any conversation you would like, however you should mention your poop.</li>
+      <li>If no one answers, you should leave a voicemail talking about your poop.</li>
+      <li><em>Your call may be monitored or recorded for quality assurance purposes.</em></li>
+    </ul>
+
     <p class="text-center">
-      <button class="button primary" @click="setStep(1)">I have carefully read and understand the above!</button>
+      <button class="button primary" x-on:click.prevent="setStep(1)" x-bind:disabled="step >= 1" >
+        I have <u>carefully</u> read and understand the above!
+      </button>
     </p>
   </div>
 
@@ -53,25 +70,19 @@
       <tbody>
         <template x-for="(poop, index) in poopTypes" :key="index">
           <tr>
-            <td><button @click="poopType = index + 1; setStep(2)" class="button primary" x-text="`Select Type ${index + 1}`"></button></td>
+            <td><button x-on:click.prevent="poopType = index + 1; setStep(2)" class="button primary" x-text="'Select Type ' + (index + 1)"></button></td>
+            <td x-text="'Type ' + (index + 1) + ' &mdash; ' + poop.name" class="text-italic text-bold"></td>
             <td>
-              <strong>
-                <u x-text="`Type ${index + 1} &mdash; ${poop.name}`"></u>
-              </strong>
+              <img class="bd-light" x-bind:srcset="baseUrl + '/static/images/poop-' + (index + 1) + '.jpg 2x'">
             </td>
-            <td>
-              <span class="img">
-                <img class="bd-light" x-bind:srcset="`${baseUrl}/static/images/poop-${index + 1}.jpg 2x`">
-              </span>
-            </td>
-            <td class="text-italic" x-text="`${poop.description}.`"></td>
+            <td class="text-italic" x-text="poop.description + '.'"></td>
           </tr>
         </template>
       </tbody>
     </table>
 
     <p class="text-italic" x-show="poopType !== null">
-      You selected <strong x-text="poopType !== null ? `Type ${poopType} &mdash; ${poopTypes[poopType - 1].name}` : 'unknown'"></strong>.
+      You selected <strong x-text="poopType !== null ? ('Type ' + poopType + ' &mdash; ' + poopTypes[poopType - 1].name) : 'unknown'">unknown</strong>.
     </p>
   </div>
 
@@ -81,14 +92,12 @@
     <blockquote>Click the button below to place the call in your browser. You will need to enable your microphone.</blockquote>
 
     <p class="text-center">
-      <button @click="call" class="button success" x-bind:disabled="device === null || connection !== null">
-        &#x1F4DE;&nbsp;&nbsp;Call&nbsp;&nbsp;&#x1F4DE;
+      <button x-on:click.prevent="call" class="button success" x-bind:disabled="device === null || connection !== null">
+        Start Call
       </button>
-      <template x-if="debug">
-        <button @click="hangUp" class="button error" x-bind:disabled="device === null || connection === null">
-          Hang up (DEBUG only)
-        </button>
-      </template>
+      <button x-on:click.prevent="hangUp" class="button error" x-bind:disabled="device === null || connection === null" x-show="debug">
+        Hang up (DEBUG only)
+      </button>
     </p>
   </div>
 
@@ -101,7 +110,7 @@
     </blockquote>
 
     <p class="text-center">
-      <button @click="setStep(4)" class="button primary" >Ready for Step 4</button>
+      <button x-on:click.prevent="setStep(4)" class="button primary" x-bind:disabled="step >= 4">Ready for Step 4</button>
     </p>
 
   </div>
@@ -109,58 +118,59 @@
   <div x-show="step >= 4 || debug">
     <h2 id="step4">Step 4: Enter the PIN Code</h2>
 
-    <blockquote>You will be called and given a PIN code. Enter it below.</blockquote>
+    <blockquote>You will be given a PIN code. Enter it below.</blockquote>
 
     PIN Code:
     <input id="pin-code" type="text" name="PinCode" x-model="pinCodeInput" pattern="\d*" maxlength="4">
 
     <p class="text-center">
-      <button @click="verifyPinCode()" class="button primary" x-bind:disabled="pinVerified">Verify PIN Code</button>
+      <button x-on:click.prevent="verifyPinCode()" class="button primary" x-bind:disabled="pinVerified">Verify PIN Code</button>
     </p>
-
-    <hr>
   </div>
 
   <div x-show="step >= 5 || debug">
     <h2 id="step5">Step 5: Talk About Your Poop</h2>
 
-    <blockquote>You are being connected to a live radio show. Please tell the people on the show about your poop.</blockquote>
+    <blockquote>
+      You are being connected to a live radio show. Please tell the people on the show about your poop.
+      <br>
+      If the call is not answered, you can leave a voicemail about your poop.
+    </blockquote>
+
+    <table x-show="poopType !== null">
+      <caption><strong>Your Poop (Bristol Stool Chart)</strong></caption>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Diagram</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td x-text="poopType !== null ? ('Type ' + poopType + ' &mdash; ' + poopTypes[poopType - 1].name) : 'unknown'" class="text-italic text-bold"></td>
+          <td>
+            <img class="bd-light" x-bind:srcset="baseUrl + '/static/images/poop-' + poopType + '.jpg 2x'">
+          </td>
+          <td class="text-italic" x-text="poopType !== null ? (poopTypes[poopType - 1].description + '.') : 'unknown'"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="text-success">Enjoy your call!</h3>
   </div>
 
-    <!--
-    <h2>Step 3: Talk About Your Poop</h2>
 
-    <blockquote>Tell the people on the radio show about your poop.</blockquote>
+  <div x-show="step >= 1 || debug" style="margin-top: 100px">
+    <hr>
+    <h2 id="done" class="text-success" x-show="done || debug">Congratulations! You are done!</h2>
 
-    <p>
-      <strong>Rules:</strong>
-      <ul>
-        <li><strong><u>You must speak in English</u></strong></li>
-        <li>You must <strong><u>NOT</u></strong> mention Amazon Mechanical Turk</li>
-        <li>Tell the people on the radio show about your poop. Use the diagram below and describe your most recent poop.</li>
-      </ul>
+    <blockquote x-show="done || debug">Click <em>Submit Assignment</em> below.</blockquote>
+
+    <p class="text-center">
+      <input class="button" id="submit" type="submit" x-bind:class="{success: done, dark: !done}" x-bind:value="'Submit Assignment' + (done ? '' : ' (Enabled when you are done)')" x-bind:disabled="!done">
     </p>
-  </p>
-  -->
-
-  <div></div>
-  <h2>Step 4: Submit the Assignment Below When Done</h2>
-
-  <p class="text-center">
-    <input id="submit" type="submit" value="Submit Assignment" disabled>
-  </p>
-
-  <template x-if="debug">
-    <pre>
-      step: <span x-text="JSON.stringify(step)"></span>
-      poopType: <span x-text="JSON.stringify(poopType)"></span>
-      inputVolume: <span x-text="JSON.stringify(inputVolume)"></span>
-      outputVolume: <span x-text="JSON.stringify(outputVolume)"></span>
-      pinCode: <span x-text="JSON.stringify(pinCode)"></span>
-      pinCodeInput: <span x-text="JSON.stringify(pinCodeInput)"></span>
-    </pre>
-  </template>
-
+  </div>
 </section>
 
 <link crossorigin="anoymous" rel="stylesheet" href="https://unpkg.com/chota@0.8.0/dist/chota.min.css">
@@ -172,7 +182,7 @@
   }
 
   body {
-    padding-bottom: 325px;
+    padding-bottom: 150px;
   }
 
   #volume-nav {
@@ -205,16 +215,17 @@
 <script src="https://cdn.jsdelivr.net/gh/alpine-collective/alpine-magic-helpers@1.0.x/dist/scroll.min.js"></script>
 <script>
   var baseUrl = 'https://radio-calls.containers.dtcooper.com/'
-  var debug = true
+  var debug = localStorage.debug || false
+  var show = 'tigwit'
 
   var poopTypes = [
-  {name: 'Severe Constipation', description: 'Separate hard lumps, like nuts (hard to pass)'},
-  {name: 'Mild Constipation', description: 'Sausage-shaped but lumpy'},
-  {name: 'Normal', description: 'Like a sausage but with cracks on its surface'},
-  {name: 'Normal', description: 'Like a sausage or snake, smooth and soft'},
-  {name: 'Lacking Fiber', description: 'Soft blobs with clear-cut edges'},
-  {name: 'Mild Diarrhea', description: 'Mushy consistency with ragged edges'},
-  {name: 'Severe Diarrhea', description: 'Liquid consistency with no solid pieces'}
+    {name: 'Severe Constipation', description: 'Separate hard lumps, like nuts (hard to pass)'},
+    {name: 'Mild Constipation', description: 'Sausage-shaped but lumpy'},
+    {name: 'Normal', description: 'Like a sausage but with cracks on its surface'},
+    {name: 'Normal', description: 'Like a sausage or snake, smooth and soft'},
+    {name: 'Lacking Fiber', description: 'Soft blobs with clear-cut edges'},
+    {name: 'Mild Diarrhea', description: 'Mushy consistency with ragged edges'},
+    {name: 'Severe Diarrhea', description: 'Liquid consistency with no solid pieces'}
   ]
 
   function radioCall() {
@@ -225,11 +236,12 @@
       connection: null,
       inputVolume: 0,
       outputVolume: 0,
-      pinCode: '1234', // xxx should be null
+      pinCode: null,
       pinCodeInput: '',
       pinVerified: false,
+      done: false,
       init: async function() {
-        var response = await fetch(`${baseUrl}/amazon/token`)
+        var response = await fetch(baseUrl + 'amazon/token')
         var data = await response.json()
 
         device = new Twilio.Device(data.token, {
@@ -240,10 +252,18 @@
 
         device.on('ready', (device) => this.device = device)
         device.on('connect', () => this.setStep(3))
+        device.on('error', () => {
+          this.setStep(2, true)
+          this.hangUp()
+        })
       },
-      setStep: function(step){
-        this.step = Math.max(this.step, step)
-        setTimeout(() => this.$scroll(`#step${step}`, {offset: document.getElementById('volume-nav').offsetHeight}), 20)
+      setStep: function(step, force){
+        if (force) {
+          this.step = step
+        } else {
+          this.step = Math.max(this.step, step)
+        }
+        setTimeout(() => this.$scroll('#step' + step, {offset: document.getElementById('volume-nav').offsetHeight}), 20)
       },
       call: function() {
         this.pinCode = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
@@ -254,7 +274,7 @@
         })
       },
       hangUp: function() {
-        this.connection.disconnect()
+        this.device.disconnectAll()
         this.connection = null
         this.inputVolume = this.outputVolume = 0
       },
@@ -263,15 +283,25 @@
           this.pinVerified = true
           var callSid = this.connection.parameters.CallSid
           if (callSid) {
-            var response = await fetch(`${baseUrl}amazon/update-sid/${callSid}`, {method: 'POST'})
+            var response = await fetch(baseUrl + 'amazon/update-sid/' + show + '/' + this.pinCode + '/' + callSid, {method: 'POST'})
             var data = await response.json()
             if (data.success) {
               this.setStep(5)
+              // If they got this far, register a handler to complete the assignment when the call ends
+              this.connection.on('disconnect', () => {
+                this.done = true
+                this.hangUp()
+                setTimeout(() => this.$scroll('#done'), 20)
+              })
             } else {
-              alert('An error occurred. Refresh the page and try again. (Error updating call.)')
+              alert('An error occurred. Please try again.')
+              this.setStep(2, true)
+              this.hangUp()
             }
           } else {
             alert('An error occurred. Refresh the page and try again. (No call found.)')
+            this.setStep(2, true)
+            this.hangUp()
           }
         } else {
           alert('Incorrect PIN code. Try again.')
@@ -279,32 +309,5 @@
       }
     }
   }
-
-  /*$(function() {
-
-    var $callButton = $('#call-button')
-
-    $.get(baseUrl + 'token', function(data) {
-      Twilio.Device.setup(data.token, {
-        closeProtection: true,
-        codecPreferences:	['opus', 'pcmu']
-      })
-    })
-
-
-
-    Twilio.Device.on('ready', function (device) {
-      $callButton.prop('disabled', false).toggleClass('error primary')
-      .html('\u{1F4DE}\u{1F4DE}&nbsp;&nbsp;&nbsp;&nbsp;Initiate Call&nbsp;&nbsp;&nbsp;&nbsp;\u{1F4DE}\u{1F4DE}').click(function(e) {
-        e.preventDefault()
-
-        device.connect({
-          'AmazonPasscode':
-        })
-      })
-
-    })
-
-  })*/
 
 </script>
