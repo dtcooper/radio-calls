@@ -73,7 +73,7 @@
             <td><button x-on:click.prevent="poopType = index + 1; setStep(2)" class="button primary" x-text="'Select Type ' + (index + 1)"></button></td>
             <td x-text="'Type ' + (index + 1) + ' &mdash; ' + poop.name" class="text-italic text-bold"></td>
             <td>
-              <img class="bd-light" x-bind:srcset="baseUrl + '/static/images/poop-' + (index + 1) + '.jpg 2x'">
+              <img class="bd-light" x-bind:srcset="baseUrl + 'static/images/poop-' + (index + 1) + '.jpg 2x'">
             </td>
             <td class="text-italic" x-text="poop.description + '.'"></td>
           </tr>
@@ -95,10 +95,10 @@
     </blockquote>
 
     <p class="text-center">
-      <button x-on:click.prevent="call" class="button success" x-bind:disabled="device === null || connection !== null">
+      <button x-on:click.prevent="call()" class="button success" x-bind:disabled="device === null || connection !== null">
         Start Call
       </button>
-      <button x-on:click.prevent="hangUp" class="button error" x-bind:disabled="device === null || connection === null" x-show="debug">
+      <button x-on:click.prevent="hangUp(); setStep(2, true)" class="button error" x-bind:disabled="device === null || connection === null" x-show="debug">
         Hang up (DEBUG only)
       </button>
     </p>
@@ -153,16 +153,15 @@
         <tr>
           <td x-text="poopType !== null ? ('Type ' + poopType + ' &mdash; ' + poopTypes[poopType - 1].name) : 'unknown'" class="text-italic text-bold"></td>
           <td>
-            <img class="bd-light" x-bind:srcset="baseUrl + '/static/images/poop-' + poopType + '.jpg 2x'">
+            <img class="bd-light" x-bind:srcset="baseUrl + 'static/images/poop-' + poopType + '.jpg 2x'">
           </td>
           <td class="text-italic" x-text="poopType !== null ? (poopTypes[poopType - 1].description + '.') : 'unknown'"></td>
         </tr>
       </tbody>
     </table>
 
-    <h3 class="text-success">Enjoy your call!</h3>
+    <h3 class="text-success" x-show="!done">Enjoy your call!</h3>
   </div>
-
 
   <div x-show="step >= 1 || debug" style="margin-top: 100px">
     <hr>
@@ -286,7 +285,7 @@
           this.pinVerified = true
           var callSid = this.connection.parameters.CallSid
           if (callSid) {
-            var response = await fetch(baseUrl + 'amazon/update-sid/' + show + '/' + this.pinCode + '/' + callSid, {method: 'POST'})
+            var response = await fetch(baseUrl + 'amazon/update-sid/' + (this.poopType || 1) + '/' + show + '/' + this.pinCode + '/' + callSid, {method: 'POST'})
             var data = await response.json()
             if (data.success) {
               this.setStep(5)

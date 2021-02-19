@@ -26,6 +26,15 @@ AUDIO_COMPLETED_MUSIC = 'completed-music'
 AUDIO_NOT_IN_SERVICE = 'not-in-service'
 AUDIO_BEEP = 'beep'
 GATHER_WORDS = ('apple', 'banana', 'orange', 'tomato', 'lemon', 'mango')
+POOP_TYPES = (
+    'Severe Constipation. Separate hard lumps, like nuts (hard to pass).',
+    'Mild Constipation. Sausage-shaped but lumpy.',
+    'Normal. Like a sausage but with cracks on its surface.',
+    'Normal. Like a sausage or snake, smooth and soft.',
+    'Lacking Fiber. Soft blobs with clear-cut edges.',
+    'Mild Diarrhea. Mushy consistency with ragged edges.',
+    'Severe Diarrhea. Liquid consistency with no solid pieces.',
+)
 
 
 app = Flask(__name__)
@@ -231,13 +240,14 @@ def amazon_token():
     return cors_jsonify({'token': capability.to_jwt().decode()})
 
 
-@app.route('/amazon/update-sid/<sip_addr>/<pin_code>/<call_sid>', methods=('POST',))
-def amazon_update_sid(sip_addr, pin_code, call_sid):
+@app.route('/amazon/update-sid/<int:poop_type>/<sip_addr>/<pin_code>/<call_sid>', methods=('POST',))
+def amazon_update_sid(poop_type, sip_addr, pin_code, call_sid):
     success = True
+    poop_type_name = POOP_TYPES[poop_type - 1]
 
     response = VoiceResponse()
-    response.say('Step 5! You are being connected to a live radio show. When your call is complete, you '
-                 'will be able to submit the assignment.')
+    response.say('Step 5! You are being connected to a live radio show. When your call is complete, you will be able '
+                 f'to submit the assignment. Your poop is type {poop_type}, {poop_type_name}. Enjoy your call!')
     response.redirect(url_for('voice_incoming', sip_addr=sip_addr, AmazonPinCode=pin_code, _external=True))
 
     try:
