@@ -155,6 +155,7 @@ def voice_incoming(sip_addr=None):
         to_sip = sip_addr
         from_number = SIP_ADDRESSES_TO_NUMBERS.get(sip_addr)
     else:
+        to_sip = SIP_ADDRESSES_TO_NUMBERS.get(sip_addr)
         from_number = sanitize_phone_number(request.form['From'])
         to_number = request.form['To']
 

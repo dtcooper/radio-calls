@@ -270,6 +270,7 @@
       call: function() {
         this.pinCode = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
         this.connection = this.device.connect({AmazonPinCode: this.pinCode})
+        // TODO: on disconnect re-enable button
         this.connection.on('volume', (inputVolume, outputVolume) => {
           this.inputVolume = inputVolume
           this.outputVolume = outputVolume
