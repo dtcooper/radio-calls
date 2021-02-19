@@ -113,6 +113,11 @@ def cors_jsonify(data):
     return response
 
 
+@app.route('/')
+def index():
+    return Response('There are forty people in the world and five of them are hamburgers.', content_type='text/plain')
+
+
 @app.route('/sip-outgoing', methods=('POST',))
 def sip_outgoing():
     response = VoiceResponse()
