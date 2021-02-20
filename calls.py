@@ -343,12 +343,12 @@ def amazon_token():
 @app.route("/amazon/update-sid/<topic>/<int:choice>/<sip_addr>/<pin_code>/<call_sid>", methods=("POST",))
 def amazon_update_sid(topic, choice, sip_addr, pin_code, call_sid):
     success = True
-    choice = HIT_TOPICS[topic]["choices"][choice]
+    description = HIT_TOPICS[topic]['description']
+    name = HIT_TOPICS[topic]["choices"][choice]['name']
 
     response = VoiceResponse()
     response.say(
-        f"Step 5! You are being connected to a live radio show. Your {choice['description']} is {choice['name']}. Enjoy"
-        " your call!"
+        f"Step 5! You are being connected to a live radio show. Your {description} is {name}. Enjoy your call!"
     )
     # sip apparently doesn't care about caller IDs from verified phones, so use the PIN code
     response.redirect(url_for("voice_incoming", sip_addr=sip_addr, from_number=pin_code, skip_song="1", _external=True))

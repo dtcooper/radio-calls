@@ -54,7 +54,7 @@
   <script src="/static/assets/alpine-2.8.0.min.js" defer></script>
   <script src="/static/assets/alpine-magic-helpers-1.0.0.min.js"></script>
   <script>
-    var blockHangupStep5Seconds = {% if debug %}10{% else %}75{% endif %}
+    var blockHangupStep5Seconds = {% if debug %}7{% else %}91{% endif %}
     var debug = {{ debug|tojson }}
     var show = {{ show|tojson }}
     var topic = {{ topic|tojson }}
@@ -215,7 +215,7 @@
             style="margin-top: 5px"
             x-bind:class="{error: step != 5, success: step == 5 && (timestamp >= step5HangUpUnblockTime), dark: step == 5 && (timestamp < step5HangUpUnblockTime)}"
             x-bind:disabled="step == 5 && (timestamp < step5HangUpUnblockTime)"
-            x-text="step == 5 ? (timestamp < step5HangUpUnblockTime ? `Finish in ${step5HangUpUnblockTime - timestamp - 1} seconds...` : 'Finish Call!') : 'Hang Up'"
+            x-text="step == 5 ? (timestamp < step5HangUpUnblockTime ? `Continue for ${step5HangUpUnblockTime - timestamp - 1} seconds...` : 'Finish Call!') : 'Hang Up'"
           ></button>
         </div>
         <div class="col-2 is-vertical-align text-center">Speaker Volume:</div>

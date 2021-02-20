@@ -2,6 +2,7 @@
 
 import argparse
 import datetime
+from urllib.parse import urlencode
 
 import boto3
 
@@ -24,12 +25,19 @@ def main():
     parser.add_argument("-H", "--hours", help="Lifetime of assignment", type=float, required=True)
     parser.add_argument("-n", "--num", help="The number of assignments", required=True, type=int)
     parser.add_argument("-d", "--debug", action="store_true", help="Set debug flag to on in hit HTML")
+    parser.add_argument('-s', '--show', choices=('poolabs', 'tigwit'))
 
     args = parser.parse_args()
 
-    url = QUESTION_URL
+    url_kwargs = {}
+    if args.show:
+        url_kwargs['show'] = args.show
     if args.debug:
-        url += "?debug=1"
+        url_kwargs['debug'] = '1'
+
+    url = QUESTION_URL
+    if url_kwargs:
+        url += f'?{urlencode(url_kwargs)}'
 
     question = EXTERNAL_QUESTION_XML.format(url)
 
