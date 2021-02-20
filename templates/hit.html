@@ -383,7 +383,7 @@
       <h3
         class="text-error"
         x-show="step == 5 && !done && (timestamp < step5HangUpUnblockTime)"
-        x-text="`You must stay on the call for another ${step5HangUpUnblockTime - timestamp - 1} seconds.`"
+        x-text="`You must stay on the call for at least another ${step5HangUpUnblockTime - timestamp - 1} seconds.`"
       ></h3>
 
       <h3 class="text-success" x-show="step == 5 && !done && (timestamp >= step5HangUpUnblockTime)">
