@@ -9,7 +9,7 @@
     :root {
       --font-family-sans: BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
       --color-primary: #007acc;
-      --font-size: 1.8rem;
+      --font-size: 1.7rem;
     }
 
     body {
@@ -21,20 +21,21 @@
       position: sticky;
       top: 0;
       background-color: #fff;
-      padding-top 5px;
+      padding-top: 5px;
+      border-bottom: 1px solid var(--color-lightGrey);
       z-index: 1;
     }
 
-    table {
-      text-align: center;
-    }
-
-    td:last-child, th:last-child {
+    table.limit-right-width td:last-child, table.limit-right-width th:last-child {
       width: 35%;
     }
 
+    table.tight {
+      width: auto;
+    }
+
     h1, h2, h3, h4, h5, h6,
-    button, input, .text-bold {
+    button, input, .bold, caption {
       font-weight: bold;
     }
 
@@ -46,12 +47,12 @@
       display: none !important;
     }
 
-    .text-italic {
+    .italic {
       font-style: italic;
     }
 
-    ol {
-      margin-top: 0;
+    .underline {
+      text-decoration: underline;
     }
   </style>
 
@@ -73,6 +74,7 @@
     function radioCall() {
       return {
         step: 0,
+        term: 0,
         choice: null,
         device: null,
         connection: null,
@@ -239,8 +241,8 @@
       </h1>
 
       <p>
-        This is a <strong>funny assignment</strong> &#x1F602; &#x1F602; &#x1F602; where you use your
-        web browser to call &#x1F4DE; people on a live radio show. &#x1F4FB;
+        This is a <strong>funny assignment</strong> &#x1F602; &#x1F602; &#x1F602; where you will
+        use your web browser to call &#x1F4DE; people on a live radio show. &#x1F4FB;
       </p>
 
       <p>
@@ -250,27 +252,112 @@
           &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
       </p>
 
-      <strong><u>Important Terms &amp; Conditions:</u></strong>
-      <ol class="text-bold">
-        <li>You <u>must</u> speak in English.</li>
-        <li>You must have a working headset &#x1F3A7; (or speaker &#x1F509;) <em><u>with a microphone</u></em>. &#x1F3A4;</li>
-        <li><em>Your call will be recorded and broadcast on a live Internet radio show (and podcast).</em></li>
-      </ol>
+      <p>This assignment will take approximately 5 to 10 minutes to complete. &#x1F552; &#x1F552; &#x1F552;</p>
 
-      <strong>Additional Terms &amp; Conditions</strong>
-      <ol start="4">
-        <li class="text-error">You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.</li>
-        <li>
-          You can have any conversation you would like, however <strong>you should mention
-          {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.</strong>
-        </li>
-        <li>If no one answers, you can leave a voicemail{% if not preview %} talking about {{ topic['name'] }}{% endif %}.</li>
+      <strong><u>Important Terms &amp; Conditions:</u>
+        {% if not preview %}<em>(Click to Accept &amp; Continue)</em>{% endif %}</strong>
 
-        <li>You must have a good sense of humour (and be willing to be made fun of).</li>
-      </ol>
+      <table class="tight">
+        <tbody>
+          <tr>
+            <td class="text-right">
+              <button @click.prevent="term += 1" x-bind:disabled="{% if preview %}true{% else %}term != 0{% endif %}" class="button primary">
+              I agree&nbsp;&nbsp;&#x2714;
+              </button>
+            </td>
+            <td class="bold" x-bind:class="{'text-success': term > 0}">
+              You <u>MUST</u> speak in English.
+            </td>
+          </tr>
+          <tr>
+            <td class="text-right">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 1" class="button primary">
+              I have these&nbsp;&nbsp;&#x2714;
+              </button>
+            </td>
+            <td class="bold" x-bind:class="{'text-success': term > 1}">
+              You <u>MUST</u> have a <em>working</em> headset &#x1F3A7; (or speaker &#x1F509;)
+                with a <u>microphone</u>. &#x1F3A4;
+            </td>
+          </tr>
+          <tr>
+            <td class="text-right">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 2" class="button primary">
+              I understand&nbsp;&nbsp;&#x2714;
+              </button>
+            </td>
+            <td class="bold" x-bind:class="{'text-success': term > 2}">
+              Your call will be <u>recorded</u> and <u>broadcast</u> on a live Internet radio show (and podcast).
+            </td>
+          </tr>
+          <tr>
+            <td class="text-right">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 3" class="button primary">
+              I won't&nbsp;&nbsp;&#x2714;
+              </button>
+            </td>
+            <td x-bind:class="{'text-success': term > 3, 'text-error': term <= 3}">
+              You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.
+            </td>
+          </tr>
+          <tr>
+            <td class="text-right">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 4" class="button primary">
+              I will&nbsp;&nbsp;&#x2714;
+              </button>
+            </td>
+            <td x-bind:class="{'text-success': term > 4}">
+              You can have any conversation you would like, however <strong>you should mention
+              {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.</strong>
+              {% if not preview %}&#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="text-right">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 5" class="button primary">
+              I will&nbsp;&nbsp;&#x2714;
+              </button>
+            </td>
+            <td x-bind:class="{'text-success': term > 5}">
+              If no one answers, please leave a voicemail{% if not preview %} talking about {{ topic['name'] }}{% endif %}.
+            </td>
+          </tr>
+          <tr>
+            <td class="text-right">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 6" class="button primary">
+              I understand&nbsp;&nbsp;&#x2714;
+              </button>
+            </td>
+            <td x-bind:class="{'text-success': term > 6}">
+              You should have a of humour <em>(you might be made fun of!)</em>.
+              <strong x-bind:class="{'text-success': term > 6, 'text-error': term <= 6}">If you are a sensitive person <u>DO NOT</u> continue.</strong>
+            </td>
+          </tr>
+          <tr>
+            <td class="text-right">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 7" class="button primary">
+              I understand&nbsp;&nbsp;&#x2714;
+              </button>
+            </td>
+            <td class="italic" x-bind:class="{'text-success': term > 7}">
+              You <strong>may</strong> use a <u>fake name</u>.<br>
+              You <strong>do not</strong> have to <u>tell the truth<u>.<br>
+              You <strong>may</strong> <u>lie about your personal life</u>.<br>
+              You <strong>do not</strong> need to <u>say anything you're not comfortable<u> with.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="text-success" x-show="term >= 8">
+        <em>All right! Are you ready to have some fun?!</em>
+        &#x1F973; &#x1F92A; &#x{{ topic['emoji']}}; &#x1F4DE; &#x1F4FB; &#x1F602;
+      </h3>
+
+      <hr>
 
       <p class="text-center">
-        <button class="button {% if preview %}dark{% else %}primary{% endif %}" x-on:click.prevent="setStep(1)" x-bind:disabled="{{ preview|tojson }}">
+        <button class="button {% if preview %}dark{% else %}primary{% endif %}" x-on:click.prevent="setStep(1)" x-bind:disabled="term < 8">
           {% if preview %}
             You are currently <em>previewing</em> this assignment. Press Accept to start.
           {% else %}
@@ -288,8 +375,8 @@
         from the {{ topic['chart_name'] }} below.
       </blockquote>
 
-      <table class="striped">
-        <caption><strong>{{ topic['chart_name']|title }}</strong></caption>
+      <table class="striped limit-right-width text-center">
+        <caption>{{ topic['chart_name']|title }}</caption>
         <thead>
           <tr>
             <th>Select</th>
@@ -306,9 +393,9 @@
                   Select {{ choice['name'].split(':')[0] }}
                 </button>
               </td>
-              <td class="text-bold">{{ choice['name'] }}</td>
+              <td class="bold">{{ choice['name'] }}</td>
               <td><img class="bd-light" srcset="/static/images/{{ topic['code'] }}/{{ loop.index0 }}.jpg 2x"></td>
-              <td class="text-italic">{{ choice['description'] }}.</td>
+              <td class="italic">{{ choice['description'] }}.</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -316,7 +403,7 @@
 
       <br>
 
-      <p class="text-italic text-bold" x-text="choice === null ? 'You must make a choice above to continue.' : `You selected ${topic.choices[choice].name}.`"></p>
+      <p class="italic bold" x-text="choice === null ? 'You must make a choice above to continue.' : `You selected ${topic.choices[choice].name}.`"></p>
     </div>
 
     <div x-show="step >= 2 || debug">
@@ -374,8 +461,8 @@
       </blockquote>
 
       <template x-if="choice !== null">
-        <table>
-          <caption><strong>{{ topic['chart_name']|title }}</strong></caption>
+        <table class="limit-right-width text-center">
+          <caption>{{ topic['chart_name']|title }}</caption>
           <thead>
             <tr>
               <th>Type</th>
@@ -385,11 +472,11 @@
           </thead>
           <tbody>
             <tr>
-              <td class="text-italic text-bold" x-text="topic.choices[choice].name"></td>
+              <td class="italic bold" x-text="topic.choices[choice].name"></td>
               <td>
                 <img class="bd-light" x-bind:srcset="`/static/images/${topic.code}/${choice}.jpg 2x`">
               </td>
-              <td class="text-italic" x-text="`${topic.choices[choice].description}.`"></td>
+              <td class="italic" x-text="`${topic.choices[choice].description}.`"></td>
             </tr>
           </tbody>
         </table>

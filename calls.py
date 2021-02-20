@@ -254,7 +254,10 @@ def voice_incoming_done():
         message = (
             audio_url(audio, external=True)
             if audio
-            else ("The radio show can not take your call right now. Please leave a message after the tone.")
+            else (
+                "The radio show can not take your call right now. Please leave a message after the tone. When you are"
+                " done, stay silent for a few moments to end the call."
+            )
         )
         response.redirect(
             "http://twimlets.com/voicemail?"
@@ -345,8 +348,8 @@ def amazon_token():
 @app.route("/amazon/update-sid/<topic>/<int:choice>/<sip_addr>/<pin_code>/<call_sid>", methods=("POST",))
 def amazon_update_sid(topic, choice, sip_addr, pin_code, call_sid):
     success = True
-    description = HIT_TOPICS[topic]['description']
-    name = HIT_TOPICS[topic]["choices"][choice]['name']
+    description = HIT_TOPICS[topic]["description"]
+    name = HIT_TOPICS[topic]["choices"][choice]["name"]
 
     response = VoiceResponse()
     response.say(
@@ -394,9 +397,9 @@ def amazon_voice_request():
         hints=", ".join(GATHER_WORDS),
         input="speech",
         speech_model="numbers_and_commands",
-        timeout=3,
+        timeout=2.5,
     )
-    gather.say(f"After the tone, please say the word {word}.")
+    gather.say(f"After the tone, please say the word {word}. Then stay silent for a few moments.")
     gather.play(audio_url(AUDIO_BEEP))
 
     return twiml_response(response)
