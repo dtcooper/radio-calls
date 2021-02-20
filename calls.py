@@ -34,6 +34,7 @@ HIT_TOPICS = {
     "poop": {
         "code": "poop",
         "name": "poop",
+        "emoji": "1F4A9",
         "description": "most recent poop",
         "chart_name": "Bristol Stool Chart",
         "choices": (
@@ -70,6 +71,7 @@ HIT_TOPICS = {
     "pool": {
         "code": "pool",
         "name": "swimming",
+        "emoji": "1F3CA",
         "description": "favourite way to swim",
         "chart_name": "list of swimming strokes",
         "choices": (

@@ -9,6 +9,7 @@
     :root {
       --font-family-sans: BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
       --color-primary: #007acc;
+      --font-size: 1.8rem;
     }
 
     body {
@@ -47,6 +48,10 @@
 
     .text-italic {
       font-style: italic;
+    }
+
+    ol {
+      margin-top: 0;
     }
   </style>
 
@@ -202,9 +207,10 @@
   </h1>
 
   <section x-data="radioCall()" x-init="init(); setStep(0)" class="container" x-cloak>
+
     <div id="volume-nav" class="grid text-center is-marginless is-paddingless" x-show="device !== null && connection !== null">
       <div class="row is-marginless is-paddingless">
-        <div class="col-2 is-vertical-align text-center ">Mic Volume:</div>
+        <div class="col-2 is-vertical-align text-center ">&#x1F3A4; Mic Volume:</div>
         <div class="col-3 is-vertical-align">
           <progress class="is-full-width" x-bind:value="inputVolume.toString()" min="0" max="0.5"></progress>
         </div>
@@ -218,7 +224,7 @@
             x-text="step == 5 ? (timestamp < step5HangUpUnblockTime ? `Continue for ${step5HangUpUnblockTime - timestamp - 1} seconds...` : 'Finish Call!') : 'Hang Up'"
           ></button>
         </div>
-        <div class="col-2 is-vertical-align text-center">Speaker Volume:</div>
+        <div class="col-2 is-vertical-align text-center">&#x1F509; Speaker Volume:</div>
         <div class="col-2 is-vertical-align">
           <progress class="is-full-width" x-bind:value="outputVolume.toString()" min="0" max="0.5"></progress>
         </div>
@@ -227,38 +233,48 @@
 
     <div>
       <h1 id="step0" class="text-center">
+        {% if not preview %}&#x{{ topic['emoji'] }};{% endif %} &#x1F4DE; &#x1F4FB;
         <u>Call a Live Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
+        &#x1F4FB; &#x1F4DE; {% if not preview %}&#x{{ topic['emoji'] }};{% endif %}
       </h1>
 
       <p>
-        This is supposed to be a <strong>funny assignment</strong> where you talk to people
-        on a live radio show{% if not preview %} about your <strong><u>{{ topic['description'] }}</u></strong>{% endif %}.
+        This is a <strong>funny assignment</strong> &#x1F602; &#x1F602; &#x1F602; where you use your
+        web browser to call &#x1F4DE; people on a live radio show. &#x1F4FB;
       </p>
 
       <p>
-        You will make a call in your web broswer to a radio show to tell the hosts
-        about {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.
+        You will talk to the the hosts of the radio show about
+        {% if preview %}the topic in the assignment.{% else %}
+          <strong>your {{ topic['description'] }}</strong>.
+          &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
       </p>
 
-      <strong>Rules:</strong>
-      <ul>
-        <li><strong><u>You must speak in English</u></strong>.</li>
-        <li>You must have a working microphone and headset (or speaker)</li>
-        <li class="text-error">You must <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.</li>
+      <strong><u>Important Terms &amp; Conditions:</u></strong>
+      <ol class="text-bold">
+        <li>You <u>must</u> speak in English.</li>
+        <li>You must have a working headset &#x1F3A7; (or speaker &#x1F509;) <em><u>with a microphone</u></em>. &#x1F3A4;</li>
+        <li><em>Your call will be recorded and broadcast on a live Internet radio show (and podcast).</em></li>
+      </ol>
+
+      <strong>Additional Terms &amp; Conditions</strong>
+      <ol start="4">
+        <li class="text-error">You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.</li>
         <li>
-          You can have any conversation you would like, however you should mention
-          {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.
+          You can have any conversation you would like, however <strong>you should mention
+          {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.</strong>
         </li>
         <li>If no one answers, you can leave a voicemail{% if not preview %} talking about {{ topic['name'] }}{% endif %}.</li>
-        <li><em>Your will be recorded and broadcast on a live Internet radio show and podcast.</em></li>
-      </ul>
+
+        <li>You must have a good sense of humour (and be willing to be made fun of).</li>
+      </ol>
 
       <p class="text-center">
         <button class="button {% if preview %}dark{% else %}primary{% endif %}" x-on:click.prevent="setStep(1)" x-bind:disabled="{{ preview|tojson }}">
           {% if preview %}
             You are currently <em>previewing</em> this assignment. Press Accept to start.
           {% else %}
-            I have <u>carefully</u> read and understand the above!
+            I have <u>carefully</u> read and understand the terms &amp; conditions. I agree to continue.
           {% endif %}
         </button>
       </p>
@@ -298,9 +314,9 @@
         </tbody>
       </table>
 
-      <template x-if="choice !== null">
-        <p class="text-italic text-bold" x-text="`You selected ${topic.choices[choice].name}.`"></p>
-      </template>
+      <br>
+
+      <p class="text-italic text-bold" x-text="choice === null ? 'You must make a choice above to continue.' : `You selected ${topic.choices[choice].name}.`"></p>
     </div>
 
     <div x-show="step >= 2 || debug">
@@ -313,7 +329,9 @@
 
       <p class="text-center">
         <button x-on:click.prevent="call()" class="button success" x-bind:disabled="device === null || connection !== null">
+          &#x1F4DE;&nbsp;&nbsp;
           Start Call
+          &nbsp;&nbsp;&#x1F4DE;
         </button>
       </p>
     </div>
@@ -337,8 +355,9 @@
 
       <blockquote>You will be given a PIN code. Enter it below.</blockquote>
 
-      PIN Code:
+      <label for="pin-code">PIN Code:</label>
       <input id="pin-code" type="text" name="PinCode" x-model="pinCodeInput" pattern="\d*" maxlength="4" x-bind:disabled="step != 4 || pinVerifying">
+      <br>
 
       <p class="text-center">
         <button x-on:click.prevent="verifyPinCode()" class="button primary" x-bind:disabled="step != 4 || pinVerifying">Verify PIN Code</button>
@@ -411,7 +430,7 @@
               x-bind:value="'Submit Assignment' + (done ? '' : ' (Enabled when you are done)')"
               x-bind:disabled="!done"
               {% if not assignment_id or not submit_to %}
-                @click.prevent="alert(`You did not appear to come from Amazon. Not submitting assignment.}`)"
+                @click.prevent="alert('You did not appear to come from Amazon. Not submitting assignment.')"
               {% endif %}
             >
           </p>
