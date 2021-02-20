@@ -12,6 +12,10 @@
       --font-size: 1.7rem;
     }
 
+    .button.big {
+      font-size: 2.2rem;
+    }
+
     body {
       padding-bottom: 150px;
     }
@@ -64,10 +68,11 @@
   <script src="/static/assets/alpine-2.8.0.min.js" defer></script>
   <script src="/static/assets/alpine-magic-helpers-1.0.0.min.js"></script>
   <script>
-    var blockHangupStep5Seconds = {% if debug %}7{% else %}91{% endif %}
+    var blockHangupStep5Seconds = {% if debug %}10{% else %}120{% endif %}
     var debug = {{ debug|tojson }}
     var show = {{ show|tojson }}
     var topic = {{ topic|tojson }}
+    var assignmentId = {{ assignment_id|tojson }}
     var workerId = {{ worker_id|tojson }}
     var hitId = {{ hit_id|tojson }}
 
@@ -204,13 +209,17 @@
 </head>
 <body>
 
-  <h1 class="container text-error bd-error" x-data="{show: true}" x-init="show = false" x-show="show">
-    WARNING: Your web browser is <u>NOT</u> supported. Please use one of the following:
-    <a href="https://www.google.com/chrome/" target="_blank">Google Chrome</a>,
-    <a href="https://www.mozilla.org/en-US/firefox/" target="_blank">Mozilla Firefox</a>,
-    or <a href="https://www.microsoft.com/en-us/edge" target="_blank">Microsoft Edge</a>
-    to complete this assignment.
-  </h1>
+  <div class="container" x-data="{show: true}" x-init="show = false" x-show="show">
+    <div class="bd-error" style="padding: 15px; margin: 15px">
+      <h1 class="text-error is-marginless">
+        WARNING: Your web browser is <u>NOT</u> supported. Please use one of the following:
+        <a href="https://www.google.com/chrome/" target="_blank">Google Chrome</a>,
+        <a href="https://www.mozilla.org/en-US/firefox/" target="_blank">Mozilla Firefox</a>,
+        or <a href="https://www.microsoft.com/en-us/edge" target="_blank">Microsoft Edge</a>
+        to complete this assignment.
+      </h1>
+    </div>
+  </div>
 
   <section x-data="radioCall()" x-init="init(); setStep(0)" class="container" x-cloak>
 
@@ -269,17 +278,17 @@
                 I agree&nbsp;&nbsp;&#x2714;
               </button>
             </td>
-            <td class="bold" x-bind:class="{'text-success': term > 0}">
+            <td class="bold" x-bind:class="{'text-grey': term > 0}">
               You <u>MUST</u> speak in English.
             </td>
           </tr>
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 1" class="button primary">
-              I have these&nbsp;&nbsp;&#x2714;
+                I have this&nbsp;&nbsp;&#x2714;
               </button>
             </td>
-            <td class="bold" x-bind:class="{'text-success': term > 1}">
+            <td class="bold" x-bind:class="{'text-grey': term > 1}">
               You <u>MUST</u> have a <em>working</em> headset &#x1F3A7; (or speaker &#x1F509;)
                 with a <u>microphone</u>. &#x1F3A4;
             </td>
@@ -290,17 +299,17 @@
                 I understand&nbsp;&nbsp;&#x2714;
               </button>
             </td>
-            <td class="bold" x-bind:class="{'text-success': term > 2}">
+            <td class="bold" x-bind:class="{'text-grey': term > 2}">
               Your call will be <u>recorded</u> and <u>broadcast</u> on a live Internet radio show &#x1F4FB; (and podcast).
             </td>
           </tr>
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 3" class="button primary">
-               I won't&nbsp;&nbsp;&#x2714;
+               I will not&nbsp;&nbsp;&#x2714;
               </button>
             </td>
-            <td x-bind:class="{'text-success': term > 3, 'text-error': term <= 3}">
+            <td x-bind:class="{'text-grey': term > 3, 'text-error': term <= 3}">
               You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.
             </td>
           </tr>
@@ -310,7 +319,7 @@
                 I will&nbsp;&nbsp;&#x2714;
               </button>
             </td>
-            <td x-bind:class="{'text-success': term > 4}">
+            <td x-bind:class="{'text-grey': term > 4}">
               You can have any conversation you would like, but <strong>please mention
               {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.</strong>
               {% if not preview %}&#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
@@ -322,8 +331,9 @@
                 I will&nbsp;&nbsp;&#x2714;
               </button>
             </td>
-            <td x-bind:class="{'text-success': term > 5}">
+            <td x-bind:class="{'text-grey': term > 5}">
               If no one answers, please leave a voicemail{% if not preview %} talking about {{ topic['name'] }}{% endif %}.
+              {% if not preview %}&#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
             </td>
           </tr>
           <tr>
@@ -332,10 +342,14 @@
                 I understand&nbsp;&nbsp;&#x2714;
               </button>
             </td>
-            <td x-bind:class="{'text-success': term > 6}">
-              You should have a of humour. &#x1F602; <em>(You might be made fun of!)</em>
+            <td x-bind:class="{'text-grey': term > 6}">
+              You should have a of humour. &#x1F602; &#x1F602; &#x1F602;
               <br>
-              <strong x-bind:class="{'text-success': term > 6, 'text-error': term <= 6}">If you are a sensitive person <u>DO NOT</u> continue.</strong>
+              <em>You might be made fun of!</em> &#x1F632; &#x1F632; &#x1F632;
+              <br>
+              <strong x-bind:class="{'text-grey': term > 6, 'text-error': term <= 6}">
+                If you are a sensitive person please <u>DO NOT</u> continue.
+              </strong>
             </td>
           </tr>
           <tr>
@@ -344,11 +358,11 @@
               I understand&nbsp;&nbsp;&#x2714;
               </button>
             </td>
-            <td class="italic" x-bind:class="{'text-success': term > 7}">
+            <td class="italic" x-bind:class="{'text-grey': term > 7}">
               You <strong>may</strong> use a <u>fake name</u>.<br>
-              You <strong>do not</strong> have to <u>tell the truth<u>.<br>
-              You <strong>may</strong> <u>lie about your personal life</u>.<br>
-              You <strong>do not</strong> need to <u>say anything you're not comfortable<u> with.
+              You <strong>do not</strong> have to <u>tell the truth</u>.<br>
+              You <strong>may</strong> <u>lie</u> about your <u>personal life</u>.<br>
+              You <strong>do not</strong> need to say <u>anything</u> you're <u>not comfortable</u> with.
             </td>
           </tr>
         </tbody>
@@ -362,11 +376,11 @@
       <hr>
 
       <p id="accept-terms" class="text-center">
-        <button class="button {% if preview %}dark{% else %}primary{% endif %}" x-on:click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)">
+        <button class="button big {% if preview %}dark{% else %}primary{% endif %}" x-on:click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)">
           {% if preview %}
             You are currently <em>previewing</em> this assignment. Press Accept to start.
           {% else %}
-            I have <u>carefully</u> read and understand the terms &amp; conditions. I agree to continue.
+            I have <u>carefully</u> read, understood and agree to the above terms &amp; conditions.
           {% endif %}
         </button>
       </p>
@@ -511,7 +525,8 @@
 
       {% if assignment_id and submit_to %}
         <form method="POST" action="{{ submit_to }}/mturk/externalSubmit">
-          <input type="hidden" name="assignmentId" value="{{ assignment_id }}">
+          <!-- prevent naive form submission -->
+          <input type="hidden" name="assignmentId" x-bind:value="done ? assignmentId : ''">
           <input type="hidden" name="PinCode" x-bind:value="pinCode">
           <input type="hidden" name="CallDurationSeconds" x-bind:value="(step5StartTime !== null && step5EndTime !== null) ? step5EndTime - step5StartTime : -1">
       {% endif %}
