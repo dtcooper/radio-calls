@@ -34,6 +34,10 @@
       width: auto;
     }
 
+    table.tight button {
+      white-space: nowrap;
+    }
+
     h1, h2, h3, h4, h5, h6,
     button, input, .bold, caption {
       font-weight: bold;
@@ -254,15 +258,15 @@
 
       <p>This assignment will take approximately 5 to 10 minutes to complete. &#x1F552; &#x1F552; &#x1F552;</p>
 
-      <strong><u>Important Terms &amp; Conditions:</u>
+      <strong id="terms"><u>Important Terms &amp; Conditions:</u>
         {% if not preview %}<em>(Click to Accept &amp; Continue)</em>{% endif %}</strong>
 
       <table class="tight">
         <tbody>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="{% if preview %}true{% else %}term != 0{% endif %}" class="button primary">
-              I agree&nbsp;&nbsp;&#x2714;
+              <button @click.prevent="term += 1; $scroll('#terms')" x-bind:disabled="{% if preview %}true{% else %}term != 0{% endif %}" class="button primary">
+                I agree&nbsp;&nbsp;&#x2714;
               </button>
             </td>
             <td class="bold" x-bind:class="{'text-success': term > 0}">
@@ -283,17 +287,17 @@
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 2" class="button primary">
-              I understand&nbsp;&nbsp;&#x2714;
+                I understand&nbsp;&nbsp;&#x2714;
               </button>
             </td>
             <td class="bold" x-bind:class="{'text-success': term > 2}">
-              Your call will be <u>recorded</u> and <u>broadcast</u> on a live Internet radio show (and podcast).
+              Your call will be <u>recorded</u> and <u>broadcast</u> on a live Internet radio show &#x1F4FB; (and podcast).
             </td>
           </tr>
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 3" class="button primary">
-              I won't&nbsp;&nbsp;&#x2714;
+               I won't&nbsp;&nbsp;&#x2714;
               </button>
             </td>
             <td x-bind:class="{'text-success': term > 3, 'text-error': term <= 3}">
@@ -303,11 +307,11 @@
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 4" class="button primary">
-              I will&nbsp;&nbsp;&#x2714;
+                I will&nbsp;&nbsp;&#x2714;
               </button>
             </td>
             <td x-bind:class="{'text-success': term > 4}">
-              You can have any conversation you would like, however <strong>you should mention
+              You can have any conversation you would like, but <strong>please mention
               {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.</strong>
               {% if not preview %}&#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
             </td>
@@ -315,7 +319,7 @@
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 5" class="button primary">
-              I will&nbsp;&nbsp;&#x2714;
+                I will&nbsp;&nbsp;&#x2714;
               </button>
             </td>
             <td x-bind:class="{'text-success': term > 5}">
@@ -325,17 +329,18 @@
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 6" class="button primary">
-              I understand&nbsp;&nbsp;&#x2714;
+                I understand&nbsp;&nbsp;&#x2714;
               </button>
             </td>
             <td x-bind:class="{'text-success': term > 6}">
-              You should have a of humour <em>(you might be made fun of!)</em>.
+              You should have a of humour. &#x1F602; <em>(You might be made fun of!)</em>
+              <br>
               <strong x-bind:class="{'text-success': term > 6, 'text-error': term <= 6}">If you are a sensitive person <u>DO NOT</u> continue.</strong>
             </td>
           </tr>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 7" class="button primary">
+              <button @click.prevent="term += 1; $scroll('#accept-terms')" x-bind:disabled="term != 7" class="button primary">
               I understand&nbsp;&nbsp;&#x2714;
               </button>
             </td>
@@ -356,8 +361,8 @@
 
       <hr>
 
-      <p class="text-center">
-        <button class="button {% if preview %}dark{% else %}primary{% endif %}" x-on:click.prevent="setStep(1)" x-bind:disabled="term < 8">
+      <p id="accept-terms" class="text-center">
+        <button class="button {% if preview %}dark{% else %}primary{% endif %}" x-on:click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)">
           {% if preview %}
             You are currently <em>previewing</em> this assignment. Press Accept to start.
           {% else %}
@@ -412,13 +417,14 @@
       <blockquote>
         Click the button below to place the call in your browser.<br>
         <strong class="text-success">You will need to enable your microphone.</strong>
+        &#x1F3A4; &#x1F3A4; &#x1F3A4;
       </blockquote>
 
       <p class="text-center">
         <button x-on:click.prevent="call()" class="button success" x-bind:disabled="device === null || connection !== null">
-          &#x1F4DE;&nbsp;&nbsp;
+          &#x1F4DE;&nbsp;&#x1F4DE;&nbsp;&nbsp;
           Start Call
-          &nbsp;&nbsp;&#x1F4DE;
+          &nbsp;&nbsp;&#x1F4DE;&nbsp;&#x1F4DE;
         </button>
       </p>
     </div>
@@ -427,7 +433,7 @@
       <h2 id="step3">Step 3: Repeat the Word</h2>
 
       <blockquote>
-        You will be called and the voice will say a word. Repeat it after the tone.<br>
+        You will be called and the voice will say a word. Repeat it after the tone, then stay silent for a few moments.<br>
         When you have successfully done this, click <em>Ready for Step 4</em> below.
       </blockquote>
 

@@ -25,7 +25,7 @@ def main():
     parser.add_argument("-H", "--hours", help="Lifetime of assignment", type=float, required=True)
     parser.add_argument("-n", "--num", help="The number of assignments", required=True, type=int)
     parser.add_argument("-d", "--debug", action="store_true", help="Set debug flag to on in hit HTML")
-    parser.add_argument("-s", "--show", choices=("poolabs", "tigwit"))
+    parser.add_argument("-s", "--show", choices=("poolabs", "tigwit"), help="Show to choose", required=True)
 
     args = parser.parse_args()
 
