@@ -1,0 +1,4183 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Manage HITs</title>
+  <meta name="description" content="Browser-based MTurk management console">
+  <meta name="author" content="jtjacques@gmail.com">
+
+  <!-- AWS SDK, Amazon.com, Inc.: https://github.com/aws/aws-sdk-js -->
+  <!--
+    jsDelivr: https://www.jsdelivr.com/package/npm/aws-sdk?path=dist
+    Using alternative CDN source supporting CORS to allow SRI check.
+    Integrity hash generated from the official source as follows:
+    curl https://sdk.amazonaws.com/js/aws-sdk-2.744.0.min.js | openssl dgst -sha512 -binary | openssl base64 -A
+  -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/aws-sdk@2.744.0/dist/aws-sdk.min.js"
+    integrity="sha512-l1lT1pJi6jbEhBSVBWyYTA5ZCLjhc2sqb6C/IbgcNlnNLR0bUNhFGGTmpJWojyadEQar7VyeM489Cole8qwiWA=="
+    crossorigin="anonymous"></script>
+
+  <!-- jQuery, JS Foundation: https://code.jquery.com -->
+  <script
+    src="https://code.jquery.com/jquery-3.5.1.min.js"
+    integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg=="
+    crossorigin="anonymous"></script>
+
+  <!-- jQuery UI, JS Foundation: https://code.jquery.com/ui -->
+  <script
+    src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"
+    integrity="sha512-4DaiBX8rsgOoBSNLceQ/IixDF+uUDV0hJrQX/MJ9RwJZCDqbEp0EjIQodGxszPtTpwlenJznR2jkgDWqj4Hs+A=="
+    crossorigin="anonymous"></script>
+  <link rel="stylesheet"
+    href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"
+    integrity="sha512-/Q1sBqvNZheW2yvAccKiu/xc/o2AtDS2jNBozDEqA/8Mk/IcH853wrwDSGqAdl7jFyOWOcefLtwDd3kYo276Hw=="
+    crossorigin="anonymous">
+
+  <!-- AlaSQL, Andrey Gershun: https://github.com/agershun/alasql -->
+  <!--
+    Note: http://www.jsdelivr.com/#!alasql is the preferred CDN source
+  -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/alasql@0.6.3/dist/alasql.min.js"
+    integrity="sha512-ZvYnxRnB0dm8FRpFl8d3xr47N7VV8jBK2Z5tpZOSagUQ7DUMTIOPiqsbwYKp7msJWlTcVZyUqtwsrgNCkLoBag=="
+    crossorigin="anonymous"></script>
+  <script>
+    // simple conversion function for csv export
+    function exportData(file, rows) {
+        alasql('SELECT * INTO CSV("' + file + '", {separator:",", headers:false}) FROM ?', [rows]);
+    }
+  </script>
+
+  <style>
+    * {
+      font-family: Helvetica, Arial, sans-serif;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      margin: 0;
+    }
+
+    #login, #content {
+      flex: 1 0 auto;
+      margin: 0.75em;
+    }
+
+    #content {
+      min-height: 100%;
+      margin-bottom: 7.5em;
+    }
+
+    table {
+        border-collapse: collapse;
+        margin-top: 1em;
+        width: 100%;
+    }
+
+    table, th, td {
+        border: 1px solid black;
+        padding: 0.25em 0.75em;
+    }
+
+      table .search-only {
+        float: left;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+
+      table .hitid a, table .assignmentid > span {
+        /* make hover events work slightly to the right */
+        padding-right: 2em;
+        margin-right: -2em;
+      }
+
+      table a .hover-only, table .assignmentid span .hover-only {
+        position: absolute;
+        margin-left: 5em;
+        margin-top: -2.5em;
+        z-index: 100;
+        background-color: white;
+        color: black;
+        border: 0.1em solid silver;
+        font-size: 90%;
+        cursor: default;
+
+        display: none;
+      }
+
+      table .assignmentid > span .hover-only {
+        margin-top: -1.9em;
+        margin-left: -1.5em;
+        font-size: 100%;
+      }
+
+      table a:hover .hover-only, table .assignmentid span:hover .hover-only {
+        display: block;
+      }
+
+        table a .hover-only span, table .assignmentid span .hover-only span {
+          display: block;
+          margin: 0.75em 1em;
+        }
+
+          table a .hover-only span:before {
+            padding-right: 0.25em;
+          }
+
+          table a .hover-only span.hover-hit-id:before {
+            content: 'HIT ID:';
+          }
+
+          table a .hover-only span.hover-group-id:before {
+            content: 'Group ID:';
+          }
+
+          table a .hover-only span.hover-type-id:before {
+            content: 'Type ID:';
+          }
+
+      td.checkbox, td.reject {
+        text-align: center;
+      }
+
+        td.reject a {
+          margin-left: 0;
+        }
+
+    table div, .ui-dialog-content table div {
+      margin: 0.23em 0;
+    }
+
+    tr.ended {
+      background-color: silver;
+    }
+
+    tr.ended.waiting {
+      background-color: whitesmoke;
+    }
+
+    tr.assignment.rejected .reject a,
+    tr.assignment.approved .reject a,
+    tr.assignment.approved .checkbox input {
+      display: none;
+    }
+
+    tr.assignment.approved {
+      background-color: whitesmoke;
+    }
+
+    tr.assignment.rejected{
+      background-color: mistyrose;
+    }
+
+    tr.assignment .time .future {
+      font-style: italic;
+      opacity: 0.75;
+    }
+
+    a, .qualid a.clickable {
+      color: blue;
+    }
+
+    h2 {
+      margin-top: 1.5em;
+    }
+
+    h1 a, .hit .hitid a {
+      color: inherit;
+    }
+
+      h1 a.clickable, .hit .hitid a.clickable {
+        color: blue;
+      }
+
+    noscript, .warn {
+      display: block;
+      border: 0.2em dashed black;
+      padding: 1em;
+      margin: 1em;
+      background-color: mistyrose;
+      border-color: firebrick;
+      color: darkred;
+    }
+
+    .clickable {
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+      .clickable.ui-button {
+        line-height: 2em;
+      }
+
+      #worker-actions-menu .clickable.ui-button {
+        line-height: 1.75em;
+      }
+
+    #header {
+      background-color: firebrick;
+      font-weight: bold;
+      font-size: 120%;
+      padding: 0.5em 1em;
+      box-sizing: border-box;
+    }
+
+    #header-aws {
+      line-height: 2em;
+    }
+
+      #header a {
+        color: white;
+      }
+
+      #header.sandbox {
+        background-color: goldenrod;
+      }
+
+      #header-aws {
+        width: 100%;
+      }
+
+        #header-aws span.clickable {
+          float: right;
+          text-decoration: none;
+          line-height: 1em;
+        }
+
+      #header-aws-balance {
+        font-weight: normal;
+        margin-left: 1em;
+      }
+
+    #footer {
+      opacity: 0.60;
+      font-size: 80%;
+      padding: 1em;
+      flex-shrink: 0;
+      text-align: right;
+      box-sizing: border-box;
+      display: block !important;
+    }
+
+    #main-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9999999;
+      background-color: rgba(192, 192, 192, 0.66);
+    }
+
+      #main-loading img {
+        position: fixed;
+        top: 50vh; /*5.25em;*/
+        right: 50vw; /*2em;*/
+
+        padding: 10px;
+        margin-left: -27px;
+        margin-top: -27px;
+
+        border: 2px solid silver;
+        border-color: darkgray; /*rgba(128, 128, 128, 0.25);*/
+        border-radius: 0.5em;
+        background-color: white;
+        background-color: rgba(255, 255, 255, 0.85);
+        display: flex;
+      }
+
+    .hit .title a {
+      margin-left: 0.5em;
+      font-size: 80%;
+      vertical-align: text-top;
+    }
+
+    .hit .title a.not-avail{
+      color: silver;
+      text-decoration: none;
+    }
+
+    a.faint {
+      color: grey;
+      text-decoration: none;
+      display: inline-block;
+      line-height: 100%;
+      vertical-align: top;
+      padding-top: 0.25em;
+      font-weight: normal;
+      font-size: 70%;
+    }
+
+    .hit .keywords, .qual .keywords {
+      font-size: 80%;
+    }
+
+    .hit .status .pending span span:before {
+      content: ' (+';
+    }
+    .hit .status .pending span span:after {
+      content: ')';
+    }
+
+    .actions {
+      margin: 1em 0;
+    }
+
+      .actions a {
+        padding: 0 0.75em;
+        margin-left: 1.5em;
+      }
+
+      .actions a:not(.ui-widget) {
+        color: blue;
+      }
+
+        .actions a.active, .actions a.adjunct {
+          margin-left: 0;
+          margin-left: 0;
+        }
+
+        .actions a.adjunct {
+          font-style: italic;
+        }
+
+    .remove {
+      text-align: center;
+      font-size: 80%;
+    }
+
+      .remove a {
+        margin: 0;
+      }
+
+    td.workerid {
+      position: relative;
+    }
+
+      td.workerid .worker-actions, .remove.actions {
+        opacity: 0.33;
+      }
+
+      td.workerid:hover .worker-actions, .remove.actions:hover {
+        opacity: 1;
+      }
+
+      .workerid .workerid {
+        padding: 1.55em 0;
+      }
+
+    .worker-actions {
+      margin-left: -0.15em;
+      font-size: 75%;
+      position: absolute;
+      top: 50%;
+    }
+
+      .worker-actions a {
+        margin: 0.75em 1em 0 0;
+      }
+
+      .worker-actions a:last-child {
+        margin-right: 0;
+      }
+
+
+    #main-list-limit-summary, .summary {
+      float: right;
+      margin: 0.5em 0.25em 0 0;
+    }
+
+    .ui-dialog-content .summary {
+      margin-top: 0.5em;
+    }
+
+    #main-list-search, #quals-list-search, #quals-worker-search {
+      font-family: inherit;
+      font-size: inherit;
+      padding: 0.2em;
+      width: 12em;
+      margin-left: 1em;
+    }
+    ::-webkit-input-placeholder { font-style: italic; }
+    :-moz-placeholder { font-style: italic; }
+    ::-moz-placeholder { font-style: italic; }
+    :-ms-input-placeholder { font-style: italic; }
+
+    #quals-list-search, #quals-worker-search {
+      float: none;
+      margin-top: 0.15em;
+      margin-bottom: 0;
+      width: 18em;
+    }
+
+    #main-list-refresh {
+      text-decoration: none;
+    }
+
+    #main-list-refresh svg, .refresh-icon svg {
+      width: 1.15em;
+      height: 1.15em;
+      margin-bottom: -0.2em;
+    }
+
+    a.refresh-icon {
+      text-decoration: none;
+    }
+
+    #main-manage-refresh svg {
+      width: 1em;
+      height: 1em;
+      margin-bottom: -0.05em;
+    }
+
+    #worker-actions-menu ul, #worker-quals-menu ul {
+      list-style-type: none;
+      padding: 0;
+    }
+
+    #worker-actions-menu li span, #worker-quals-menu li span {
+      display: block;
+      margin: 1em 0 2em 0;
+    }
+
+    #login form {
+      display: block;
+      width: 50vw;
+      margin: 25vh auto;
+      border: 0.1em solid silver;
+      padding: 2em;
+      box-sizing: border-box;
+      font-size: 120%;
+    }
+
+      #login form * {
+        display: block;
+      }
+
+      #login form input, #login form select {
+        margin: 0 0 1em 0;
+        width: 100%;
+        box-sizing: border-box;
+        font-size: inherit;
+        border: 0.05em solid silver;
+        padding: 0.25em 0.5em;
+      }
+
+      #login form button {
+        float: right;
+        font-size: inherit;
+        padding: 0.5em 0.75em;
+        clear: both;
+      }
+
+      #login form:after {
+        content: '';
+        display: block;
+        clear: both;
+      }
+
+    .ui-dialog form {
+      padding-top: 1em;
+      margin-left: 2%;
+    }
+
+    .ui-dialog div {
+      clear: both;
+    }
+
+    .ui-dialog label {
+      display: block;
+      float: left;
+      clear: left;
+      width: 25%;
+      margin-right: 1em
+    }
+
+      .ui-dialog label:after {
+        content: ":";
+        /*display: inline-block;*/
+        float: right;
+        margin-top: -0.1em;
+      }
+
+    .ui-dialog input, .ui-dialog textarea, .ui-dialog select {
+      float: left;
+      width: 65%;
+      margin-bottom: 1em;
+      margin-top: -0.35em;
+      padding: 0.25em;
+    }
+
+    .ui-dialog select {
+      height: 1.9em;
+    }
+
+    .ui-dialog .half select {
+      margin-left: 1em;
+    }
+
+    .ui-dialog textarea {
+      height: 10em;
+    }
+
+    .ui-dialog .half input, .ui-dialog .half select {
+      width: 30%;
+    }
+
+    .ui-dialog .wide label {
+      width: 50%;
+    }
+
+    .ui-dialog iframe {
+      border: 0.15em solid silver;
+    }
+
+    .ui-dialog-content div {
+      margin-top: 0.25em;
+      margin-bottom: 0.75em;
+    }
+
+    .message-content {
+      display: block;
+      width: 100%;
+      margin-top: 0.35em;
+      /* font-style: italic; */
+      border: 0.05em solid silver;
+      min-height: 5em;
+      padding: 0.25em 0.5em;
+      box-sizing: border-box;
+    }
+
+    #hit-preview {
+      overflow: hidden;
+    }
+
+    #bonus-reference {
+      font-style: italic;
+      color: gray;
+    }
+
+    #hit-preview iframe {
+      width: 100%;
+      height: 100%;
+    }
+
+    #pay-result-url {
+      color: blue;
+    }
+
+    textarea.extra-workers {
+      height: 3em;
+      width: 100%;
+    }
+
+  </style>
+
+  <script>
+
+    // global variables
+    var __session = [];
+
+    // how often to refresh cached data from api, in ms
+    __session['refresh-freq'] = 5 * 60 * 1000;
+
+    // base rate limit delay, in ms
+    __session['rate-limit-delay'] = 50;
+
+    // entry point
+    $(function() {
+      preFlight();
+      attachEvents();
+      updateMode();
+    });
+
+    // preflight function
+    function preFlight() {
+      try {
+        $('#login-time-zone').text( 'Local (' +
+            Intl.DateTimeFormat().resolvedOptions().timeZone + ')' );
+      } catch (e) { }
+
+      // prevent accidental close
+      $(window).on('beforeunload', function(event) {
+          event.preventDefault(); // default
+          event.returnValue = ''; // chrome
+          return '';
+      });
+    }
+
+    // attach events to various ui elements
+    function attachEvents() {
+
+      // show login on change
+      $('#header-aws').click(function(event) {
+        updateMode('login');
+      });
+
+      // login button
+      $('#login-button').click(function(event) {
+        event.preventDefault();
+        setLogin(event);
+      });
+
+      // qualifications worker search box
+      $('#quals-worker-search').change(function(event) {
+        event.preventDefault();
+        $('#quals-worker-limit-all').removeClass('clickable').addClass('clickable');
+        listHideExceptSearchTable('quals-worker-table', $(this).val());
+        updateQualsSummary('quals-worker-table', 'quals-worker-summary-shown', 'quals-worker-summary-total');
+      });
+      $('#quals-worker-search').keyup(function(event) {
+        $('#quals-worker-search').change();
+      });
+
+      // qualifications worker all link
+      $('#quals-worker-limit-all').click(function(event) {
+        $('#quals-worker-search').val('');
+        $('#quals-worker-search').change();
+        $(this).removeClass('clickable');
+      });
+
+      // qualifications search box
+      $('#quals-list-search').change(function(event) {
+        event.preventDefault();
+        $('#quals-list-limit-all').removeClass('clickable').addClass('clickable');
+        listHideExceptSearchTable('quals-list-table', $(this).val());
+        updateQualsSummary('quals-list-table', 'quals-menu-summary-shown', 'quals-menu-summary-total');
+      });
+      $('#quals-list-search').keyup(function(event) {
+        $('#quals-list-search').change();
+      });
+
+      // qualifications all link
+      $('#quals-list-limit-all').click(function(event) {
+        $('#quals-list-search').val('');
+        $('#quals-list-search').change();
+        $(this).removeClass('clickable');
+      });
+
+      // search box
+      $('#main-list-search').change(function(event) {
+        event.preventDefault();
+        $('#main-list-limit a').removeClass('clickable').addClass('clickable');
+        listHideExceptSearch($(this).val());
+      });
+      $('#main-list-search').keyup(function(event) {
+        $('#main-list-search').change();
+      });
+
+      // all link
+      $('#main-list-limit-all').click(function(event) {
+        $('#main-list-search').val('');
+        updateMode('list'); // switch mode to trigger refresh check
+        $('#main-list-search').change();
+        $(this).removeClass('clickable');
+      });
+
+      // active link
+      $('#main-list-limit-all-active').click(function(event) {
+        $('#main-list-search').val('status/active ');
+        $('#main-list-search').change();
+        $(this).removeClass('clickable');
+      });
+
+      // waiting link
+      $('#main-list-limit-all-waiting').click(function(event) {
+        $('#main-list-search').val('status/waiting ');
+        $('#main-list-search').change();
+        $(this).removeClass('clickable');
+      });
+
+      // ended link
+      $('#main-list-limit-all-ended').click(function(event) {
+        $('#main-list-search').val('status/ended ');
+        $('#main-list-search').change();
+        $(this).removeClass('clickable');
+      });
+
+      // manage hits title (proxy for all link)
+      $('#main-list-manage').click(function(event) {
+        //$('#main-list-limit-all').click();
+        updateMode('list');
+        $('#main-list-search').change();
+        $(this).removeClass('clickable');
+      });
+
+      // refresh icons
+      $('#main-list-refresh, #main-manage-refresh').click(function(event) {
+        // clear caches
+        __session['hits-age'] = 0;
+        __session['hits'] = [];
+        __session['assignments-age'] = 0;
+        __session['assignments'] = [];
+
+        updateMode('refresh');
+      });
+
+      $('#quals-list-refresh').click(function(event) {
+        updateQuals(true);
+      });
+
+      $('#quals-worker-list-refresh').click(function(event) {
+        updateQualsWorkers(true);
+      });
+
+      // other actions
+      $('#main-list-utils').click(function(event) {
+
+        $('#worker-actions-menu').dialog({
+          width: 650,
+          minWidth: 450,
+          modal: true,
+          open: function(event, ui) { },
+          buttons: {
+            Close: function() {
+              $(this).dialog('close');
+            }
+          }
+        });
+
+      });
+
+      // other actions - message
+      $('#worker-action-message').click(function(event) {
+        $(this).closest('.ui-dialog-content').dialog('close');
+        messageWorkers(null, '');
+      });
+
+      // other actions - pay
+      $('#worker-action-pay').click(function(event) {
+        $(this).closest('.ui-dialog-content').dialog('close');
+        $('#worker-actions-pay-create').dialog({
+          width: 450,
+          minWidth: 450,
+          modal: true,
+          open: function(event, ui) {
+            $('#pay-create-workerid').val('');
+            $('#pay-create-value').val('0.00');
+            $('#pay-create-auto').val(300);
+          },
+          buttons: {
+            "Create Task": function() {
+
+              $(this).dialog('close');
+
+              var workerid = $('#pay-create-workerid').val();
+              if(!workerid.length) {
+                showMessage('Worker ID Required', 'A worker ID is required for this action.')
+                return;
+              }
+
+              var pay = parseInt((parseFloat($('#pay-create-value').val()) * 100))/100;
+              if(isNaN(pay) || pay <= 0) {
+                pay = 0;
+                showMessage('Task Value Required', 'The task value must be set and be greater than zero.', 'pay value error  (' + $('#pay-create-value').val() + ')');
+                return;
+              }
+
+              var auto = parseFloat($('#pay-create-auto').val());
+
+              $('#worker-actions-pay-confirm').dialog({
+                width: 450,
+                minWidth: 450,
+                modal: true,
+                open: function(event, ui) {
+                  $('#pay-confirm-workerid').text(workerid);
+                  $('#pay-confirm-value').text(currencyPad(pay));
+                  $('#pay-confirm-auto').text($('#pay-create-auto option:selected').text());
+                  $(this).closest('.ui-dialog').find('.ui-dialog-buttonpane').find('button:last').focus();
+                },
+                buttons: {
+                  "Create Payment Task": function() {
+                    doreq(reqCreatePaymentTask, {WorkerId: workerid, Reward: pay, AutoApprovalDelayInSeconds: auto});
+                    $(this).dialog('close');
+                    return;
+                  },
+                  Cancel: function() {
+                    console.log('pay confirm cancel');
+                    $(this).dialog('close');
+                  }
+                }
+              });
+
+            },
+            Cancel: function() {
+              console.log('pay create cancel');
+              $(this).dialog('close');
+            }
+          }
+        });
+
+      });
+
+      // other actions - visit mturk
+      $('#worker-action-mturk').click(function(event) {
+        $(this).closest('.ui-dialog-content').dialog('close');
+        window.open('https://requester' + (($('#login-aws-endpoint').val().indexOf('sandbox') > -1) ? 'sandbox' : '') + '.mturk.com/workers' , '_blank');
+      });
+
+      // other actions - qualifications
+      $('#worker-action-quals').click(function(event) {
+        $(this).closest('.ui-dialog-content').dialog('close');
+        $('#worker-quals-list').dialog({
+          height: (window.innerHeight - 100),
+          width: (window.innerWidth - 150),
+          modal: true,
+          open: function(event, ui) {
+            $('#quals-list-search').val('');
+            updateQuals();
+          },
+          buttons: {
+            Close: function() {
+              $(this).dialog('close');
+            }
+          }
+        });
+      });
+
+      // copy qualified workerids to clipboard
+      $('#quals-worker-table-header th:first').click(function(event) {
+        $('#quals-workers-all').text('');
+        $('#quals-worker-table .workerid a:visible').each(function(i,e) {
+          $('#quals-workers-all').text($('#quals-workers-all').text() + $(e).text() + "\n");
+        })
+        var workerids = document.getElementById('quals-workers-all');
+        workerids.focus();
+        workerids.select();
+        try {
+          var status = document.execCommand('copy');
+          if (!status) {
+            alert('Unable to copy to clipboard');
+          }
+        } catch (err) {
+          alert('Unable to copy to clipboard');
+        }
+        $('#quals-worker-search').focus();
+      });
+
+      // qualifications actions - add
+      $('#quals-menu-create').click(function(event) {
+        $('#quals-add-qual').dialog({
+          width: 450,
+          minWidth: 450,
+          modal: true,
+          open: function(event, ui) {
+            $('#qual-add-name').val('');
+            $('#qual-add-desc').val('');
+            $('#qual-add-keywords').val('');
+          },
+          buttons: {
+            "Create": function() {
+              if($('#qual-add-name').val()) {
+                req({}, function(data) {
+                  d = isret(data);
+                  console.log(d);
+                  if(d.return) {
+                    $('#quals-list-search').val(d.return);
+                    showMessage('Processing', 'This action may take a few minutes to take effect.', null, updateQuals);
+                    //$('#main-loading').show();
+                    //window.setTimeout(updateQuals, 5000); // delay for processing
+                  }
+                }, reqCreateQualification, {
+                  Name: $('#qual-add-name').val(),
+                  Description: $('#qual-add-desc').val(),
+                  Keywords: $('#qual-add-keywords').val()
+                });
+              } else {
+                showMessage('Error', 'No name specified.');
+              }
+              $(this).dialog('close');
+            },
+            Cancel: function() {
+              $(this).dialog('close');
+            }
+          }
+        });
+      });
+
+      // other actions - workers qualification - add
+      $('#quals-worker-add').click(function(event) {
+        $('#quals-add-worker').dialog({
+          width: 450,
+          minWidth: 450,
+          modal: true,
+          open: function(event, ui) {
+            $('#quals-add-workerids').val('');
+            updateQuals();
+          },
+          buttons: {
+            "Add Workers": function() {
+              assignWorkersQualification($('#quals-add-workerids').val(), $('#quals-add-value').val());
+              $(this).dialog('close');
+            },
+            Cancel: function() {
+              $(this).dialog('close');
+            }
+          }
+        });
+      });
+
+      // download all quals link
+      $('#quals-menu-download').click(function(event) {
+        downloadQuals();
+      });
+
+      // download all qualified workers link
+      $('#quals-worker-download').click(function(event) {
+        downloadQualWorkers();
+      });
+
+
+      // download link
+      $('#main-manage-download').click(function(event) {
+        downloadData();
+      });
+
+      // all download link
+      $('#main-list-download').click(function(event) {
+        downloadAllData();
+      });
+
+      // download amazon format link
+      $('#main-manage-download-amazon').click(function(event) {
+        downloadData(true);
+      });
+
+      // all download amazon format link
+      $('#main-list-download-amazon').click(function(event) {
+        downloadAllData(true);
+      });
+
+      // expire hit
+      $('#main-manage-hit-expire').click(function(event) {
+
+        $('#expire-hit').dialog({
+          width: 450,
+          minWidth: 450,
+          modal: true,
+          open: function(event, ui) {
+            $('#expire-hit-title').text(__session['current-hit'].Title);
+            $('#expire-hit-assignments').text(__session['current-hit'].NumberOfAssignmentsAvailable);
+            $('#expire-hit-current').text(formatDate(__session['current-hit'].Expiration, __session['time-format']));
+          },
+          buttons: {
+            "Expire HIT": function() {
+              setHITExpiration(__session['current-hit'].HITId, new Date(0));
+              $(this).dialog('close');
+            },
+            Cancel: function() {
+              console.log('expire cancel');
+              $(this).dialog('close');
+            }
+          }
+        });
+
+      });
+
+      // delete hit
+      $('#main-manage-hit-delete').click(function(event){
+
+        if(__session['current-hit'].Submitted > 0) {
+          showMessage('Error', 'There are unreviewed submissions for this HIT.', 'delete refused');
+          $('#main-manage-assign-submitted').click();
+        } else {
+          $('#delete-hit').dialog({
+            width: 450,
+            minwidth: 450,
+            modal: true,
+            open: function(event, ui) {
+              $('#delete-hit-title').text(__session['current-hit'].Title);
+            },
+            buttons: {
+              "Delete HIT": function() {
+                deleteHIT(__session['current-hit'].HITId);
+                $(this).dialog('close');
+              },
+              Cancel: function() {
+                console.log('delete cancel');
+                $(this).dialog('close');
+              }
+            }
+          });
+        }
+
+      });
+
+      // delete visible hits
+      $('#main-list-hit-delete').click(function(event){
+        var visible = $('#main-list-table .hitid a:visible');
+        if(visible.length == 0) {
+          showMessage('Error', 'There are no visible HITs.', 'all delete none');
+          return;
+        }
+
+        var active = $('#main-list-table tr.hit.active:visible, #main-list-table tr.hit.waiting:visible');
+        if(active.length > 0) {
+          showMessage('Error', 'There ' + (active.length > 1 ? 'are ' + active.length + ' HITs which require' : ' is 1 HIT which requires') + ' intervention before being eligible for deletion.', 'all delete active',
+              function() {
+                  if(-1 == $('#main-list-search').val().indexOf('status/active')) {
+                    $('#main-list-search').val('status/active ' + $('#main-list-search').val());
+                    $('#main-list-search').change();
+                  }
+                }
+          );
+          return;
+        }
+
+        var errors = 0; var active = 0;
+        $.each(visible, function(index, vhit){
+          $.each(__session['hits'], function(index, hit) {
+            if(hit.HITId == vhit.title) {
+              if(hit.Submitted > 0) {
+                errors++;
+              }
+              if(!$(vhit.parentElement.parentElement).hasClass('ended')) {
+                active++;
+              }
+            }
+          });
+        });
+
+        if(errors > 0) {
+          showMessage('Error', 'There are unreviewed submissions for ' + errors + ' visible HIT' + (errors > 1 ? 's' : '') + '.', 'all delete refused submission');
+        } else if(active > 0) {
+          showMessage('Error', 'There ' + (active > 1 ? 'are ' : 'is ') + active + ' active visible HIT' + (active > 1 ? 's' : '') + '.', 'all delete refused active');
+        } else {
+          $('#all-delete-hit').dialog({
+            width: 450,
+            minwidth: 450,
+            modal: true,
+            open: function(event, ui) {
+              $('#all-delete-hit-title').text('Delete ' + visible.length + ( visible.length > 1 ? ' HITs' : ' HIT') );
+            },
+            buttons: {
+              "Delete HITs": function() {
+                downloadAllData(false, true);
+                $(this).dialog('close');
+              },
+              Cancel: function() {
+                console.log('all delete cancel');
+                $(this).dialog('close');
+              }
+            }
+          });
+        }
+
+      });
+
+      // extend hit
+      $('#main-manage-hit-extend').click(function(event) {
+
+        $('#extend-hit').dialog({
+          width: 450,
+          minWidth: 450,
+          modal: true,
+          buttons: {
+            "Add Time": function() {
+              confirmExtendHit(__session['current-hit'], $('#extend-value').val(), $('#extend-multiply').val());
+              $(this).dialog('close');
+            },
+            Cancel: function() {
+              console.log('extend cancel');
+              $(this).dialog('close');
+            }
+          },
+          close: function() {
+            $('#extend-value').val(0);
+            $('#extend-multiply').val('hours');
+          }
+        });
+
+      });
+
+      // increase hit
+      $('#main-manage-hit-increase').click(function(event) {
+        var current = __session['current-hit'].MaxAssignments;
+        if (current == 9) {
+          showMessage('Error', 'Tasks with less than 10 assignments may not be extended to exceed 9.<br><br>' +
+              'No additional assignments can be added for this HIT.', 'increase not valid (change of price band)');
+        } else {
+
+          $('#increase-hit').dialog({
+            width: 450,
+            minWidth: 450,
+            modal: true,
+            buttons: {
+              "Add Assignments": function() {
+                confirmIncreaseHit(__session['current-hit'], $('#increase-value').val());
+                $(this).dialog('close');
+              },
+              Cancel: function() {
+                console.log('increase cancel');
+                $(this).dialog('close');
+              }
+            },
+            close: function() {
+              $('#increase-value').val(0);
+            }
+          });
+
+        }
+
+      });
+
+      // list submitted only
+      $('#main-manage-assign-submitted').click(function(event) {
+        __session['assignment-mode'] = 'submitted';
+        assignmentHideExcept('submitted');
+        updateMode('manage');
+      });
+
+      // list approved only
+      $('#main-manage-assign-approved').click(function(event) {
+        __session['assignment-mode'] = 'approved';
+        assignmentHideExcept('approved');
+      });
+
+      // list rejected only
+      $('#main-manage-assign-rejected').click(function(event) {
+        __session['assignment-mode'] = 'rejected';
+        assignmentHideExcept('rejected');
+      });
+
+      // list all
+      $('#main-manage-assign-all').click(function(event) {
+        __session['assignment-mode'] = 'all';
+        assignmentHideExcept('all');
+        updateMode('manage');
+      });
+
+      // check all
+      $('#main-assignment-check-all').change(function(event) {
+        $('#main-assignment-table .assignment input[type=checkbox]:visible').prop('checked',
+            $('#main-assignment-check-all').prop('checked'));
+      });
+
+      // approve selected
+      $('#main-assignment-approve-checked').click(function(event) {
+        var visible = $("#main-assignment-table .assignment .checkbox input[type=checkbox]:checked:visible"); // save visible
+        if(visible.length) {
+          $('#main-loading').show();
+          $.each(visible, function(index, checkbox) {
+            var params = {AssignmentId: checkbox.value, OverrideRejection: true};
+            __session['mturk'].approveAssignment(params, function(err, data) {
+              if (err) {
+                showMessage('API Error', err.message);
+              } else { }
+              if(index == (visible.length -1)) {
+                __session['hits-age'] = 0;
+                __session['assignments-age'] = 0;
+                updateMode();
+                $('#main-loading').hide();
+              }
+            });
+
+          });
+        } else {
+          showMessage('Error', 'No assignments selected.', 'nothing to approve');
+        }
+      });
+
+      // message displayed
+      $('#main-assignment-message-displayed').click(function(event) {
+        var workerids = "";
+        var visible = $("#main-assignment-table .assignment .workerid .workerid:visible");
+        if(visible.length) {
+          $.each(visible, function(index, workerid) {
+            workerids += (workerids ? ',' : '') + $(workerid).text();
+          });
+          messageWorkers(null, workerids);
+        } else {
+          showMessage('Error', 'No Worker IDs displayed.', 'nobody to message');
+        }
+
+      });
+
+      // message all
+      $('#main-assignment-message-all').click(function(event) {
+        var workerids = "";
+        var all = $("#main-assignment-table .assignment .workerid .workerid");
+        if(all.length) {
+          $.each(all, function(index, workerid) {
+            workerids += (workerids ? ',' : '') + $(workerid).text();
+          });
+          messageWorkers(null, workerids);
+        } else {
+          showMessage('Error', 'No workers for this HIT.', 'nobody to message');
+        }
+
+      });
+
+
+      // modal form submit
+      $('#modal-elements form').submit(function(event) { event.preventDefault();} );
+
+      // ui enhancements
+
+
+    }
+
+
+    // remove qualification
+    function removeQualification(event, qualid) {
+      req({}, function() {
+          showMessage('Processing', 'This action may take a few minutes to take effect.', null, updateQuals);
+        }, reqDeleteQualification, {QualificationTypeId: qualid});
+    }
+
+    // manage qual
+    function manageQual(event, qual) {
+      __session['current-qual'] = qual;
+      $(event.target).closest('.ui-dialog-content').dialog('close');
+      $('#worker-quals-workers').dialog({
+        height: (window.innerHeight - 100),
+        width: (window.innerWidth - 150),
+        modal: true,
+        title: __session['current-qual'].Name + ' (' + __session['current-qual'].QualificationTypeId + ')',
+        open: function(event, ui) {
+          $('#quals-worker-search').val('');
+          updateQualsWorkers();
+        },
+        buttons: {
+          Back: function() {
+            $(this).dialog('close');
+            $('#worker-action-quals').click();
+          },
+          Close: function() {
+            $(this).dialog('close');
+          }
+        }
+      });
+    }
+
+    // update stored quals
+    function updateQualsWorkers(refresh) {
+      if(!refresh) {
+        $('#quals-worker-table .worker').remove();
+      }
+      // clear stored quals
+      __session['quals-workers'] = [];
+      __session['quals-workers-age'] = Date.now();
+      buildQualsWorkersCache(false, refresh);
+    }
+
+    // build cache of quals
+    function buildQualsWorkersCache(paginationToken, refresh) {
+      $('#main-loading').show();
+      var rMax = __session['max-results'] ? __session['max-results'] : 100;
+      var params = {
+        QualificationTypeId: __session['current-qual'].QualificationTypeId,
+        MaxResults: rMax,
+        Status: 'Granted'
+      }
+      if(paginationToken) {
+        params.NextToken = paginationToken;
+      }
+      __session['mturk'].listWorkersWithQualificationType(params, function(err, data) {
+        if (err) {
+          if(err.indexOf('Rate') > -1) {
+            __session['rate-limit-delay'] *= 2;
+            window.setTimeout(function() {
+              buildQualsCache(paginationToken, refresh);
+            }, __session['rate-limit-delay']);
+          } else {
+            showMessage('API Error', err.message);
+          }
+        } else {
+          __session['rate-limit-delay'] = __session['rate-limit-delay'] > 50 ?
+              __session['rate-limit-delay'] / 2 : 50;
+          paginationToken = data.NextToken ? data.NextToken : false;
+          if(data.NumResults) {
+            // add this page of results to cache
+            __session['quals-workers'] = __session['quals-workers'].concat(data.Qualifications);
+            // loop if there are more results
+            if(data.NumResults == rMax) {
+              buildQualsWorkersCache(paginationToken, refresh);
+            }
+          }
+          // end of pages
+          if(data.NumResults != rMax) {
+            // no more quals to get, render
+            renderQualsWorkers(refresh);
+          }
+        }
+      });
+    }
+
+    // add worker quals to dom
+    function renderQualsWorkers(refresh) {
+      // remove previous workers
+      $('#quals-worker-table .worker').remove();
+
+      // process array of workers
+      $.each(__session['quals-workers'], function(index, worker) {
+        // add table row
+        $('#quals-worker-table-header').after(
+          $('<tr>').addClass('worker')
+              .addClass(
+                ( (worker.Status == 'Granted') ? 'active' : 'ended' )
+              )
+              // worker id
+              .append( $('<td>').addClass('workerid')
+                .append($('<span>').addClass('search-only').addClass('workerid').text(worker.WorkerId))
+                .append(
+                  $('<a>')
+                    .text(worker.WorkerId)
+                )
+              )
+              // qual granted
+              .append( $('<td>').addClass('granted')
+                .append(
+                  $('<div>')
+                    .append( $('<span>').text( formatDate(worker.GrantTime, __session['time-format']) ) )
+                )
+              )
+              // qual value
+              .append( $('<td>').addClass('value')
+                .append($('<span>').addClass('search-only').addClass('value').text('value/'+ worker.IntegerValue + '/'))
+                .append(
+                  $('<div>')
+                    .append( $('<span>').text( worker.IntegerValue ) )
+                )
+              )
+              // qual remove
+              .append( $('<td>').addClass('remove').addClass('actions')
+                .append(
+                  $('<a>').addClass('clickable')
+                    .addClass('ui-button').addClass('ui-corner-all').addClass('ui-widget')
+                    .click( function(event) { removeWorkerQualification(event, worker.WorkerId, __session['current-qual'].QualificationTypeId); } )
+                    .text('Remove')
+                )
+              )
+        );
+
+      });
+
+      $('#quals-worker-search').change();
+
+      $('#main-loading').hide();
+
+    }
+
+    // download qualification assignments
+    function downloadQualWorkers() {
+
+      var csv = [];
+      var header = ['QualificationTypeId', 'WorkerId', 'GrantTime', 'Status', 'IntegerValue' ];
+      var count = 0;
+      var questions = [];
+      var data = [];
+
+      // use source data or __session data
+      source = __session['quals-workers'];
+      qual   = __session['current-qual'];
+
+      // clean title
+      title = qual.Name.replace(/[^a-zA-Z0-9\\-]/g, '');
+
+      $.each(source, function(index, worker) {
+        var row = [
+          worker.QualificationTypeId,
+          worker.WorkerId,
+          formatDate(worker.GrantTime, 1),
+          worker.Status,
+          worker.IntegerValue
+        ]
+        data.push(row);
+      });
+
+      // combine headers and data
+      csv.push(header);
+      csv = csv.concat(data);
+
+      // download file
+      exportData('QualificationTypeId-' + qual.QualificationTypeId + '-' + title + '-' +
+          formatDate(__session['quals-workers-age'], 1).replace(/[:\.]/g, '-') + '.csv', csv);
+    }
+
+    // assign workers qualification with value
+    function assignWorkersQualification(workerids, value) {
+      workerids = workerids.replace(/[,\r\n]/g, ' ');
+      workerids = workerids.split(' ').filter(function(el) { return el != ''; });
+      if(!(Array.isArray(workerids) && workerids.length > 0)) {
+        showMessage('Error', 'No Worker IDs requested.');
+        return;
+      }
+      value = $.isNumeric(parseInt(value)) ? parseInt(value) : 1;
+      $('#main-loading').show();
+      req({}, updateQualsWorkers, reqAssignWorkersQualification, {
+        QualificationTypeId: __session['current-qual'].QualificationTypeId,
+        WorkerIds: workerids,
+        IntegerValue: value
+      });
+    }
+
+    // remove (revoke) qualification for worker
+    function removeWorkerQualification(event, workerid, qualificationid) {
+      req({}, updateQualsWorkers, reqRemoveWorkerQualification, {
+        QualificationTypeId: qualificationid,
+        WorkerId: workerid
+      });
+    }
+
+    // update stored quals
+    function updateQuals(refresh) {
+      if(!refresh) {
+        $('#quals-list-table .qual').remove();
+      }
+      // clear stored quals
+      __session['quals'] = [];
+      __session['quals-age'] = Date.now();
+      buildQualsCache(false, refresh);
+    }
+
+    // build cache of quals
+    function buildQualsCache(paginationToken, refresh) {
+      $('#main-loading').show();
+      var rMax = __session['max-results'] ? __session['max-results'] : 100;
+      var params = {
+        MustBeRequestable: false,
+        MaxResults: rMax,
+        MustBeOwnedByCaller: true
+      }
+      if(paginationToken) {
+        params.NextToken = paginationToken;
+      }
+      __session['mturk'].listQualificationTypes(params, function(err, data) {
+        if (err) {
+          if(err.indexOf('Rate') > -1) {
+            __session['rate-limit-delay'] *= 2;
+            window.setTimeout(function() {
+              buildQualsCache(paginationToken, refresh);
+            }, __session['rate-limit-delay']);
+          } else {
+            showMessage('API Error', err.message);
+          }
+        } else {
+          __session['rate-limit-delay'] = __session['rate-limit-delay'] > 50 ?
+              __session['rate-limit-delay'] / 2 : 50;
+          paginationToken = data.NextToken ? data.NextToken : false;
+          if(data.NumResults) {
+            // add this page of results to cache
+            __session['quals'] = __session['quals'].concat(data.QualificationTypes);
+            // loop if there are more results
+            if(data.NumResults == rMax) {
+              buildQualsCache(paginationToken, refresh);
+            }
+          }
+          // end of pages
+          if(data.NumResults != rMax) {
+            // no more quals to get, render
+            renderQuals(refresh);
+          }
+        }
+      });
+    }
+
+    // add quals to dom
+    function renderQuals(refresh) {
+      //remove previous quals
+      $('#quals-list-table .qual').remove();
+
+      // process array of quals
+      $.each(__session['quals'], function(index, qual) {
+        // add table row
+        $('#quals-list-table-header').after(
+          $('<tr>').addClass('qual')
+              .addClass(
+                ( (qual.QualificationTypeStatus == 'Active') ? 'active' : 'ended' )
+              )
+              // qual id
+              .append( $('<td>').addClass('qualid')
+                .append($('<span>').addClass('search-only').addClass('qualtypeid').text(qual.QualificationTypeId))
+                .append(
+                  $('<a>').addClass('clickable')
+                    .click( function(event) { manageQual(event, qual); } )
+                    .text('...' + qual.QualificationTypeId.substr(qual.QualificationTypeId.length -6, 6))
+                    .append(
+                      $('<span>').addClass('hover-only')
+                        .append($('<span>').addClass('hover-qual-id').text(qual.QualificationTypeId))
+                        .click( function(event) { event.preventDefault(); event.stopPropagation(); } )
+                    )
+                )
+              )
+              // qual description
+              .append( $('<td>').addClass('qual')
+                .append(
+                  $('<div>').addClass('title')
+                    .append( $('<strong>').text( qual.Name ) )
+                )
+                .append(
+                  $('<div>').addClass('desc').text( qual.Description) )
+                .append(
+                  $('<div>').addClass('keywords').text( qual.Keywords) )
+              )
+              // qual status details
+              .append( $('<td>').addClass('status')
+                .append(
+                  $('<div>').addClass('duration').text('Status: ')
+                    .append( $('<span>').text( qual.QualificationTypeStatus ) )
+                )
+                .append(
+                  $('<div>').addClass('created').text('Created: ')
+                    .append( $('<span>').text( formatDate(qual.CreationTime, __session['time-format']) ) )
+                )
+              )
+              // qual remove
+              .append( $('<td>').addClass('remove').addClass('actions')
+                .append(
+                  $('<a>').addClass('clickable')
+                    .addClass('ui-button').addClass('ui-corner-all').addClass('ui-widget')
+                    .click( function(event) { removeQualification(event, qual.QualificationTypeId); } )
+                    .text('Remove')
+                )
+              )
+        );
+
+      });
+
+      $('#quals-list-search').change();
+
+      $('#main-loading').hide();
+
+    }
+
+
+    // download qualifications
+    function downloadQuals() {
+
+      var csv = [];
+      var header = ['QualificationTypeId', 'Name', 'Description', 'Keywords', 'QualificationTypeStatus', 'CreationTime'];
+      var count = 0;
+      var questions = [];
+      var data = [];
+
+      // use source data or __session data
+      source = __session['quals'];
+
+      $.each(source, function(index, qual) {
+        var row = [
+          qual.QualificationTypeId,
+          qual.Name,
+          qual.Description,
+          qual.Keywords,
+          qual.QualificationTypeStatus,
+          formatDate(qual.CreationTime, 1)
+        ]
+        data.push(row);
+      });
+
+      // combine headers and data
+      csv.push(header);
+      csv = csv.concat(data);
+
+      // download file
+      exportData('QualificationTypes-' + formatDate(__session['quals-age'], 1).replace(/[:\.]/g, '-') + '.csv', csv);
+    }
+
+
+
+    // checkbox helper
+    function checkboxHelper(event) {
+      if($(event)[0].target.tagName.toLowerCase() != 'input') {
+        console.log($(event));
+        $($(event)[0].target).find('input[type=checkbox]:visible').prop('checked',
+            !$($(event)[0].target).find('input[type=checkbox]').prop('checked'));
+      }
+    }
+
+
+
+    // callback helpers
+    // - use for functions prefixed with "req"
+
+    // create a callback req
+    function req(state, callback, func, params) {
+      var state = {
+        state: state,
+        callback: callback,
+        params: params
+      };
+      func(state);
+    }
+
+    // get return data
+    function isret(state) {
+      if('__return' in (state || {})) {
+        data = state.__return;
+        delete state.__return;
+        return {return: data};
+      }
+      return false;
+    }
+
+    // return data
+    function ret(state, data) {
+      var rstate = ('state' in state) ? (state.state || {}) : {};
+      rstate.__return = data;
+      state.callback(rstate);
+      return true;
+    }
+
+
+    // callback examples
+
+    // doreq
+    function doreq(f, params) {
+      req({}, function() {return;}, f, params);
+    }
+
+    // logreq
+    function logreq(f, params) {
+      req({}, function(d) { console.log( (isret(d)).return ); }, f, params);
+    }
+
+
+
+    // create payment task
+    // params: WorkerId, Reward, [AutoApprovalDelayInSeconds 300], [LifetimeInSeconds 2592000], [ShowDialog: true]
+    function reqCreatePaymentTask(data) {
+      // set default AutoApprovalDelayInSeconds to 300, 5 mins
+      data.params.AutoApprovalDelayInSeconds =
+          $.isNumeric(parseInt(data.params.AutoApprovalDelayInSeconds)) ?
+          parseInt(data.params.AutoApprovalDelayInSeconds) : 300;
+      // set default LifetimeInSeconds to 2592000, 30 days
+      data.params.LifetimeInSeconds =
+          $.isNumeric(parseInt(data.params.LifetimeInSeconds)) ?
+          parseInt(data.params.LifetimeInSeconds) : 2592000;
+      // set default show dialog to true
+      data.params.ShowDialog = (! ('ShowDialog' in data.params)) ?
+          true : (!!data.params.ShowDialog);
+
+      // create user qualification text
+      var qualText = 'Worker ID is ' + data.params.WorkerId;
+      var titleText = 'One-off payment task for Worker ID ' + data.params.WorkerId;
+
+      if(! ('QualificationTypeId' in data.params) ) {
+        if(d = isret(data)) {
+          if(false === d.return) {
+            ret(data, d.return);
+            return;
+          }
+          data.params.QualificationTypeId = d.return.QualificationTypeId;
+        } else {
+          var params = {
+            WorkerId: data.params.WorkerId,
+            Name: qualText,
+            Description: qualText
+          }
+          req(data, reqCreatePaymentTask, reqCreateAssignWorkerQualification, params);
+          return;
+        }
+      }
+
+      if( d = isret(data) ) {
+        if(data.params.ShowDialog) {
+          $('#worker-actions-pay-result').dialog({
+            width: 700,
+            minWidth: 700,
+            modal: true,
+            open: function(event, ui) {
+              var url = 'https://worker' +
+                  (($('#login-aws-endpoint').val().indexOf('sandbox') > -1) ? 'sandbox' : '') +
+                  '.mturk.com/projects/' + d.return.HIT.HITGroupId + '/tasks'
+              $('#pay-result-url').prop('href', url).text(url);
+              $('#pay-result-workerid').text(data.params.WorkerId);
+              $('#pay-result-value').text(currencyPad(d.return.HIT.Reward));
+              $('#pay-result-auto').text($('#pay-create-auto option:selected').text().toLowerCase());
+            },
+            buttons: {
+              Close: function() {
+                // refresh display
+                __session['hits-age'] = 0;
+                __session['assignments-age'] = 0;
+                $('#main-list-search').val(d.return.HIT.HITId);
+                updateMode('refresh');
+                $(this).dialog('close');
+              }
+            }
+          });
+        }
+        ret(data, d.return);
+        return;
+      } else {
+        // extract html template from #base64-payment-html
+        var html = atob($('#base64-payment-html').text());
+        html = html.replace(/\${WorkerID}/g, data.params.WorkerId);
+
+        // setup hit paramaters
+        var params = {
+            Title: titleText,
+            Description: titleText + '.',
+            Keywords: data.params.WorkerId + ', ' + btoa(new Date().toISOString()),
+            Reward: data.params.Reward,
+            MaxAssignments: 1,
+            AssignmentDurationInSeconds: 60, // 1 min
+            LifetimeInSeconds: 2592000, // 30 days,
+            Question: generateHTMLQuestion(html),
+            QualificationRequirements: [
+                generateQualificationRequirement(
+                    data.params.QualificationTypeId,
+                    'DiscoverPreviewAndAccept',
+                    'Exists'
+                ) ],
+            AutoApprovalDelayInSeconds: data.params.AutoApprovalDelayInSeconds
+        };
+        req(data, reqCreatePaymentTask, reqCreateTask, params);
+        return;
+      }
+    }
+
+    // remove qualification
+    // params: QualificationTypeId
+    function reqDeleteQualification(data) {
+      // set default for MustBeOwnedByCaller to false
+      data.params.MustBeOwnedByCaller = !!(data.params.MustBeOwnedByCaller) || false;
+
+      var params = {
+          QualificationTypeId: data.params.QualificationTypeId
+      };
+      var datain = data;
+      __session['mturk'].deleteQualificationType(params, function(err, data) {
+        if (err) {
+          showMessage('API Error', err.message);
+        } else {
+          // return data, using callback
+          ret(datain, data);
+          return;
+        }
+      });
+
+    }
+
+    // search for qualifications
+    // params: Query, [MustBeOwnedByCaller false]
+    function reqGetQualifications(data) {
+      // set default for MustBeOwnedByCaller to false
+      data.params.MustBeOwnedByCaller = !!(data.params.MustBeOwnedByCaller) || false;
+
+      var params = {
+          MustBeRequestable: false,
+          MustBeOwnedByCaller: data.params.MustBeOwnedByCaller,
+          Query: data.params.Query
+      };
+      var datain = data;
+      __session['mturk'].listQualificationTypes(params, function(err, data) {
+        if (err) {
+          showMessage('API Error', err.message);
+        } else {
+          // return data, using callback
+          ret(datain, data);
+          return;
+        }
+      });
+
+    }
+
+    // unique keyword generate
+    function generateQualificationKeyword(name) {
+      return 'mturk-manage-qualification/' + btoa(name);
+    }
+
+
+    // create qualifications
+    // params: Name, Description, [Keywords ]
+    function reqCreateQualification(data) {
+
+      // get matching qualification, using callback
+      if(! ('quals' in data) ) {
+        // is callback, record data
+        if(d = isret(data)) {
+          data.quals = d.return;
+        } else {
+          // not callback, do callback
+          var params = {
+            Query: generateQualificationKeyword(data.params.Name),
+            MustBeOwnedByCaller: true
+          };
+          req(data, reqCreateQualification, reqGetQualifications, params);
+          return;
+        }
+      }
+
+      // check length of matching qualifications
+      if(data.quals.QualificationTypes.length) {
+        // multiple matching qualifications ???
+        if(data.quals.QualificationTypes.length > 1) {
+          showMessage('Error', 'Multiple qualifications found with matching search.', data.quals);
+          ret(data, false);
+          return;
+        }
+        // return existing qualification id, using callback
+        ret(data, data.quals.QualificationTypes[0].QualificationTypeId);
+        return;
+      } else {
+        var keywords = data.params.Keywords ?
+            data.params.Keywords + ',' + generateQualificationKeyword(data.params.Name) :
+            generateQualificationKeyword(data.params.Name);
+        keywords = keywords.replace(/,/g, ' , ').replace(/\s\s+/g, ' ')
+            .replace(/ ,/g, ',').replace(/,\s*,/g, ',').replace(/,,+/g, ',');
+        var params = {
+            Description: (data.params.Description ? data.params.Description : data.params.Name),
+            Name: data.params.Name,
+            QualificationTypeStatus: 'Active',
+            Keywords: keywords
+        };
+        var datain = data;
+        __session['mturk'].createQualificationType(params, function(err, data) {
+          if (err) {
+            showMessage('API Error', err.message);
+          } else {
+            // return created QualificationTypeId, using callback
+            ret(datain, data.QualificationType.QualificationTypeId);
+            return;
+          }
+        });
+      }
+
+    }
+
+    // delete qualification
+    // params: QualificationTypeId
+    function reqDeleteQualification(data) {
+      var params = {
+          QualificationTypeId: data.params.QualificationTypeId
+      };
+      var datain = data;
+      __session['mturk'].deleteQualificationType(params, function(err, data) {
+        if (err) {
+          showMessage('API Error', err.message);
+        } else {
+          // return, using callback
+          ret(datain, true);
+          return;
+        }
+      });
+    }
+
+    // check qualifications
+    // params: WorkerId, QualificationTypeId
+    function reqCheckWorkerQualification(data) {
+      var params = {
+          QualificationTypeId: data.params.QualificationTypeId,
+          WorkerId: data.params.WorkerId
+      };
+      var datain = data;
+      __session['mturk'].getQualificationScore(params, function(err, data) {
+        if (err) {
+          // suppress this error
+          // - user does not have qualification
+          //showMessage('API Error', err.message);
+          ret(datain, false);
+          return;
+        } else {
+          ret(datain, data.Qualification);
+          return;
+        }
+      });
+    }
+
+    // assign qualification
+    // params: WorkerId, QualificationTypeId, [IntegerValue 1], [SendNotification false]
+    function reqAssignWorkerQualification(data) {
+      // default SendNotification to false
+      data.params.SendNotification = !!(data.params.SendNotification) || false;
+      // default IntegerValue to 1
+      data.params.IntegerValue =
+          $.isNumeric(parseInt(data.params.IntegerValue)) ?
+          parseInt(data.params.IntegerValue) : 1;
+
+      var params = {
+          WorkerId: data.params.WorkerId,
+          QualificationTypeId: data.params.QualificationTypeId,
+          IntegerValue: data.params.IntegerValue,
+          SendNotification: data.params.SendNotification
+      };
+      var datain = data;
+      __session['mturk'].associateQualificationWithWorker(params, function(err, data) {
+        if (err) {
+          if(!datain.params.Silent) {
+            showMessage('API Error', err.message, err);
+            ret(datain, false);
+          } else {
+            console.log(err);
+            if((''+err).indexOf('Rate') > -1) {
+              __session['rate-limit-delay'] *= 2;
+              window.setTimeout(function() {
+                reqAssignWorkerQualification(datain);
+              }, __session['rate-limit-delay']);
+              //return;
+            } else {
+              ret(datain, err);
+            }
+          }
+          return;
+        } else {
+          __session['rate-limit-delay'] = __session['rate-limit-delay'] > 50 ?
+              __session['rate-limit-delay'] / 2 : 50;
+          ret(datain, datain.params.IntegerValue);
+          return;
+        }
+      });
+    }
+
+    // copy extra workers
+    function copyExtraWorkers() {
+      var workerids = $('textarea.extra-workers')[0];
+        workerids.focus();
+        workerids.select();
+        try {
+          var status = document.execCommand('copy');
+          if (!status) {
+            alert('Unable to copy to clipboard');
+          }
+        } catch (err) {
+          alert('Unable to copy to clipboard');
+        }
+    }
+
+    // assign multiple workers qualification
+    // params: WorkerIds, QualificationTypeId, [IntegerValue 1], [SendNotification false]
+    function reqAssignWorkersQualification(data) {
+
+      // check for error; need to handle
+      if(d = isret(data)) {
+        if(!Number.isInteger(d.return)) {
+          message = '<em>' + d.return.message + '</em>' + ( data.params.WorkerIds.length ?
+              '<br/><br/>In addition, the following worker IDs were not processed: ' +
+              '<a class="faint clickable" onclick="copyExtraWorkers()" style="float:right">(Copy All)</a>' +
+              '<br/><br><textarea class="extra-workers">' +
+              data.params.WorkerIds.join("\n") + '</textarea>' : '');
+          showMessage('API Error', message, d.return);
+          ret(data, d.return);
+          return;
+        }
+      }
+
+      if (Array.isArray(data.params.WorkerIds) && data.params.WorkerIds.length) {
+
+        // assign qualification
+        var params = {
+          WorkerId: data.params.WorkerIds.shift(),
+          QualificationTypeId: data.params.QualificationTypeId,
+          IntegerValue: data.params.IntegerValue,
+          SendNotification: data.params.SendNotification,
+          Silent: true,
+          WorkerIds: data.params.WorkerIds
+        }
+        req(data, reqAssignWorkersQualification, reqAssignWorkerQualification, params)
+        return;
+
+      } else {
+        ret(data, true);
+      }
+
+    }
+
+    // remove qualification
+    // params: WorkerId, QualificationTypeId, [Reason null]
+    function reqRemoveWorkerQualification(data) {
+      // default SendNotification to null
+      data.params.Reason = (data.params.Reason) || null;
+      var params = {
+          WorkerId: data.params.WorkerId,
+          QualificationTypeId: data.params.QualificationTypeId,
+          Reason: data.params.Reason
+      };
+      var datain = data;
+      __session['mturk'].disassociateQualificationFromWorker(params, function(err, data) {
+        if (err) {
+          showMessage('API Error', err.message, err);
+          ret(datain, false);
+          return;
+        } else {
+          ret(datain, true);
+          return;
+        }
+      });
+    }
+
+    // create and assign qualifications
+    // params: WorkerId, Name, Description, [Keywords ],  [IntegerValue 1], [SendNotification false]
+    function reqCreateAssignWorkerQualification(data) {
+      // get/create qualification type id
+      if(! ('QualificationTypeId' in data.params) ) {
+        if(d = isret(data)) {
+          data.params.QualificationTypeId = d.return;
+        } else {
+          var params = {
+            Name: data.params.Name,
+            Description: data.params.Description,
+            Keywords: data.params.Keywords
+          }
+          req(data, reqCreateAssignWorkerQualification, reqCreateQualification, params);
+          return;
+        }
+      }
+
+      // assign qualification
+      if(d = isret(data)) {
+        if(false === d.return) {
+          ret(data, d.return);
+          return;
+        }
+        ret(data, {
+                QualificationTypeId: data.params.QualificationTypeId,
+                IntegerValue: d.return,
+                WorkerId: data.params.WorkerId
+            });
+        return;
+      } else {
+        var params = {
+          WorkerId: data.params.WorkerId,
+          QualificationTypeId: data.params.QualificationTypeId,
+          IntegerValue: data.params.IntegerValue,
+          SendNotification: data.params.SendNotification
+        }
+        req(data, reqCreateAssignWorkerQualification, reqAssignWorkerQualification, params)
+        return;
+      }
+    }
+
+    // create external question xml
+    function generateExternalQuestion(url, height) {
+      height = parseInt(height) ? parseInt(height) : 950;
+      var schema = 'http://mechanicalturk.amazonaws.com/AWSMechanicalTurkDataSchemas/2006-07-14/ExternalQuestion.xsd';
+      var template =
+          '<ExternalQuestion xmlns="' + schema + '">' +
+          '  <ExternalURL>' + url + '</ExternalURL>' +
+          '  <FrameHeight>' + height + '</FrameHeight>' +
+          '</ExternalQuestion>';
+      return template;
+    }
+
+    // create html question xml
+    function generateHTMLQuestion(html, height) {
+      height = parseInt(height) ? parseInt(height) : 950;
+      // encode, non-encoded &amp; -- for amazon
+      html = html.replace(/&(?!\w+;|\#[0-9]+;|\#[xX][0-9a-fA-F]+;)/g, '&amp;');
+      var schema = 'http://mechanicalturk.amazonaws.com/AWSMechanicalTurkDataSchemas/2011-11-11/HTMLQuestion.xsd';
+      var template =
+          '<HTMLQuestion xmlns="' + schema  + '">' +
+          '  <HTMLContent><![CDATA[' +
+          html +
+          ']]>' +
+          '  </HTMLContent>' +
+          '  <FrameHeight>' + height  + '</FrameHeight>' +
+          '</HTMLQuestion>';
+      return template;
+    }
+
+    function generateQualificationRequirement(qualid, actionsguarded, comparator, values) {
+      var QualificationRequirement = {
+	           QualificationTypeId: qualid,
+	           Comparator: comparator,
+             ActionsGuarded: actionsguarded
+           }
+      if(values && values.length) {
+        if('undefined' != typeof(values[0].Country)) {
+          QualificationRequirement.LocaleValues = values;
+        } else {
+          QualificationRequirement.IntegerValues = values;
+        }
+      }
+      return QualificationRequirement;
+    }
+
+    // create task
+    // params: Title, Description, Keywords, Reward, MaxAssignments, AssignmentDurationInSeconds, LifetimeInSeconds, Question, [QualificationRequirements []], [AutoApprovalDelayInSeconds null]
+    function reqCreateTask(data) {
+      // default QualificationRequirements to []
+      data.params.QualificationRequirements = data.params.QualificationRequirements || [];
+      // default AutoApprovalDelayInSeconds to null (normally: 2592000 sec or 30 days)
+      data.params.AutoApprovalDelayInSeconds =
+          $.isNumeric(parseInt(data.params.AutoApprovalDelayInSeconds)) ?
+          parseInt(data.params.AutoApprovalDelayInSeconds) : null;
+      // create task
+      var params = {
+          Title: data.params.Title,
+          Description: data.params.Description,
+          Keywords: data.params.Keywords,
+          Reward: currencyPad(data.params.Reward),
+          MaxAssignments: data.params.MaxAssignments,
+          AssignmentDurationInSeconds: data.params.AssignmentDurationInSeconds,
+          LifetimeInSeconds: data.params.LifetimeInSeconds,
+          Question: data.params.Question,
+          QualificationRequirements: data.params.QualificationRequirements,
+          AutoApprovalDelayInSeconds: data.params.AutoApprovalDelayInSeconds
+      };
+      var datain = data;
+      __session['mturk'].createHIT(params, function(err, data) {
+        if (err) {
+          showMessage('API Error', err.message, err);
+          return;
+        } else {
+          // return data, using callback
+          ret(datain, data);
+          return;
+        }
+      });
+    }
+
+
+
+    // reject assignment
+    function rejectAssignment(event, assignment) {
+
+      $('#reject-assignment').dialog({
+        width: 550,
+        minWidth: 500,
+        modal: true,
+        open: function(event, ui) {
+          $('#reject-workerid').val(assignment.WorkerId);
+          $('#reject-assignmentid').val(assignment.AssignmentId);
+        },
+        buttons: {
+          "Reject Assignment": function() {
+            confirmRejectAssignement(assignment, $('#reject-feedback').val());
+            $(this).dialog('close');
+          },
+          Cancel: function() {
+            console.log('reject cancel');
+            $(this).dialog('close');
+          }
+        },
+        close: function() {
+          $('#reject-feedback').val('');
+        }
+      });
+
+    }
+
+    // reject assignment confirm
+    function confirmRejectAssignement(assignment, feedback) {
+      if(feedback != null && feedback !== '') {
+        if(feedback.length <= 1024) {
+
+          $('#reject-confirm').dialog({
+            minWidth: 500,
+            modal: true,
+            open: function(event, ui) {
+              $('#reject-confirm-workerid').text(assignment.WorkerId);
+              $('#reject-confirm-assignmentid').text(assignment.AssignmentId);
+              $('#reject-confirm-feedback').html(feedback.replace(/\n/g, '<br>'));
+            },
+            buttons: {
+              "Reject Assignment": function() {
+                doRejectAssignment(assignment, feedback);
+                $(this).dialog('close');
+              },
+              Cancel: function() {
+                console.log('reject confirm cancel');
+                $(this).dialog('close');
+              }
+            }
+          });
+
+        } else {
+          showMessage('Error', 'Feedback too long.<br><br>Maximum feedback length is 1024 characters.',
+              'reject refused - feedback too long');
+        }
+
+      } else {
+        if(feedback != null) {
+          showMessage('Error', 'Feedback is required.', 'reject refused - no feedback');
+        } else {
+          console.log('reject cancelled');
+        }
+      }
+    }
+
+    // reject assignment api call
+    function doRejectAssignment(assignment, feedback) {
+      $('#main-loading').show();
+      var params = {AssignmentId: assignment.AssignmentId, RequesterFeedback: feedback};
+      __session['mturk'].rejectAssignment(params, function(err, data) {
+        if (err) {
+          showMessage('API Error', err.message);
+        } else {
+          __session['hits-age'] = 0;
+          __session['assignments-age'] = 0;
+          updateMode();
+        }
+        $('#main-loading').hide();
+      });
+    }
+
+    // extend hit confirm
+    function confirmExtendHit(hit, value, multiply) {
+      var expiration = hit.Expiration.getTime();
+      var current = expiration;
+      if(expiration < new Date().getTime()) {
+        expiration = new Date().getTime();
+        current = null;
+      }
+      var extend = parseFloat(value);
+      if(extend > 0 && !isNaN(extend)) {
+        extend *= multiply == 'hours' ? 60 : 1; // mins in an hour
+        extend *= multiply == 'days' ? 1440  : 1; // mins in a day
+        extend *= multiply == 'weeks' ? 10080 : 1; // mins in a week
+        expiration = new Date(expiration + (extend * 60 * 1000)); // milliseconds in a min
+        console.log(expiration);
+        // show confirmation dialog
+        $('#extend-confirm').dialog({
+          modal: true,
+          width: 450,
+          open: function(event, ui) {
+            $('#extend-confirm-current').text(current ? formatDate(current, __session['time-format']) : 'Expired');
+            $('#extend-confirm-new').text(formatDate(expiration, __session['time-format']));
+          },
+          buttons: {
+            "Set Expration Time": function() {
+              setHITExpiration(hit.HITId, expiration);
+              $(this).dialog('close');
+            },
+            Cancel: function() {
+              console.log('extend confirm cancel');
+              $(this).dialog('close');
+            }
+          }
+        });
+      } else {
+        console.log(extend);
+        if(isNaN(extend)) {
+          showMessage('Error', 'Extension must be a numerical value.', 'extend error NaN');
+        } else {
+          showMessage('Error', 'Extension must be a greater than zero.', 'extend error (' + value + ')');
+        }
+      }
+
+    }
+
+    // increaseHitConfirm
+    function confirmIncreaseHit(hitid, extend) {
+
+      extend = parseInt(extend);
+
+      if(extend > 0) {
+
+        var current = __session['current-hit'].MaxAssignments;
+
+        if( ! ((current < 10) && ((extend + current) > 9)) ) {
+          // show confirmation dialog
+          $('#increase-confirm').dialog({
+            modal: true,
+            width: 450,
+            open: function(event, ui) {
+              $('#increase-confirm-increase').text(extend);
+              $('#increase-confirm-current').text(current);
+              $('#increase-confirm-new').text(extend + current);
+            },
+            buttons: {
+              "Add Assignments": function() {
+                addAssignmentToHIT(__session['current-hit'].HITId, extend);
+                $(this).dialog('close');
+              },
+              Cancel: function() {
+                console.log('increase confirm cancel');
+                $(this).dialog('close');
+              }
+            }
+          });
+
+        } else {
+
+          showMessage('Error', 'This increase would result in more than 9 assignments for this HIT.<br><br>' +
+              'Tasks with less than 10 assignments may not be extended to exceed 9.<br><br>' +
+              ('The maximum increase possible for this HIT is ' + (9 - current) + '.'),
+              'increase not valid (change of price band)');
+        }
+
+      } else {
+        if(!isNaN(extend)) {
+          showMessage('Error', 'The number of assignments to be added must be a positive integer number.')
+        }
+        console.log('increase not valid (' + extend + ')');
+      }
+    }
+
+    // bonus worker
+    function bonusWorker(event, assignment) {
+      var reference = assignment.WorkerId.substr(assignment.WorkerId.length -6, 6) +
+            '-' + assignment.AssignmentId.substr(assignment.AssignmentId.length -6, 6);
+      $('#bonus-worker').dialog({
+        width: 550,
+        minWidth: 500,
+        modal: true,
+        open: function(event, ui) {
+          $('#bonus-workerid').val(assignment.WorkerId);
+          $('#bonus-assignmentid').val(assignment.AssignmentId);
+          $('#bonus-reference').val(reference);
+        },
+        buttons: {
+          "Send Bonus": function() {
+            confirmBonusWorker(assignment, $('#bonus-reference').val(), $('#bonus-value').val(),
+                $('#bonus-message').val());
+            $(this).dialog('close');
+          },
+          Cancel: function() {
+            console.log('bonus cancel');
+            $(this).dialog('close');
+          }
+        },
+        close: function() {
+          $('#bonus-value').val('0.00');
+          $('#bonus-message').val('');
+        }
+      });
+    }
+
+    // bonus worker confirm
+    function confirmBonusWorker(assignment, reference, value, message) {
+      pay = parseInt((parseFloat(value) * 100))/100;
+      if(isNaN(pay)) {
+        console.log('bonus value error  (' + value + ')');
+        pay = 0;
+      }
+      if(message && message.length <= 4096 && pay > 0) {
+        // show confirmation dialog
+        $('#bonus-confirm').dialog({
+          modal: true,
+          open: function(event, ui) {
+            $('#bonus-confirm-workerid').text(assignment.WorkerId);
+            $('#bonus-confirm-assignmentid').text(assignment.AssignmentId);
+            $('#bonus-confirm-value').text(currencyPad(pay));
+            $('#bonus-confirm-message').html(message.replace(/\n/g, '<br>'));
+          },
+          buttons: {
+            "Send Bonus": function() {
+              doBonusWorker(assignment, reference, value, message);
+              $(this).dialog('close');
+            },
+            Cancel: function() {
+              console.log('bonus confirm cancel');
+              $(this).dialog('close');
+            }
+          }
+        });
+      } else {
+        // show error dialog
+        if(!message) {
+          showMessage('Error', 'Messages are required with bonus payments.',
+              'bonus message not specified');
+        }
+        if(message.length > 4096) {
+          showMessage('Error', 'Messages must be shorter than 4,096 characters.',
+              'bonus message too long (' + message.length + ')');
+        }
+        if(pay <= 0) {
+          showMessage('Error', 'Payment value must be positive floating point value.',
+              'bonus value error (' + value + ')');
+        }
+      }
+    }
+
+    // bonus worker api call
+    function doBonusWorker(assignment, reference, value, message) {
+      $('#main-loading').show();
+      var params = {
+          WorkerId: assignment.WorkerId,
+          AssignmentId: assignment.AssignmentId,
+          BonusAmount: value,
+          Reason: message,
+          UniqueRequestToken: reference
+      };
+      __session['mturk'].sendBonus(params, function(err, data) {
+        if (err) {
+          showMessage('API Error', 'Bonus request failed with error <br><br><em>' + err.message +
+              '</em><br></br>Retrying with the same reference (<em>' + reference+
+              '</em>) will avoid accidental duplicate payments.', err.message);
+        } else {
+          showMessage('Confirmation', 'A bouns of $' + value + ' was sent to worker ' + assignment.WorkerId);
+        }
+        $('#main-loading').hide();
+      });
+    }
+
+    // message worker
+    function messageWorkers(event, workerids) {
+      if(!workerids) {
+        $('#message-worker label:first').attr('autofocus', 'autofocus');
+      }
+      $('#message-worker').dialog({
+        width: 550,
+        minWidth: 500,
+        modal: true,
+        open: function(event, ui) {
+          $('#message-workerids').val(workerids);
+        },
+        buttons: {
+          "Send Message": function() {
+            confirmMessageWorkers($('#message-workerids').val(), $('#message-subject').val(), $('#message-message').val());
+            $(this).dialog('close');
+          },
+          Cancel: function() {
+            console.log('message cancel');
+            $(this).dialog('close');
+          }
+        },
+        close: function() {
+          $('#message-workerids').val('');
+          $('#message-subject').val('');
+          $('#message-message').val('');
+          $('#message-worker label:first').removeAttr('autofocus');
+        }
+      });
+    }
+
+    // message worker confirm
+    function confirmMessageWorkers(workerids, subject, message) {
+      workerids = workerids.replace(/\s/g, ',').split(',').filter(function(wid) {
+        return (wid !== (undefined || null || ''));
+      });
+      if(workerids.length > 0 && workerids.length <= 100 &&
+          subject && subject.length <= 200 &&
+          message && message.length <= 4096) {
+        // show confirmation dialog
+        $('#message-confirm').dialog({
+          modal: true,
+          open: function(event, ui) {
+            $('#message-confirm-workerids').text(workerids.join(', '));
+            $('#message-confirm-subject').text(subject);
+            $('#message-confirm-message').html(message.replace(/\n/g, '<br>'));
+          },
+          buttons: {
+            "Send Message": function() {
+              doMessageWorkers(workerids, subject, message);
+              $(this).dialog('close');
+            },
+            Cancel: function() {
+              console.log('message confirm cancel');
+              $(this).dialog('close');
+            }
+          },
+          close: function() {
+          }
+        });
+      } else {
+        // show error dialog
+        if(workerids.length < 1) {
+          showMessage('Error', 'A Worker ID is required.',
+              'nobody to message');
+        }
+        if(workerids.length > 100) {
+          showMessage('Error', 'Messaging is limited to 100 workers at a time.',
+              'message to too many workers');
+        }
+        if(!message) {
+          showMessage('Error', 'Message content is required.',
+              'message message not specified');
+        }
+        if(message.length > 4096) {
+          showMessage('Error', 'Messages must be shorter than 4,096 characters.',
+              'message message too long (' + message.length + ')');
+        }
+        if(!subject) {
+          showMessage('Error', 'Subject is required.',
+              'message subject not specified');
+        }
+        if(subject.length > 4096) {
+          showMessage('Error', 'Subject must be shorter than 200 characters.',
+              'message message too long (' + message.length + ')');
+        }
+      }
+    }
+
+    // message worker api call
+    function doMessageWorkers(workerids, subject, message) {
+      $('#main-loading').show();
+      var params = {MessageText: message, Subject: subject, WorkerIds: workerids};
+      __session['mturk'].notifyWorkers(params, function(err, data) {
+        if (err) {
+          showMessage('API Error', err.message);
+        } else {
+          showMessage('Confirmation', 'Message was sent to ' + workerids.join(', '));
+        }
+        $('#main-loading').hide();
+      });
+    }
+
+    // preview hit
+    function previewHIT(event, hit) {
+      event.preventDefault();
+      var url = $(event.target).prop('href');
+      $( '#hit-preview' ).dialog({
+        height: (window.innerHeight - 100),
+        width: (window.innerWidth - 150),
+        modal: true,
+        title: (hit.Title + ' (' + hit.HITId + ')'),
+        open: function(event, ui) {
+          $('#hit-preview iframe').prop('src', url);
+        },
+        close: function(event, ui) {
+          $('#hit-preview iframe').prop('src', 'about:blank');
+        },
+        buttons: {
+          "Simulate Accept": function() {
+            var button = $(this).closest('.ui-dialog').find('.ui-dialog-buttonpane').find('button:first')
+            if('Simulate Accept' == button.text()) {
+              var sim = 'SIM' + Date.now();
+              var simurl = url.replace('ASSIGNMENT_ID_NOT_AVAILABLE', sim).replace('&source=manage-hits-console', '') +
+                '&workerId=' + sim + '&turkSubmitTo=https%3A%2F%2F' +
+                ( ($('#login-aws-endpoint').val().indexOf('sandbox') > -1) ? 'www' : 'workersandbox') + '.mturk.com' +
+                '&source=manage-hits-console';
+              $('#hit-preview iframe').prop('src', simurl);
+              button.text('Show Anonymous');
+            } else {
+              $('#hit-preview iframe').prop('src', url);
+              button.text('Simulate Accept');
+            }
+          },
+          "Open in New Window": function() {
+            window.open($('#hit-preview iframe').prop('src'));
+            $(this).dialog('close');
+          },
+          Close: function() {
+            $(this).dialog('close');
+          }
+        }
+      });
+    }
+
+    function showMessage(title, message, err, f) {
+      // italicise api errors if not already
+      if (title.toLowerCase().indexOf('api') != -1) {
+        err = err || message;
+        if (message.toLowerCase().indexOf('<em>') == -1) {
+          message = '<em>' + message + '</em>';
+        }
+      }
+      // message error
+      $('#dialog-message').dialog({
+        modal: true,
+        title: title,
+        open: function(event, ui) {
+          $('#dialog-message-message').html(message);
+        },
+        close: function(event, ui) {
+          console.log(f);
+          if('function' == typeof(f)) {
+            f();
+          }
+        },
+        buttons: {
+          OK: function() {
+            $(this).dialog('close');
+          }
+        }
+      });
+      // console log errors
+      if (err) {
+        console.log(err);
+      }
+    }
+
+    // set hit expiration date
+    function setHITExpiration(hitid, date) {
+      $('#main-loading').show();
+      var timestamp = Math.floor((date.getTime()/1000));
+      var params = {HITId: hitid, ExpireAt: timestamp};
+      __session['mturk'].updateExpirationForHIT(params, function(err, data) {
+        if (err) {
+          showMessage('API Error', err.message);
+        } else {
+          __session['hits-age'] = 0;
+          updateMode();
+        }
+        $('#main-loading').hide();
+      });
+    }
+
+    // add assignment to hit
+    function addAssignmentToHIT(hitid, assignments) {
+      $('#main-loading').show();
+      var params = {HITId: hitid, NumberOfAdditionalAssignments: assignments};
+      __session['mturk'].createAdditionalAssignmentsForHIT(params, function(err, data) {
+        if (err) {
+          showMessage('API Error', err.message);
+        } else {
+          __session['hits-age'] = 0;
+          updateMode();
+        }
+        $('#main-loading').hide();
+      });
+    }
+
+    // delete hit
+    function deleteHIT(hitid, preventUpdate) {
+      $('#main-loading').show();
+      var params = {HITId: hitid};
+      __session['mturk'].deleteHIT(params, function(err, data) {
+        if (err) {
+          if(err.indexOf('Rate') > -1) {
+            __session['rate-limit-delay'] *= 2;
+            window.setTimeout(function() {
+              deleteHIT(hitid, preventUpdate);
+            }, __session['rate-limit-delay']);
+          } else {
+            showMessage('API Error', err.message);
+          }
+        } else {
+          __session['rate-limit-delay'] = __session['rate-limit-delay'] > 50 ?
+              __session['rate-limit-delay'] / 2 : 50;
+          if(!preventUpdate){
+            __session['hits-age'] = 0;
+            doList();
+          }
+        }
+        $('#main-loading').hide();
+      });
+    }
+
+    // update hit action links
+    function updateHITActions() {
+      $('#main-manage-actions a').show();
+      if($('#main-list-table .hit:visible').hasClass('ended')) {
+        $('#main-manage-hit-expire').hide();
+        if(__session['current-hit'] && __session['current-hit'].Submitted) {
+          $('#main-manage-hit-delete').hide();
+        }
+      } else {
+        $('#main-manage-hit-delete').hide();
+      }
+    }
+
+    // filter assignments
+    function assignmentHideExcept(except) {
+      $('#main-assignment-table .assignment').hide();
+      $('#main-assignment-table .assignment' + (except == 'all' ? '' : '.' + except)).show();
+      $('#main-assignment-table-none').hide();
+      if($('#main-assignment-table .assignment:visible').length == 0) {
+        $('#main-assignment-table-none').show();
+      }
+      $('#main-manage-limit a').removeClass('clickable').addClass('clickable');
+      $('#main-manage-assign-' + except).removeClass('clickable');
+      $('#main-assignment-check-all').prop('checked', false); // should we uncheck all?
+    }
+
+    // filter hits
+    function listHideExceptSearch(search, active, ended) {
+      listHideExceptSearchTable('main-list-table', search, active, ended);
+      updateSummary();
+      updateHITActions();
+    }
+
+    // filter table
+    function listHideExceptSearchTable(table, search, active, ended) {
+      search = search ? search.toLowerCase() : '';
+      active = active ? true : false;
+      ended = ended ? true : false;
+      $('#' + table + ' tr').hide();
+      $('#' + table + ' tr').filter(function(index) {
+        var row = $(this).text().toLowerCase();
+        var show = true; // default (i.e for active tasks)
+        var terms = [].concat(search.match(/-?"([^"]+)"/g)); // extract quoted search terms
+        terms = terms.concat(search.replace(/-?"([^"]+)"/g, '').split(' ')) // add remaining space-separated terms
+        $.each(terms, function(index, term) {
+          if(term) { // only if a valid term
+            term = term.replace(/"/g, ''); // remove all quotes from quoted terms
+            if('-' == term[0]) {  // negated terms
+              term = term.replace(/-/, ''); // remove first - from term
+              if(term.length) { // require a value to avoid removing all
+                show = show ? row.indexOf(term) < 0 : false;
+              }
+            } else {
+              show = show ? row.indexOf(term) > -1 : false;
+            }
+          }
+        });
+        return show;
+      }).show();
+      if($('#'+ table + ' tr:visible').length > 0) {
+        $('#'+ table + ' tr:last').hide();
+        // special case, only final row with no search
+        if($('#'+ table + ' tr:visible td').length == 0) {
+          $('#'+ table + ' tr:last').show();
+        }
+      } else {
+        $('#'+ table + ' tr:last').show();
+      }
+      $('#'+ table + ' tr:first').show();
+    }
+
+    // update summary data
+    function updateSummary() {
+      // update "none" display
+      $('#main-list-table-header').hide();
+      $('#main-list-table-none').hide();
+      if($('#main-list-table tr:visible').length == 0) {
+        $('#main-list-table-none').show();
+      }
+      $('#main-list-table-header').show();
+      // count properties for each type
+      var t = 0, p = 0, pc = 0, al = 0, ae = 0, c = 0;
+      $.each($('#main-list-table tr:visible .status .pending>span'),
+          function(key, value) { p += parseInt($($(value).contents()[0]).text()); t++; });
+      $.each($('#main-list-table tr:visible .status .pending>span span'),
+          function(key, value) { pc += parseInt($(value).text()); });
+      $.each($('#main-list-table tr.active:visible .status .available>span'),
+          function(key, value) { al += parseInt($(value).text()); });
+      $.each($('#main-list-table tr.ended:visible .status .available>span'),
+          function(key, value) { ae += parseInt($(value).text()); });
+      $.each($('#main-list-table tr:visible .status .completed>span'),
+          function(key, value) { c += parseInt($(value).text()); });
+      // update summary display
+      $('#main-list-limit-summary-t').html(t);
+      $('#main-list-limit-summary-p').html(p +
+          (pc > 0 ? (' (+<span title="submitted, pending review">') + pc + '</span>)': '') );
+      $('#main-list-limit-summary-a').html(al +
+          (ae > 0 ? (' (+<span title="available for expired tasks">') + ae + ')': '') );
+      $('#main-list-limit-summary-c').html(c);
+    }
+
+    function updateQualsSummary(table, shown, total) {
+      var t = $('#' + table + ' tr:not(.noresult)').length - 1;
+      var s = $('#' + table + ' tr:visible:not(.noresult)').length - 1;
+      $('#' + shown).text(s);
+      $('#' + total).text(t);
+    }
+
+    // switch current mode
+    function updateMode(action) {
+
+      var refresh = false;
+      if('refresh' == action) {
+        action = null;
+        refresh = true;
+      }
+
+      // update action if specified
+      __session['action'] = action ? action : __session['action'];
+
+      // restore some defaults
+      $('#main-list-limit').show();
+      $('#main-list-actions').show();
+      $('#main-list-manage').removeClass('clickable');
+
+      // hide modal page elements
+      $('body>*').hide();
+      $('#main>*').not('#main-loading').hide();
+
+
+      // change mode
+      switch(__session['action']) {
+        case 'manage':
+          doManage(refresh);
+          window.scrollTo(0, 0);
+          break;
+        case 'list':
+          doList(refresh);
+          window.scrollTo(0, 0);
+          break;
+        default:
+        case 'login':
+          doLogin();
+          break;
+      }
+
+    };
+
+    // login mode
+    function doLogin() {
+      // clear caches
+      __session['hits-age'] = 0; __session['hits'] = [];
+      $('#main-list-table .hit').remove();
+
+      // show login box
+      $('#login').show();
+    }
+
+    // set login values
+    function setLogin(event) {
+      // set time format display setting
+      __session['time-format'] = parseInt($('#login-time-format').val());
+
+      // configure api
+      var config = new AWS.Config({
+        accessKeyId: $('#login-aws-accessKeyId').val(),
+        secretAccessKey: $('#login-aws-secretAccessKey').val(),
+        region: $('#login-aws-region').val()
+      });
+      AWS.config = config;
+
+      // update mturk endpoint
+      __session['mturk'] = new AWS.MTurk({ endpoint: $('#login-aws-endpoint').val() });
+
+      // update header elements
+      $('#header-aws-accessKeyId').text($('#login-aws-accessKeyId').val());
+      $('#header-aws-endpoint').text($('#login-aws-endpoint').find(':selected').text());
+      if($('#login-aws-endpoint').val().indexOf('sandbox') > -1) {
+        $('#header').addClass('sandbox');
+      } else {
+        $('#header').removeClass('sandbox');
+      }
+
+      updateMode('list');
+    }
+
+    // manage hits
+    function manageHIT(event, hit) {
+      __session['current-hit'] = hit;
+      __session['assignment-mode'] = 'submitted';
+      updateMode('manage');
+      updateHITActions();
+    }
+
+    // manage mode
+    function doManage(refresh) {
+      $('#content').show();
+      $('#main-list').show();
+      $('#main-list-limit').hide();
+      $('#main-list-actions').hide();
+      $('#main-manage').show();
+
+      // mark header clickable
+      $('#main-list-manage').removeClass('clickable').addClass('clickable');
+
+      // refresh hits, unless assignment refresh req.
+      if(!refresh && doRefresh(__session['hits-age'])) {
+        updateHITs();
+      }
+
+      // get assignments
+      if(doRefresh(__session['assignments-age'])) {
+        updateAssignments(__session['current-hit'].HITId);
+      }
+
+      // filter down to current hit
+      listHideExceptSearch(__session['current-hit'].HITId);
+      $('.hit .hitid a').removeClass('clickable');
+    }
+
+    // list hits
+    function doList(refresh) {
+      $('#content').show();
+      $('#main-list').show();
+
+      // refresh hits
+      if(doRefresh(__session['hits-age'])) {
+        updateHITs(refresh);
+        if(!refresh) {
+          // default listing
+          $('#main-list-limit-all').click();
+        }
+      }
+
+      // clear assignment cache
+      __session['assignments-age'] = 0;
+      __session['assignments'] = [];
+
+      // remove assignments from dom to prevent flash
+      $('#main-assignment-table tr.assignment').remove();
+
+      // ensure that hitids are clickable
+      $('.hit .hitid a').removeClass('clickable').addClass('clickable');
+    };
+
+    // update stored assignments
+    function updateAssignments(hitid) {
+      // clear stored assignments
+      __session['assignments'] = [];
+      __session['assignments-age'] = new Date().getTime();
+      buildAssignmentCache(hitid, false);
+    }
+
+    // build cache of assignments
+    function buildAssignmentCache(hitid, paginationToken) {
+      $('#main-loading').show();
+      var rMax = __session['max-results'] ? __session['max-results'] : 100;
+      var params = paginationToken ? {HITId: hitid, MaxResults: rMax, NextToken: paginationToken} : {HITId: hitid, MaxResults: rMax};
+      __session['mturk'].listAssignmentsForHIT(params, function(err, data) {
+        if (err) {
+          if(err.indexOf('Rate') > -1) {
+            __session['rate-limit-delay'] *= 2;
+            window.setTimeout(function() {
+              buildAssignmentCache(hitid, paginationToken);
+            }, __session['rate-limit-delay']);
+          } else {
+            showMessage('API Error', err.message);
+          }
+        } else {
+          __session['rate-limit-delay'] = __session['rate-limit-delay'] > 50 ?
+              __session['rate-limit-delay'] / 2 : 50;
+          paginationToken = data.NextToken ? data.NextToken : false;
+          if(data.NumResults) {
+            // add this page of results to cache
+            __session['assignments'] = __session['assignments'].concat(data.Assignments);
+            // loop if we need another page
+            if(data.NumResults == rMax) {
+              buildAssignmentCache(hitid, paginationToken);
+            }
+          }
+          // end of pages
+          if(data.NumResults != rMax) {
+            // no more hits to get, render
+            renderAssignments();
+          }
+        }
+      });
+    }
+
+    // add assignments to dom
+    function renderAssignments() {
+      //remove previous assignments
+      $('#main-assignment-table .assignment').remove();
+
+      // process array of assignments
+      $.each(__session['assignments'], function(index, assignment) {
+        // clear answer cache
+        assignment.Answers = [];
+        // extract answers
+        var answerdom = null;
+        var answer = $.parseXML(assignment.Answer);
+        $.each($(answer).find('Answer'), function(index, a){
+          question = $(a).find('QuestionIdentifier').text();
+          response = $(a).find('SelectionIdentifier').text();
+          response = response ? response : $(a).find('FreeText').text();
+          // cache responses
+          assignment.Answers.push({question: question, response: response});
+          // generate dom items
+          var el = $('<div>').addClass('answer').text(question + ': ').append($('<span>').text(response));
+          if(answerdom) {
+            answerdom.append(el);
+          } else {
+            answerdom = el;
+          }
+        });
+        // add table row
+        $('#main-assignment-table-header').after(
+          $('<tr>').addClass('assignment')
+              .addClass(assignment.AssignmentStatus.toLowerCase())
+              // checkboxes
+              .append(
+                $('<td>').addClass('checkbox')
+                  .click( function(event) { checkboxHelper(event); } )
+                  .append(
+                    $('<input>').prop('type', 'checkbox').val(assignment.AssignmentId)
+                  )
+              )
+              // assignment id
+              .append( $('<td>').addClass('assignmentid')
+                .append($('<span>').addClass('search-only').text(assignment.AssignmentId))
+                .append(
+                  $('<span>')
+                    //.prop('title', assignment.AssignmentId)
+                    .text('...' + assignment.AssignmentId.substr(assignment.AssignmentId.length -6, 6))
+                    .append(
+                      $('<span>').addClass('hover-only')
+                        .append($('<span>').addClass('hover-assignment-id').text(assignment.AssignmentId))
+                        .click( function(event) { event.preventDefault(); event.stopPropagation(); } )
+                    )
+                )
+              )
+              // assignment worker id
+              .append(
+                $('<td>').addClass('workerid')
+                .append(
+                  $('<div>').addClass('workerid').text(assignment.WorkerId)
+                )
+                .append(
+                  $('<div>').addClass('worker-actions').append(
+                    $('<a>').addClass('bonus-worker').addClass('clickable')
+                    .addClass('ui-button').addClass('ui-corner-all').addClass('ui-widget')
+                    .click( function(event) { bonusWorker(event, assignment) } )
+                    .text('Bonus')
+                  ).append(
+                    $('<a>').addClass('message-worker').addClass('clickable')
+                    .addClass('ui-button').addClass('ui-corner-all').addClass('ui-widget')
+                    .click( function(event) { messageWorkers(event, assignment.WorkerId) } )
+                    .text('Message')
+                  )
+                )
+              )
+              // assignment answers
+              .append( $('<td>').addClass('answer')
+                .append(
+                  $('<div>').append( answerdom )
+                )
+              )
+              // assignment time details
+              .append( $('<td>').addClass('time')
+                .append(
+                  $('<div>').addClass('accept').text('Accept: ')
+                    .append( $('<span>').text( formatDate(assignment.AcceptTime, __session['time-format']) ) )
+                )
+                .append(
+                  $('<div>').addClass('submit').text('Submit: ')
+                    .append( $('<span>').text( formatDate(assignment.SubmitTime, __session['time-format']) ) )
+                )
+                .append(
+                  $('<div>')
+                    .addClass((assignment.ApprovalTime) ? null : 'future')
+                    .addClass('approval')
+                    .text('Approval: ')
+                    .append( $('<span>').text(
+                      (assignment.ApprovalTime) ?
+                          formatDate(assignment.ApprovalTime, __session['time-format']) :
+                          formatDate(assignment.AutoApprovalTime, __session['time-format'])
+                    )
+                  )
+                )
+              )
+              // assignment status
+              .append( $('<td>').addClass('status').text(assignment.AssignmentStatus) )
+              // assignment reject
+              .append( $('<td>').addClass('reject')
+                .append(
+                  $('<a>').addClass('clickable')
+                    .addClass('ui-button').addClass('ui-corner-all').addClass('ui-widget')
+                    .click( function(event) { rejectAssignment(event, assignment); } )
+                    .text('Reject')
+                )
+              )
+        );
+
+      });
+
+
+      // only actually render when needed
+      if(__session['action'] != 'list') {
+        updateMode();
+        // filter list
+        $('#main-manage-assign-' + __session['assignment-mode']).click();
+      }
+
+      // end activity
+      $('#main-loading').hide();
+
+    }
+
+    // download all data
+    function downloadAllData(amazon, rm) {
+      var visible = $('#main-list-table .hitid:visible .search-only.hitid');
+
+      if(visible.length == 0) {
+        showMessage('Error', 'There are no visible HITs.', 'all delete none');
+        return;
+      }
+      var source = [];
+      cacheNextHit(source, visible, amazon, rm);
+    }
+
+    // cache all hits
+    function cacheNextHit(source, visible, amazon, rm) {
+      $.each(__session['hits'], function(index, hit) {
+        if(hit.HITId == $(visible[source.length]).text()) {
+          __session['current-hit'] = hit;
+        }
+      });
+      updateAssignments($(visible[source.length]).text());
+      addToCache(source, visible, amazon, rm);
+    }
+
+    // add to cache
+    function addToCache(source, visible, amazon, rm) {
+      setTimeout(function(){
+        if($('#main-loading:visible').length) {
+          addToCache(source, visible, amazon, rm);
+        } else {
+          source.push({
+            "current-hit": JSON.parse(JSON.stringify(__session['current-hit'])),
+            "assignments": JSON.parse(JSON.stringify(__session['assignments']))
+          });
+          if(source.length < visible.length) {
+            cacheNextHit(source, visible, amazon, rm)
+          } else {
+            downloadData(amazon, source);
+            // expire caches
+            __session['assignments-age'] = 0;
+            __session['hits-age'] = 0;
+            // removal (rm) requested
+            if(rm) {
+              $('#all-delete-hit-confirm').dialog({
+                width: 450,
+                minwidth: 450,
+                modal: true,
+                open: function(event, ui) {
+                  $('#all-delete-hit-title-confirm').text('Delete ' + visible.length + ( visible.length > 1 ? ' HITs' : ' HIT') );
+                },
+                buttons: {
+                  "Delete HITs": function() {
+                    $.each(visible, function(index, hit){
+                      deleteHIT($(hit).text(), (index < (visible.length - 1) ));
+                    });
+                    $(this).dialog('close');
+                  },
+                  Cancel: function() {
+                    console.log('all delete final cancel');
+                    $(this).dialog('close');
+                  }
+                }
+              });
+            }
+          }
+        }
+      }, 100);
+    }
+
+    // download data
+    function downloadData(amazon, source) {
+
+      // amazon uses amazon (2), new uses iso (1)
+      var dateFormat = amazon ? 2 : 1;
+
+      var csv = [];
+      var header = ['HitId', 'HitTitle', 'Annotation', 'AssignmentId', 'WorkerId', 'Status', 'AcceptTime', 'SubmitTime'];
+      var count = 0;
+      var questions = [];
+      var data = [];
+
+      // use source data or __session data
+      source = source || [__session];
+
+      // validate title
+      var title = source.length == 1 ? source[0]['current-hit'].HITId : source.length + 'Tasks';
+      var name = null;
+      if(source.length > 1) {
+        name = source[0]['current-hit'].Title;
+        $.each(source, function(index, assignments) {
+          if(name != assignments['current-hit'].Title) {
+            name = null;
+          }
+        })
+      }
+      title = (name || title).replace(/[^a-zA-Z0-9\\-]/g, '');
+
+      // extract appropriate header information
+      // -- separated so that proper headers for all data generated first
+      $.each(source, function(index, assignments){
+        $.each(assignments['assignments'], function(index, assignment) {
+          count = count < assignment.Answers.length ? assignment.Answers.length : count;
+          if(!amazon) {
+            $.each(assignment.Answers, function(index, answer){
+              if(questions.indexOf(answer.question) < 0) {
+                questions.push(answer.question);
+              }
+            });
+          }
+        });
+      });
+
+      // extract row data
+      $.each(source, function(index, assignments){
+        // generate data rows
+        $.each(assignments['assignments'], function(index, assignment) {
+          // save common data
+          var row = [assignment.HITId,
+                     assignments['current-hit'].Title,
+                     (assignments['current-hit'].RequesterAnnotation ? assignments['current-hit'].RequesterAnnotation : ''),
+                     assignment.AssignmentId,
+                     assignment.WorkerId,
+                     assignment.AssignmentStatus,
+                     formatDate(assignment.AcceptTime, dateFormat),
+                     formatDate(assignment.SubmitTime, dateFormat)
+                    ];
+          if(!amazon) {
+            // look for appropriate response
+            $.each(questions, function(index, question) {
+              var response = '';
+              $.each(assignment.Answers, function(index, answer){
+                if(question == answer.question) {
+                  response = answer.response;
+                }
+              });
+              row.push(response);
+            });
+            // approve/reject time
+            row.push(formatDate((assignment.ApprovalTime ? assignment.ApprovalTime : assignment.RejectionTime), dateFormat));
+          } else {
+            // save in order
+            $.each(assignment.Answers, function(index, answer){
+              row.push(answer.response);
+            });
+          }
+          data.push(row);
+        });
+
+      })
+
+      // finalise headers
+      if(amazon) {
+        for(var i = 1; i <= count; i++) {
+          header.push('Answer ' + i);
+        }
+      } else {
+        questions.push('ApproveRejectTime')
+      }
+      header = header.concat(questions);
+
+      // combine headers and data
+      csv.push(header);
+      csv = csv.concat(data);
+
+      // download file
+      exportData('HITResultsFor' + title + '.csv', csv);
+    }
+
+    // update stored hits
+    function updateHITs(refresh) {
+      // clear stored hits
+      __session['hits'] = [];
+      __session['hits-age'] = Date.now();
+      __session['mturk'].getAccountBalance({}, function(err, data) {
+        if (err) {
+          console.log(err.message);
+          updateMode('login');
+          showMessage("Error", err, err.message)
+        } else {
+          if(data.AvailableBalance) {
+            $('#header-aws-balance').text('($'+ data.AvailableBalance + ')');
+          }
+        }
+      });
+      buildHITCache(false, refresh);
+    }
+
+    // build cache of hits
+    function buildHITCache(paginationToken, refresh) {
+      $('#main-loading').show();
+      var rMax = __session['max-results'] ? __session['max-results'] : 100;
+      var params = paginationToken ? {MaxResults: rMax, NextToken: paginationToken} : {MaxResults: rMax};
+      __session['mturk'].listHITs(params, function(err, data) {
+        if (err) {
+          if(err.indexOf('Rate') > -1) {
+            __session['rate-limit-delay'] *= 2;
+            window.setTimeout(function() {
+              buildHITCache(paginationToken, refresh);
+            }, __session['rate-limit-delay']);
+          } else {
+            showMessage('API Error', err.message);
+          }
+        } else {
+          __session['rate-limit-delay'] = __session['rate-limit-delay'] > 50 ?
+              __session['rate-limit-delay'] / 2 : 50;
+          paginationToken = data.NextToken ? data.NextToken : false;
+          if(data.NumResults) {
+            // add this page of results to cache
+            __session['hits'] = __session['hits'].concat(data.HITs);
+            // loop if there are more results
+            if(data.NumResults == rMax) {
+              buildHITCache(paginationToken, refresh);
+            }
+          }
+          // end of pages
+          if(data.NumResults != rMax) {
+            // no more hits to get, render
+            renderHITs(refresh);
+          }
+        }
+      });
+    }
+
+    // add hits to dom
+    function renderHITs(refresh) {
+      //remove previous hits
+      $('#main-list-table .hit').remove();
+
+      // process array of hits
+      $.each(__session['hits'], function(index, hit) {
+        var question = $.parseXML(hit.Question);
+        hit.Submitted = (
+            hit.MaxAssignments - (hit.NumberOfAssignmentsPending +
+                                  hit.NumberOfAssignmentsAvailable +
+                                  hit.NumberOfAssignmentsCompleted) );
+        // update current hit
+        if(__session['current-hit'] && hit.HITId == __session['current-hit'].HITId) {
+          __session['current-hit'] = hit;
+        }
+        // add table row
+        $('#main-list-table-header').after(
+          $('<tr>').addClass('hit')
+              .addClass(
+                ( (hit.HITStatus == 'Assignable' || hit.HITStatus == 'Unassignable') ? 'active' : 'ended' )
+              )
+              .addClass(
+                ( hit.Submitted > 0 ? 'waiting' : '' )
+              )
+              // hit id
+              .append( $('<td>').addClass('hitid')
+                .append($('<span>').addClass('search-only').addClass('hitid').text(hit.HITId))
+                .append($('<span>').addClass('search-only').addClass('hittypeid').text(hit.HITTypeId))
+                .append($('<span>').addClass('search-only').addClass('hitgroupid').text(hit.HITGroupId))
+                .append(
+                  $('<a>').addClass('clickable')
+                    .click( function(event) { manageHIT(event, hit); } )
+                    //.prop('title', hit.HITId)
+                    .text('...' + hit.HITId.substr(hit.HITId.length -6, 6))
+                    .append(
+                      $('<span>').addClass('hover-only')
+                        .append($('<span>').addClass('hover-hit-id').text(hit.HITId))
+                        .append($('<span>').addClass('hover-type-id').text(hit.HITTypeId))
+                        .append($('<span>').addClass('hover-group-id').text(hit.HITGroupId))
+                        .click( function(event) { event.preventDefault(); event.stopPropagation(); } )
+                    )
+                )
+              )
+              // hit description
+              .append( $('<td>').addClass('task')
+                .append(
+                  $('<div>').addClass('title')
+                    .append( $('<strong>').text( hit.Title ) )
+                    .append(
+                      ( $(question).find('ExternalURL').text() ?
+                            $('<a>').text( '(Preview)' )
+                              .click(function(event) { previewHIT(event, hit); })
+                              .prop('target', '_blank')
+                              .prop('href', $(question).find('ExternalURL').text() +
+                                  ( $(question).find('ExternalURL').text().indexOf('?') > 0 ? '&' : '?' ) +
+                                  'assignmentId=ASSIGNMENT_ID_NOT_AVAILABLE&hitId=' +
+                                  hit.HITId + '&source=manage-hits-console' ) :
+                             null )
+                    )
+                    .append(
+                      ( $(question).find('HTMLContent').text() ?
+                            $('<a>').text( '(Preview)' )
+                              .click(function(event) { previewHIT(event, hit); })
+                              .prop('target', '_blank')
+                              .prop('href', 'https://' +
+                                  (($('#login-aws-endpoint').val().indexOf('sandbox') > -1) ? 'workersandbox' : 'www') +
+                                  '.mturkcontent.com/dynamic/hit?' +
+                                  'assignmentId=ASSIGNMENT_ID_NOT_AVAILABLE&hitId=' +
+                                  hit.HITId + '&source=manage-hits-console' ) :
+                             null )
+                    )
+                    .append(
+                        $('<a>').text( '(MTurk)' )
+                          .prop('target', '_blank')
+                          .prop('href',
+                            'https://worker' +
+                            (($('#login-aws-endpoint').val().indexOf('sandbox') > -1) ? 'sandbox' : '') +
+                            '.mturk.com/projects/' + hit.HITGroupId + '/tasks'
+                          )
+                          .addClass(( hit.HITStatus == 'Assignable' ? '' : 'not-avail'))
+                    )
+                )
+                .append(
+                  $('<div>').addClass('desc').text( hit.Description) )
+                .append(
+                  $('<div>').addClass('keywords').text( hit.Keywords) )
+              )
+              // hit reward
+              .append( $('<td>').addClass('reward')
+                .append(
+                  $('<div>').addClass('price').text('Price: $').append(
+                    $('<span>').text(hit.Reward)
+                  )
+                )
+                .append(
+                  $('<div>').addClass('qualifications').text('Qualifications: ').append(
+                    $('<span>').text(formatQualifications(hit.QualificationRequirements))
+                  )
+                )
+                .append(
+                  ( hit.QualificationRequirements.length > 0 ?
+                      $('<div>').addClass('reqired').text('Required to preview: ').append(
+                          $('<span>').text(formatPreview(hit.QualificationRequirements))
+                      ) : null )
+                )
+              )
+              // hit time details
+              .append( $('<td>').addClass('time')
+                .append(
+                  $('<div>').addClass('duration').text('Duration: ')
+                    .append( $('<span>').text( formatDuration(hit.AssignmentDurationInSeconds) ) )
+                )
+                .append(
+                  $('<div>').addClass('created').text('Created: ')
+                    .append( $('<span>').text( formatDate(hit.CreationTime, __session['time-format']) ) )
+                )
+                .append(
+                  $('<div>').addClass('expires').text('Expires: ')
+                    .append( $('<span>').text( formatDate(hit.Expiration, __session['time-format']) ) )
+                )
+              )
+              // hit status
+              .append( $('<td>').addClass('status')
+                .append(
+                  $('<div>').addClass('pending').text('Pending: ')
+                    .append(
+                      $('<span>').text(hit.NumberOfAssignmentsPending)
+                        .append(
+                          ( hit.Submitted > 0 ?
+                                $('<span>').prop('title', 'submitted, pending review')
+                                  .text(hit.Submitted) :
+                              null )
+                        )
+                    )
+                )
+                .append(
+                  $('<div>').addClass('available').text('Available: ')
+                    .append( $('<span>').text(hit.NumberOfAssignmentsAvailable) )
+                )
+                .append(
+                  $('<div>').addClass('completed').text('Completed: ')
+                    .append( $('<span>').text(hit.NumberOfAssignmentsCompleted) )
+                )
+                .append( $('<span>').addClass('search-only').addClass('hit-status').text('status/' + hit.HITStatus) )
+                .append( $('<span>').addClass('search-only').addClass('hit-status-simple').text('status/' + ( (hit.HITStatus == 'Assignable' || hit.HITStatus == 'Unassignable' || hit.Submitted > 0) ? 'active' : 'ended' )) )
+                .append( $('<span>').addClass('search-only').addClass('hit-status-extra').text(( hit.Submitted > 0 ? 'status/' + 'waiting' : '' )) )
+              )
+        );
+
+      });
+
+      if(refresh) {
+        // manual refresh, keep state
+        //listHideExceptSearch($('#main-list-search').val());
+        $('#main-list-search').change();
+      } else {
+        // do default view
+        updateMode();
+        updateSummary();
+      }
+
+      $('#main-loading').hide();
+
+    }
+
+    // check for refresh time
+    function doRefresh(value) {
+      if(value) {
+        return (new Date().getTime() - value) > __session['refresh-freq'];
+      }
+      return true;
+    }
+
+    // format duration
+    function formatDuration(s) {
+      return Math.floor(s/60/60) + 'h ' + zeroPad(Math.floor((s/60) % 60), 2) + 'm ' + zeroPad((s % 60), 2) + 's';
+    }
+
+    // format date (flag: 0, utc; 1, iso; 2, amazon; 3, local)
+    function formatDate(date, flag) {
+      try {
+        if(flag == 3) { // local
+          return new Date(date).toLocaleString();
+        }
+        if(flag == 2) { // amazon (pst)
+          d = new Date(new Date(date).getTime() - (8 * 60 * 60 * 1000));
+          return d.toUTCString().split(',')[0] + ' ' +
+              d.toUTCString().split(' ')[2] + ' ' +
+              zeroPad(d.getUTCDate(), 2) + ' ' +
+              zeroPad(d.getUTCHours(), 2) + ':' +
+              zeroPad(d.getMinutes(), 2) + ':' +
+              zeroPad(d.getUTCSeconds(), 2) + ' PST ' +
+              d.getUTCFullYear();
+        }
+        if(flag == 1) { // iso
+          return new Date(date).toISOString();
+        }
+        // utc
+        return new Date(date).toUTCString();
+      } catch (e) {
+        // not a date
+        return '';
+      }
+    }
+
+    // zero pad numbers
+    function zeroPad(number, len, reverse) {
+      number = number.toString();
+      while(number.length < len) {
+        number = reverse ? (number + '0') : ('0' + number);
+      }
+      return number;
+    }
+
+    // currency pad
+    function currencyPad(number) {
+      number = number.toString().split('.');
+      if(number.length == 1) {
+        number = number[0] + '.00';
+      } else {
+        number = number[0] + '.' + zeroPad(number[1].substring(0,2), 2, true);
+      }
+      return number;
+    }
+
+    // format qualifications
+    function formatQualifications(quals) {
+      var string = quals.length;
+      $.each(quals, function(index, qual) {
+        // Locale
+        if(qual.QualificationTypeId == '00000000000000000071') {
+          string += ' (' + (qual.Comparator == 'NotEqualTo' ? 'not ' : '') +
+              qual.LocaleValues[(qual.LocaleValues.length -1)].Country + ')';
+        }
+        // Masters
+        if(
+            (qual.QualificationTypeId == '2ARFPLSP75KLA8M8DH1HTEQVJT3SY6'
+                || qual.QualificationTypeId == '2F1QJWKUDD8XADTFD2Q0G6UTO95ALH') &&
+            qual.Comparator == 'Exists'
+        ) {
+          string += ' (Masters)';
+        }
+        // Adult
+        if(qual.QualificationTypeId == '00000000000000000060' &&
+            qual.IntegerValues.indexOf(1) > -1) {
+          string += ' (Adult)';
+        }
+      });
+      return string;
+    }
+
+    // format preview
+    function formatPreview(quals) {
+      var string = 'No';
+      $.each(quals, function(index, qual) {
+        if(qual.RequiredToPreview) {
+          string = 'Yes';
+        }
+      });
+      return string;
+    }
+
+  </script>
+</head>
+
+<body>
+
+  <!-- https://enable-javascript.com -->
+  <noscript>
+    This management console requires JavaScript. Please
+    <a href="https://www.enable-javascript.com/" target="_blank">enable JavaScript</a> and
+    refresh this page to continue.
+  </noscript>
+
+  <div id="login">
+    <form action="file://">
+      <input id="login-aws-accessKeyId" placeholder="YOUR_ACCESS_ID" type="text" value="{{ AWS_ACCESS_KEY_ID }}">
+      <input id="login-aws-secretAccessKey" placeholder="YOUR_SECRET_ACCESS_KEY" type="password" value="{{ AWS_SECRET_ACCESS_KEY }}">
+      <input id="login-aws-region" value="us-east-1" type="hidden">
+      <select id="login-aws-endpoint">
+        <optgroup label="Endpoint">
+          <option value="https://mturk-requester-sandbox.us-east-1.amazonaws.com">Sandbox</option>
+          <option value="https://mturk-requester.us-east-1.amazonaws.com">Production</option>
+        </optgroup>
+      </select>
+      <select id="login-time-format">
+        <optgroup label="Time Format">
+          <option value="3" id="login-time-zone">Local</option>
+          <option value="0">GMT (UTC)</option>
+          <option value="1">ISO (UTC)</option>
+          <option value="2">PST (Amazon)</option>
+        </optgroup>
+      </select>
+      <button id="login-button" type="button" class="ui-button ui-corner-all ui-widget">Continue</button>
+    </form>
+  </div>
+
+  <div id="content">
+
+    <div id="header">
+      <a id="header-aws">
+        <span id="header-aws-endpoint"></span>:
+        <span id="header-aws-accessKeyId"></span>
+        <span id="header-aws-balance"></span>
+        <span class="clickable ui-button ui-corner-all ui-widget">Change</span>
+      </a>
+    </div>
+
+    <div id="main">
+
+      <div id="main-loading">
+        <!-- Ajax-loader.gif, optimized, base64 encoded: https://commons.wikimedia.org/wiki/File:Ajax-loader.gif -->
+        <img alt="Loading data..." title="Loading data..." src="data:image/gif;base64,R0lGODlhIAAgAPMLALy8vMbGxoSEhLa2tpqamjY2NlZWVtjY2OTk5AQEBB4eHv///wAAAAAAAAAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQFCgALACwAAAAAIAAgAEAE5nDJSSlJpOo6SsmToSiChgwTAgzsIQlwDG/0wt4DgEjn4E6Blo0lue1qlZECJUk4JysfckLwMKeLH/YgxEZzx1o0fKMEr9NBieJMmInYSWG0bhdZYZrB4zFokTg6cYNDgXmEFX8aZywAU1wpX4oVUT9lEpWECIorjohTCgkKiYc1CCMGbE88jYQCIwUTdlmtiANKO3ZcAwEUu2FVfUwBCiA1jLwaA3t8cbuTJmufFQEEMjOEODcA1dfS04+Dz6ZfnljIvRO7YBMDpbvpEgcrpRQ9TJe75s61hSmXcVjE8+erniZBcSIAACH5BAUKAAsALAAAAAAYABcAAARycMlJqxo161lUqQKxiZRiUkWSaMVXnhKhKmwLTCYtKaqgES0DDiaYbRaGFim3OKgSpE3LxTSoXE2B4IbCUmSBCUCrPUgOBcyRMiCHEOvNwe2Lb8aCsP2o3vvjCAADg4R/C4KEhX+BiYOGj5CRkpNHensRACH5BAUKAAsALAEAAAAdAA4AAARycMlJ5yg1671MMdnATQdQFShlKMooCYI4oZg0sPUIC8ecSgWWSwLY+XK4oYQAMy1oCwRLIZsgNgfjMyVggSaCRIKAGAB6E2ZM01oqxAneYA64RgWBUaAAT9QCc3N5Sn1UFAgAgU4uYXFYc2hDBpFYShwRACH5BAUKAAsALAcAAAAZABEAAARpcMm5ggg0600Eyd+2IEcmnFlRiMOATadAqeLSDgiMSoYaaocWQCdbEFSG2gLQKi1iEtVKibhJoAtaRqEYUAJNzaDgHHMVYmfNcFYklZv2lOKFG7l2uCCX7/s1CYGCCj99gocJfwuICYQRACH5BAUKAAsALA4AAAASABgAAARl8JCzqr14ELwA5QshXoQggOFYHeYJilvVAihcAS2axu33jgNTrEIoFFABAcJiMBaGIIrzqKtMDbSq9anter8VhXhM1Y3PiipaURiAvQJfV5BIuLr1ugKKLOQTZVUECnl3WnQJbhEAIfkEBQoACwAsDgAAABIAHgAABIAQAbSqvRgMgAO+QwgSxFeFw0WmJmoNpNeKS0CW5uIud36KNgKrAhAIDqbD8GA0cnwIQlOA802PPkvAmcUMu+BsYUw2fD/kdEGsNoTfFsqboFDA6/XCOWnAK9wmAgkyAwV4JgYJCWsXhiYIiglVXYIJdm8KigJvA5FwBYpyYVQmEQAh+QQFCgALACwPAAEAEQAfAAAEe3DJuQ6iGIcxskcc4GUAd4zUEaIUN1xsxQUpB1P3gpQmu7k0lGsAyHlUg1NMolw6PYKolBCESq+oa5T67DoHhQLBGQ4bnuXCiKCgGMpjikChOE/G6kViL6ErOh57CRN0eRmCEwV0I4iEi4d8EwaPGI0tHgoJbU4ECXFLEQAh+QQFCgALACwIAA4AGAASAAAEbHDJSesaOANk+8wg4Hkgto1oig4qGgiC2FpwfcwUQtQCMQ+F2+LAky0CCUGnUKgAYMJFIZEwLBRYCbM5IlATHKxCQmBaPQqq8pqVGJg+GnUsEVO2nXQizqZPmB1UXHVtE3wVOxUFCoM4H34qEQAh+QQFCgALACwCABIAHQAOAAAEeHDJSatd59JjtD3DkF1CkggeBYQDgFCDYpopFbBDIBVzUuiegOC1QKxCh5JJQZAcmJaBQNCcHFYIggk1MSgUqIJYMhWMLMRJ7LsbLwDl2qTAbhcmhClAvvje7VZxNXQKA3NuEnlcKV8dh38TAGcehhUGBY58cpA1EQAh+QQFCgALACwAAA8AGQARAAAEZ5CoROu6OOtbe9pgJnlfaJ7oiQgpqihECxbvK2dGrRjoMWy1wu8i3PgGgczApikULoLoZUBFoJzPRZS1OAJOBmdMK70AqIcQwcmDlhcI6nCWdXMvAWrIqdlqDlZqGgQCYzcaAQJJGxEAIfkEBQoACwAsAQAIABEAGAAABFxwpCSWvfiKmRTJ4FJwSRGEGKGQaLZRbXZUcW3feK7vKFEUNoDh96sRgYeW72e4IAQn0O9zIQgEg8Vgi5pdLdts6CoAgLkgAPkSHl+TZ7ELi2mDDnILYGC+IQAIEQAh+QQFCgALACwAAAIADgAdAAAEcnDJuYigeKZUMt7J4E3CpoyTsl0oAR5pRxWbkSpKIS5BwkoGHM4A8wwKwhNqgSMsF4jncmAoWK+Zq1ZGoW650vAOBRAIAqODee2xrAlRTNlMQEsG8YVaAKAEBgNFHgiAYx4AgIIZB4B9ZIB5RgN2KAiKEQA7">
+      </div>
+
+      <div id="main-list">
+
+        <h1><a id="main-list-manage">Manage HITs</a></h1>
+
+        <div id="main-list-limit" class="actions">
+          Show only:
+            <a id="main-list-limit-all">All</a>
+            <a id="main-list-limit-all-active" class="active">Active</a>
+            <a id="main-list-limit-all-waiting" class="active">Waiting</a>
+            <a id="main-list-limit-all-ended" class="active">Ended</a>
+            <input id="main-list-search" type="text" placeholder="Search All HITs" />
+            <a id="main-list-refresh" class="refresh-icon" title="refresh HITs">
+              <!-- Reload, David Merfield: http://publicicons.org/reload-icon/ -->
+              <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                   width="120px" height="120px" viewBox="0 0 120 120" enable-background="new 0 0 120 120" xml:space="preserve">
+              <g>
+                  <path d="M60,95.5c-19.575,0-35.5-15.926-35.5-35.5c0-19.575,15.925-35.5,35.5-35.5c13.62,0,25.467,7.714,31.418,19h22.627
+                      C106.984,20.347,85.462,3.5,60,3.5C28.796,3.5,3.5,28.796,3.5,60c0,31.203,25.296,56.5,56.5,56.5
+                      c16.264,0,30.911-6.882,41.221-17.88L85.889,84.255C79.406,91.168,70.201,95.5,60,95.5z"/>
+              </g>
+              <line fill="none" x1="120" y1="0" x2="120" y2="45.336"/>
+              <line fill="none" x1="91.418" y1="43.5" x2="114.045" y2="43.5"/>
+              <polygon points="120,21.832 119.992,68.842 74.827,55.811 "/>
+              </svg>
+            </a>
+            <a id="main-list-utils" class="clickable ui-button ui-corner-all ui-widget">Other Actions</a>
+            <div id="main-list-limit-summary">
+              Summary:
+                <span title="Tasks">T</span>: <span id="main-list-limit-summary-t"></span> /
+                <span title="Pending">P</span>: <span id="main-list-limit-summary-p"></span> /
+                <span title="Available">A</span>: <span id="main-list-limit-summary-a"></span> /
+                <span title="Completed">C</span>: <span id="main-list-limit-summary-c"></span>
+            </div>
+        </div>
+
+        <table id="main-list-table">
+          <tr id="main-list-table-header">
+            <th>ID</th>
+            <th>Task</th>
+            <th>Reward</th>
+            <th>Time</th>
+            <th>Status</th>
+          </tr>
+
+          <tr id="main-list-table-none" class="noresult"><td colspan="5">No tasks to display</td></tr>
+        </table>
+
+
+        <div id="main-list-actions" class="actions">
+          Actions (all visible HITs):
+            <a id="main-list-download" class="clickable ui-button ui-corner-all ui-widget">Download Data</a>
+            <a id="main-list-download-amazon" class="adjunct clickable ui-button ui-corner-all ui-widget">Amazon</a>
+            <a id="main-list-hit-delete" class="clickable ui-button ui-corner-all ui-widget">Delete</a>
+        </div>
+
+      </div>
+
+      <div id="main-manage">
+
+
+        <div id="main-manage-actions" class="actions">
+          Actions:
+            <a id="main-manage-download" class="clickable ui-button ui-corner-all ui-widget">Download Data</a>
+            <a id="main-manage-download-amazon" class="adjunct clickable ui-button ui-corner-all ui-widget">Amazon</a>
+            <a id="main-manage-hit-extend" class="clickable ui-button ui-corner-all ui-widget">Add Time</a>
+            <a id="main-manage-hit-increase" class="clickable ui-button ui-corner-all ui-widget">Add Assignments</a>
+            <a id="main-manage-hit-expire" class="clickable ui-button ui-corner-all ui-widget">Expire</a>
+            <a id="main-manage-hit-delete" class="clickable ui-button ui-corner-all ui-widget">Delete</a>
+        </div>
+
+        <h2>Manage Assignments</h2>
+
+        <div id="main-manage-limit" class="actions">
+          Show only:
+            <a id="main-manage-assign-submitted">Submitted</a>
+            <a id="main-manage-assign-approved">Approved</a>
+            <a id="main-manage-assign-rejected">Rejected</a>
+            <a id="main-manage-assign-all">All</a>
+            <a id="main-manage-refresh" class="refresh-icon" title="refresh assignments">
+              <!-- Reload, David Merfield: http://publicicons.org/reload-icon/ -->
+              <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                   width="120px" height="120px" viewBox="0 0 120 120" enable-background="new 0 0 120 120" xml:space="preserve">
+              <g>
+                  <path d="M60,95.5c-19.575,0-35.5-15.926-35.5-35.5c0-19.575,15.925-35.5,35.5-35.5c13.62,0,25.467,7.714,31.418,19h22.627
+                      C106.984,20.347,85.462,3.5,60,3.5C28.796,3.5,3.5,28.796,3.5,60c0,31.203,25.296,56.5,56.5,56.5
+                      c16.264,0,30.911-6.882,41.221-17.88L85.889,84.255C79.406,91.168,70.201,95.5,60,95.5z"/>
+              </g>
+              <line fill="none" x1="120" y1="0" x2="120" y2="45.336"/>
+              <line fill="none" x1="91.418" y1="43.5" x2="114.045" y2="43.5"/>
+              <polygon points="120,21.832 119.992,68.842 74.827,55.811 "/>
+              </svg>
+            </a>
+        </div>
+
+        <form id="main-assignment-form" class="actions" action="file://">
+
+          <table id="main-assignment-table">
+            <tr id="main-assignment-table-header">
+              <th><input type="checkbox" id="main-assignment-check-all"></th>
+              <th>ID</th>
+              <th>Worker</th>
+              <th>Answer</th>
+              <th>Time</th>
+              <th>Status</th>
+              <th>Reject</th>
+            </tr>
+            <tr id="main-assignment-table-none" class="noresult"><td colspan="7">No assignments to display</td></tr>
+          </table>
+
+          <div id="main-assignment-actions" class="actions">
+            Actions:
+              <a id="main-assignment-approve-checked" class="clickable ui-button ui-corner-all ui-widget">Approve Selected</a>
+              <a id="main-assignment-message-displayed" class="clickable ui-button ui-corner-all ui-widget">Message Displayed</a>
+              <a id="main-assignment-message-all" class="clickable adjunct ui-button ui-corner-all ui-widget">All</a>
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div id="footer">
+    Copyright &copy; 2018-2020 <a href="https://jsonj.co.uk/" target="_blank">Jason T. Jacques</a>.
+    <a href="https://github.com/jtjacques/mturk-manage/releases" target="_blank">mturk-manage.html</a> is released under the
+    <a href="https://github.com/jtjacques/mturk-manage/blob/master/LICENSE" target="_blank">MIT License</a>.
+  </div>
+
+  <div id="modal-elements">
+
+    <div id="dialog-message" title="">
+      <div>
+        <span id="dialog-message-message"></span>
+      </div>
+    </div>
+
+    <div id="worker-actions-menu" title="Other Actions">
+      <ul>
+        <li>
+          <a id="worker-action-message" class="clickable ui-button ui-corner-all ui-widget">Message Worker</a>
+          <span>Send a message to a worker using their Worker ID.</span>
+        </li>
+        <li>
+          <a id="worker-action-pay" class="clickable ui-button ui-corner-all ui-widget">One-off Payment</a>
+          <span>Create a one-off payment task for a particular worker.</span>
+        </li>
+        <li>
+          <a id="worker-action-quals" class="clickable ui-button ui-corner-all ui-widget">Manage Qualifications</a>
+          <span>Manage worker qualifications.</span>
+        </li>
+        <li>
+          <a id="worker-action-mturk" class="clickable ui-button ui-corner-all ui-widget">Visit mturk.com</a>
+          <span>Additonal actions, including blocking workers, found in the mturk.com interface.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div id="worker-quals-list" title="Qualifications">
+      <div>
+        <div class="actions">
+          Show only:
+          <a id="quals-list-limit-all" class="">All</a>
+          <input id="quals-list-search" type="text" placeholder="Search Qualifications" />
+          <a id="quals-list-refresh" class="refresh-icon clickable" title="refresh qualifications">
+            <!-- Reload, David Merfield: http://publicicons.org/reload-icon/ -->
+            <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                 width="120px" height="120px" viewBox="0 0 120 120" enable-background="new 0 0 120 120" xml:space="preserve">
+            <g>
+                <path d="M60,95.5c-19.575,0-35.5-15.926-35.5-35.5c0-19.575,15.925-35.5,35.5-35.5c13.62,0,25.467,7.714,31.418,19h22.627
+                    C106.984,20.347,85.462,3.5,60,3.5C28.796,3.5,3.5,28.796,3.5,60c0,31.203,25.296,56.5,56.5,56.5
+                    c16.264,0,30.911-6.882,41.221-17.88L85.889,84.255C79.406,91.168,70.201,95.5,60,95.5z"/>
+            </g>
+            <line fill="none" x1="120" y1="0" x2="120" y2="45.336"/>
+            <line fill="none" x1="91.418" y1="43.5" x2="114.045" y2="43.5"/>
+            <polygon points="120,21.832 119.992,68.842 74.827,55.811 "/>
+            </svg>
+          </a>
+          <a id="quals-menu-create" class="clickable ui-button ui-corner-all ui-widget">Create Qualification</a>
+          <a id="quals-menu-download" class="clickable ui-button ui-corner-all ui-widget">Download All</a>
+          <div id="quals-menu-summary" class="summary">
+              <span id="quals-menu-summary-shown" title="Shown"></span> /
+              <span id="quals-menu-summary-total" title="Total"></span>
+          </div>
+        </div>
+        <table id="quals-list-table">
+          <tr id="quals-list-table-header">
+            <th>ID</th>
+            <th>Qualification</th>
+            <th>Status</th>
+            <th>Remove</th>
+          </tr>
+
+          <tr id="quals-list-table-none" class="noresult"><td colspan="4">No qualifications</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div id="worker-quals-workers" title="Qualifications">
+      <div>
+        <div class="actions">
+          Show only:
+          <a id="quals-worker-limit-all" class="">All</a>
+          <input id="quals-worker-search" type="text" placeholder="Search Workers" />
+          <a id="quals-worker-list-refresh" class="refresh-icon clickable" title="refresh worker list">
+            <!-- Reload, David Merfield: http://publicicons.org/reload-icon/ -->
+            <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                 width="120px" height="120px" viewBox="0 0 120 120" enable-background="new 0 0 120 120" xml:space="preserve">
+            <g>
+                <path d="M60,95.5c-19.575,0-35.5-15.926-35.5-35.5c0-19.575,15.925-35.5,35.5-35.5c13.62,0,25.467,7.714,31.418,19h22.627
+                    C106.984,20.347,85.462,3.5,60,3.5C28.796,3.5,3.5,28.796,3.5,60c0,31.203,25.296,56.5,56.5,56.5
+                    c16.264,0,30.911-6.882,41.221-17.88L85.889,84.255C79.406,91.168,70.201,95.5,60,95.5z"/>
+            </g>
+            <line fill="none" x1="120" y1="0" x2="120" y2="45.336"/>
+            <line fill="none" x1="91.418" y1="43.5" x2="114.045" y2="43.5"/>
+            <polygon points="120,21.832 119.992,68.842 74.827,55.811 "/>
+            </svg>
+          </a>
+          <a id="quals-worker-add" class="clickable ui-button ui-corner-all ui-widget">Add Workers</a>
+          <a id="quals-worker-download" class="clickable ui-button ui-corner-all ui-widget">Download All</a>
+          <div id="quals-worker-summary" class="summary">
+              <span id="quals-worker-summary-shown" title="Shown"></span> /
+              <span id="quals-worker-summary-total" title="Total"></span>
+          </div>
+        </div>
+        <table id="quals-worker-table">
+          <tr id="quals-worker-table-header">
+            <th>ID <a class="clickable faint">(Copy Shown)</a></th>
+            <th>Granted</th>
+            <th>Value</th>
+            <th>Remove</th>
+          </tr>
+
+          <tr id="quals-worker-table-none" class="noresult"><td colspan="4">No assigned workers</td></tr>
+
+          <textarea id="quals-workers-all" style="position:fixed;top:-10px;left:-10px;width:1px;height:1px"></textarea>
+        </table>
+      </div>
+    </div>
+
+    <div id="quals-add-worker" title="Add or Update Workers">
+      <form>
+        <label for="quals-workerids" autofocus="autofocus" title="Multiple Worker IDs may be specified using space or comma separation.">Worker IDs</label>
+        <textarea type="text" name="quals-add-workerids" id="quals-add-workerids" placeholder="Required (Multiple Worker IDs may be specified using space or comma separation.)" title="Multiple Worker IDs may be specified using space or comma separation."></textarea>
+        <label for="quals-add-value">Value</label>
+        <input type="text" name="quals-add-value" id="quals-add-value" placeholder="Required (Integer; default 1)" value="1">
+        <!-- Allow form submission with keyboard without duplicating the dialog button -->
+        <!-- input type="submit" tabindex="-1" style="position:absolute; top:-1000px" -->
+      </form>
+    </div>
+
+    <div id="quals-add-qual" title="Create Qualification">
+      <form>
+        <label for="qual-add-name" autofocus="autofocus">Name</label>
+        <input type="text" name="qual-add-name" id="qual-add-name" placeholder="Required">
+        <label for="qual-add-desc">Description</label>
+        <textarea name="qual-add-desc" id="qual-add-desc" placeholder="Optional (defaults to name)"></textarea>
+        <label for="qual-add-keywords">Keywords</label>
+        <input type="text" name="qual-add-keywords" id="qual-add-keywords" placeholder="Optional (comma separated)">
+      </form>
+    </div>
+
+    <div id="worker-actions-pay-create" title="Create Payment Task">
+      <form>
+        <label for="pay-create-workerid" autofocus="autofocus">Worker ID</label>
+        <input type="text" name="pay-create-workerid" id="pay-create-workerid" placeholder="Required">
+        <label for="pay-create-value">Value (USD)</label>
+        <input type="text" name="pay-create-value" id="pay-create-value" value="0.00">
+        <label for="pay-create-auto">Approve after</label>
+        <select id="pay-create-auto" name="pay-create-auto">
+          <option value="0">Immediately</option>
+          <option value="300" selected="selected">5 minutes</option>
+          <option value="3600">60 minutes</option>
+          <option value="86400">1 day</option>
+          <option value="604800">7 days</option>
+          <option value="2592000">30 days</option>
+        </select>
+      </form>
+      <div>
+        One-off payment tasks are accessible only by the listed Worker ID,
+        submit automatically when accepted, and expire after 30 days.
+      </div>
+      <div>
+        The task will be automatically approved for payment after the selected delay.
+      </div>
+    </div>
+
+    <div id="worker-actions-pay-confirm" title="Confirm Bonus">
+      <div>
+        Create payment task for worker ID <span id="pay-confirm-workerid"></span>?
+      </div>
+      <div>
+        <span>Task payment:</span>
+        <span>$<span id="pay-confirm-value"></span></span>
+      </div>
+      <div>
+        <span>Paying automatically after:</span>
+        <span><span id="pay-confirm-auto"></span></span>
+      </div>
+    </div>
+
+    <div id="worker-actions-pay-result" title="Payment Task Created">
+      <div>
+        Payment task created for <span id="pay-result-workerid"></span> with a
+        reward of <span>$<span id="pay-result-value"></span></span>.
+      </div>
+      <div>
+        The task will be accessible only to this worker, will submit
+        automatically after acceptance, and pay <span id="pay-result-auto"></span> after submission.
+      </div>
+      <div>
+        This task can be accessed by the worker at the following URL:
+        <a id="pay-result-url" target="_blank"></a>
+      </div>
+    </div>
+
+    <div id="hit-preview" title="Preview HIT">
+      <iframe autofocus="autofocus"></iframe>
+    </div>
+
+    <div id="bonus-worker" title="Pay Bonus">
+      <form>
+        <label for="bonus-workerid">Worker ID</label>
+        <input type="text" name="bonus-workerid" id="bonus-workerid" disabled="disabled">
+        <label for="bonus-assignmentid">Assignment ID</label>
+        <input type="text" name="bonus-assignmentid" id="bonus-assignmentid" disabled="disabled">
+        <label for="bonus-reference" title="Reference should only be changed if sending a second bonus for this assignment within a 24 hour period.">Reference</label>
+        <input type="text" name="bonus-reference" id="bonus-reference" value="" title="Reference should only be changed if sending a second bonus for this assignment within a 24 hour period.">
+        <label for="bonus-value">Value (USD)</label>
+        <input type="text" name="bonus-value" id="bonus-value" value="0.00" autofocus="autofocus">
+        <label for="bonus-message">Message</label>
+        <textarea name="bonus-message" id="bonus-message" placeholder="Required (Max 4,096 characters)"></textarea>
+        <!-- Allow form submission with keyboard without duplicating the dialog button -->
+        <!-- input type="submit" tabindex="-1" style="position:absolute; top:-1000px" -->
+      </form>
+    </div>
+
+    <div id="bonus-confirm" title="Confirm Bonus">
+      <div>
+        Pay bonus to worker <span id="bonus-confirm-workerid"></span>?
+      </div>
+      <div>
+        <span>Bonus Amount:</span>
+        <span>$<span id="bonus-confirm-value"></span></span>
+      </div>
+      <div>
+        <span>Message:</span>
+        <span id="bonus-confirm-message" class="message-content"></span>
+      </div>
+    </div>
+
+    <div id="message-worker" title="Message Workers">
+      <form>
+        <label for="message-workerids" title="Multiple Worker IDs may be specified using space or comma separation.">Worker IDs</label>
+        <input type="text" name="message-workerids" id="message-workerids" placeholder="Required (Max 100 Worker IDs)" title="Multiple Worker IDs may be specified using space or comma separation.">
+        <label for="message-subject" autofocus="autofocus">Subject</label>
+        <input type="text" name="message-subject" id="message-subject" placeholder="Required (Max 200 characters)" value="">
+        <label for="message-message">Message</label>
+        <textarea name="message-message" id="message-message" placeholder="Required (Max 4,096 characters)"></textarea>
+        <!-- Allow form submission with keyboard without duplicating the dialog button -->
+        <!-- input type="submit" tabindex="-1" style="position:absolute; top:-1000px" -->
+      </form>
+    </div>
+
+    <div id="message-confirm" title="Confirm Message">
+      <div>
+        Send message to <span id="message-confirm-workerids"></span>?
+      </div>
+      <div>
+        Subject: <span id="message-confirm-subject"></span>
+      </div>
+      <div>
+        <span>Message:</span>
+        <span id="message-confirm-message" class="message-content"></span>
+      </div>
+    </div>
+
+    <div id="reject-assignment" title="Reject Assignment">
+      <form>
+        <label for="reject-workerid">Worker ID</label>
+        <input type="text" name="reject-workerid" id="reject-workerid" disabled="disabled">
+        <label for="reject-assignmentid">AssignemntID</label>
+        <input type="text" name="reject-assignmentid" id="reject-assignmentid" disabled="disabled">
+        <label for="reject-feedback">Feedback</label>
+        <textarea name="reject-feedback" id="reject-feedback" autofocus="autofocus" placeholder="Required (Max 1,024 characters)"></textarea>
+        <!-- Allow form submission with keyboard without duplicating the dialog button -->
+        <!-- input type="submit" tabindex="-1" style="position:absolute; top:-1000px" -->
+      </form>
+    </div>
+
+    <div id="reject-confirm" title="Confirm Rejection">
+      <div>
+        Are you sure you wish to reject work by <span id="reject-confirm-workerid"></span>?
+      </div>
+      <div>
+        Assignment: <span id="reject-confirm-assignmentid"></span>
+      </div>
+      <div>
+        <span>Feedback:</span>
+        <span id="reject-confirm-feedback" class="message-content"></span>
+      </div>
+    </div>
+
+    <div id="extend-hit" title="Add Time to HIT">
+      <form>
+        <label for="extend-value">Extend by</label>
+        <span class="half">
+          <input type="text" name="extend-value" id="extend-value" placeholder="Required" autofocus="autofocus" value="0">
+          <select id="extend-multiply" name="extend-multiply">
+            <option value="mins">Minutes</option>
+            <option value="hours" selected="selected">Hours</option>
+            <option value="days">Days</option>
+            <option value="weeks">Weeks</option>
+          </select>
+        </span>
+      </form>
+    </div>
+
+    <div id="extend-confirm"title="Set HIT Expiration">
+      <div>
+        Current HIT expiration: <span id="extend-confirm-current"></span>
+      </div>
+      <div>
+        New HIT expiration: <span id="extend-confirm-new"></span>
+      </div>
+    </div>
+
+    <div id="increase-hit" title="Add Assignments to HIT">
+      <form>
+        <span class="wide">
+          <label for="increase-value">Additional assignments</label>
+        </span>
+        <span class="half">
+          <input type="text" name="increase-value" id="increase-value" placeholder="Required" autofocus="autofocus" value="0">
+        </span>
+      </form>
+    </div>
+
+    <div id="increase-confirm"title="Add Assignments to HIT">
+      <div>
+        Add <span id="increase-confirm-increase"></span> assignments to HIT?
+      </div>
+      <div>
+        Current maximum assignments: <span id="increase-confirm-current"></span>
+      </div>
+      <div>
+        New maximum assignments: <span id="increase-confirm-new"></span>
+      </div>
+    </div>
+
+    <div id="expire-hit" title="Expire HIT">
+      <div>
+        Title: <span id="expire-hit-title"></span>
+      </div>
+      <div>
+        Expiration: <span id="expire-hit-current"></span>
+      </div>
+      <div>
+        Assignments Avaliable: <span id="expire-hit-assignments"></span>
+      </div>
+    </div>
+
+    <div id="delete-hit" title="Delete HIT">
+      <div>
+        Title: <span id="delete-hit-title"></span>
+      </div>
+      <div>
+        <strong>You will no longer be able to manage this HIT or download any response data.</strong>
+      </div>
+    </div>
+
+    <div id="all-delete-hit" title="Delete Visible HITs">
+      <div>
+        <strong><span id="all-delete-hit-title"></span></strong>
+      </div>
+      <div>
+        You will no longer be able to manage or download any response data for these HITs.
+      </div>
+      <div>
+        <strong>To avoid data loss, all data will be downloaded prior to deletion.</strong>
+      </div>
+    </div>
+
+    <div id="all-delete-hit-confirm" title="Confirm Delete Visible HITs">
+      <div>
+        <strong>Final confirmation:</strong>
+      </div>
+      <div>
+        <span id="all-delete-hit-title-confirm"></span>
+      </div>
+      <div>
+        <strong>You will no longer be able to manage or download any response data for these HITs.</strong>
+      </div>
+    </div>
+
+    <!-- cat one-off-payment.html | base64 -b 80 -->
+    <div id="base64-payment-html">
+      PCFET0NUWVBFIGh0bWw+CjxodG1sPgogIDxoZWFkPgogICAgICA8bWV0YSBjaGFyc2V0PSJ1dGYtOCIg
+      Lz4KICAgICAgPHRpdGxlPk9uZS1vZmYgUGF5bWVudCBmb3IgV29ya2VyIElEOiAke1dvcmtlcklEfTwv
+      dGl0bGU+CiAgICAgIDxzY3JpcHQgdHlwZT0idGV4dC9qYXZhc2NyaXB0IiBzcmM9Imh0dHBzOi8vczMu
+      YW1hem9uYXdzLmNvbS9tdHVyay1wdWJsaWMvZXh0ZXJuYWxISVRfdjEuanMiPjwvc2NyaXB0PgogICAg
+      ICA8c3R5bGU+CiAgICAgICAgKiwgaW5wdXQsIGJ1dHRvbiB7CiAgICAgICAgICBmb250LWZhbWlseTog
+      SGVsdmV0aWNhLCBBcmlhbCwgc2Fucy1zZXJpZjsKICAgICAgICB9CiAgICAgICAgYm9keSB7CiAgICAg
+      ICAgICBtYXJnaW46IDJlbTsKICAgICAgICAgIGJhY2tncm91bmQtY29sb3I6IHdoaXRlOwogICAgICAg
+      ICAgY29sb3I6IGJsYWNrOwogICAgICAgIH0KICAgICAgICBoMSB7CiAgICAgICAgICBtYXJnaW46IDAg
+      MCAwLjc1ZW0gMDsKICAgICAgICAgIHBhZGRpbmc6IDAgMCAwLjI1ZW0gMDsKICAgICAgICAgIGJvcmRl
+      ci1ib3R0b206IDAuMWVtIHNvbGlkIGJsYWNrOwogICAgICAgIH0KICAgICAgICBpbnB1dCB7CiAgICAg
+      ICAgICBmb250LXNpemU6IDEwMCU7CiAgICAgICAgICBwYWRkaW5nOiAwLjc1ZW0gMWVtOwogICAgICAg
+      ICAgYm9yZGVyOiAwLjE1ZW0gc29saWQgc2lsdmVyOwogICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjog
+      d2hpdGVzbW9rZTsKICAgICAgICAgIGZsb2F0OiByaWdodDsKICAgICAgICB9CiAgICAgICAgI3dhcm4s
+      IG5vc2NyaXB0IHsKICAgICAgICAgIGNvbG9yOiBmaXJlYnJpY2s7CiAgICAgICAgICBiYWNrZ3JvdW5k
+      LWNvbG9yOiBtaXN0eXJvc2U7CiAgICAgICAgICBmb250LXNpemU6IDEyNSU7CiAgICAgICAgICBib3Jk
+      ZXI6IDAuMjVlbSBkYXNoZWQgZmlyZWJyaWNrOwogICAgICAgICAgcGFkZGluZzogMC43NWVtIDFlbTsK
+      ICAgICAgICAgIG1hcmdpbjogMWVtIDA7CiAgICAgICAgICBkaXNwbGF5OiBibG9jazsKICAgICAgICB9
+      CiAgICAgICAgI3dhcm4gewogICAgICAgICAgZGlzcGxheTogbm9uZTsKICAgICAgICB9CiAgICAgIDwv
+      c3R5bGU+CiAgPC9oZWFkPgogIDxib2R5PgoKICAgIDwhLS0gaHR0cHM6Ly9lbmFibGUtamF2YXNjcmlw
+      dC5jb20gLS0+CiAgICA8bm9zY3JpcHQ+CiAgICAgIFRoaXMgdGFzayByZXF1aXJlcyBKYXZhU2NyaXB0
+      LiBQbGVhc2UKICAgICAgPGEgaHJlZj0iaHR0cHM6Ly93d3cuZW5hYmxlLWphdmFzY3JpcHQuY29tLyIg
+      dGFyZ2V0PSJfYmxhbmsiPmVuYWJsZSBKYXZhU2NyaXB0PC9hPiBiZWZvcmUgYWNjZXB0aW5nIG9yIGF0
+      dGVtcHRpbmcgdG8gc3VibWl0IHRoaXMgdGFzay4KICAgIDwvbm9zY3JpcHQ+CgogICAgPGZvcm0gbmFt
+      ZT0ibXR1cmtfZm9ybSIgbWV0aG9kPSJwb3N0IiBpZD0ibXR1cmtfZm9ybSIgYWN0aW9uPSIiPgogICAg
+      ICA8aW5wdXQgdHlwZT0iaGlkZGVuIiB2YWx1ZT0iIiBuYW1lPSJhc3NpZ25tZW50SWQiIGlkPSJhc3Np
+      Z25tZW50SWQiIC8+CiAgICAgIDxoMT5PbmUtb2ZmIFBheW1lbnQgZm9yIFdvcmtlciBJRDogJHtXb3Jr
+      ZXJJRH08L2gxPgogICAgICA8cCBpZD0id2FybiI+CiAgICAgICAgWW91ciBXb3JrZXIgSUQgKDxzcGFu
+      IGlkPSJ3YXJuLXdvcmtlcklkIj48L3NwYW4+KSBpcyBub3QgdGhlIGludGVuZGVkIHJlY2lwaWVudCBv
+      ZiB0aGlzIHBheW1lbnQuCiAgICAgICAgPGJyIC8+PGJyIC8+CiAgICAgICAgPHN0cm9uZz5QbGVhc2Ug
+      cmV0dXJuIHRoaXMgdGFzay48L3N0cm9uZz4KICAgICAgPC9wPgogICAgICA8cD4KICAgICAgICBUaGlz
+      IHRhc2sgaXMgYSBvbmUtb2ZmIHBheW1lbnQgZm9yICR7V29ya2VySUR9LgogICAgICA8L3A+CiAgICAg
+      IDxwIGlkPSJjbGljayI+CiAgICAgICAgUGxlYXNlIGNsaWNrIHRoZSA8ZW0+U3VibWl0PC9lbT4gYnV0
+      dG9uIGlmIHRoaXMgdGFzayBkb2VzIG5vdCBzdWJtaXQgYXV0b21hdGljYWxseS4KICAgICAgPC9wPgog
+      ICAgICA8aW5wdXQgdHlwZT0ic3VibWl0IiBpZD0ic3VibWl0QnV0dG9uIiB2YWx1ZT0iU3VibWl0ICZy
+      YXF1bzsiIC8+CgogICAgICA8aW5wdXQgdHlwZT0iaGlkZGVuIiB2YWx1ZT0iIiBuYW1lPSJwYXJhbWV0
+      ZXItYXNzaWdubWVudElkIiBpZD0icGFyYW1ldGVyLWFzc2lnbm1lbnRJZCIgLz4KICAgICAgPGlucHV0
+      IHR5cGU9ImhpZGRlbiIgdmFsdWU9IiIgbmFtZT0icGFyYW1ldGVyLWhpdElkIiBpZD0icGFyYW1ldGVy
+      LWhpdElkIiAvPgogICAgICA8aW5wdXQgdHlwZT0iaGlkZGVuIiB2YWx1ZT0iIiBuYW1lPSJwYXJhbWV0
+      ZXItdHVya1N1Ym1pdFRvIiBpZD0icGFyYW1ldGVyLXR1cmtTdWJtaXRUbyIgLz4KICAgICAgPGlucHV0
+      IHR5cGU9ImhpZGRlbiIgdmFsdWU9IiIgbmFtZT0icGFyYW1ldGVyLXdvcmtlcklkIiBpZD0icGFyYW1l
+      dGVyLXdvcmtlcklkIiAvPgogICAgICA8aW5wdXQgdHlwZT0iaGlkZGVuIiB2YWx1ZT0iIiBuYW1lPSJq
+      YXZhc2NyaXB0LWNsaWVudFRpbWUiIGlkPSJqYXZhc2NyaXB0LWNsaWVudFRpbWUiIC8+CiAgICAgIDxp
+      bnB1dCB0eXBlPSJoaWRkZW4iIHZhbHVlPSIiIG5hbWU9ImphdmFzY3JpcHQtdXNlckFnZW50IiBpZD0i
+      amF2YXNjcmlwdC11c2VyQWdlbnQiIC8+CiAgICAgIDxpbnB1dCB0eXBlPSJoaWRkZW4iIHZhbHVlPSIi
+      IG5hbWU9ImphdmFzY3JpcHQtd2luZG93TG9jYXRpb24iIGlkPSJqYXZhc2NyaXB0LXdpbmRvd0xvY2F0
+      aW9uIiAvPgogICAgICA8aW5wdXQgdHlwZT0iaGlkZGVuIiB2YWx1ZT0iIiBuYW1lPSJqYXZhc2NyaXB0
+      LWRvY3VtZW50UmVmZXJyZXIiIGlkPSJqYXZhc2NyaXB0LWRvY3VtZW50UmVmZXJyZXIiIC8+CiAgICAg
+      IDxpbnB1dCB0eXBlPSJoaWRkZW4iIHZhbHVlPSIiIG5hbWU9ImphdmFzY3JpcHQtY2xpZW50SXAiIGlk
+      PSJqYXZhc2NyaXB0LWNsaWVudElwIiAvPgogICAgPC9mb3JtPgogICAgPHNjcmlwdD50dXJrU2V0QXNz
+      aWdubWVudElEKCk7PC9zY3JpcHQ+CiAgICA8c2NyaXB0PgogICAgICB2YXIgZm9ybV9uYW1lID0gJ210
+      dXJrX2Zvcm0nOwogICAgICB2YXIgYXNzaWdubWVudElkID0gdHVya0dldFBhcmFtKCdhc3NpZ25tZW50
+      SWQnLCAnJyk7CiAgICAgIHZhciBoaXRJZCA9IHR1cmtHZXRQYXJhbSgnaGl0SWQnLCAnJyk7CiAgICAg
+      IHZhciB0dXJrU3VibWl0VG8gPSB0dXJrR2V0UGFyYW0oJ3R1cmtTdWJtaXRUbycsICcnKTsKICAgICAg
+      dmFyIHdvcmtlcklkID0gdHVya0dldFBhcmFtKCd3b3JrZXJJZCcsICcnKTsKCiAgICAgIGRvY3VtZW50
+      LmdldEVsZW1lbnRCeUlkKCdwYXJhbWV0ZXItYXNzaWdubWVudElkJykudmFsdWUgPSBhc3NpZ25tZW50
+      SWQ7CiAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdwYXJhbWV0ZXItaGl0SWQnKS52YWx1ZSA9
+      IGhpdElkOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgncGFyYW1ldGVyLXR1cmtTdWJtaXRU
+      bycpLnZhbHVlID0gdHVya1N1Ym1pdFRvOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgncGFy
+      YW1ldGVyLXdvcmtlcklkJykudmFsdWUgPSB3b3JrZXJJZDsKICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVu
+      dEJ5SWQoJ2phdmFzY3JpcHQtY2xpZW50VGltZScpLnZhbHVlID0gbmV3IERhdGUoKS50b0lTT1N0cmlu
+      ZygpOwogICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnamF2YXNjcmlwdC11c2VyQWdlbnQnKS52
+      YWx1ZSA9IG5hdmlnYXRvci51c2VyQWdlbnQ7CiAgICAgIGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdq
+      YXZhc2NyaXB0LXdpbmRvd0xvY2F0aW9uJykudmFsdWUgPSB3aW5kb3cubG9jYXRpb24uaHJlZjsKICAg
+      ICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2phdmFzY3JpcHQtZG9jdW1lbnRSZWZlcnJlcicpLnZh
+      bHVlID0gZG9jdW1lbnQucmVmZXJyZXI7CgogICAgICB2YXIgZm9ybSA9IGRvY3VtZW50LmdldEVsZW1l
+      bnRCeUlkKGZvcm1fbmFtZSk7CiAgICAgIGlmKGZvcm0pIHsKICAgICAgICBpZignQVNTSUdOTUVOVF9J
+      RF9OT1RfQVZBSUxBQkxFJyAhPSBhc3NpZ25tZW50SWQpIHsKICAgICAgICAgIGlmKCcke1dvcmtlcklE
+      fScgPT0gd29ya2VySWQpIHsKICAgICAgICAgICAgd2luZG93LnNldFRpbWVvdXQoIGZ1bmN0aW9uKCkg
+      eyBmb3JtLnN1Ym1pdCgpOyB9LCAyMDAwKTsKICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgIGZv
+      cm0uYWN0aW9uID0gJyc7CiAgICAgICAgICAgIGZvcm0uZGlzYWJsZWQgPSB0cnVlOwogICAgICAgICAg
+      ICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3VibWl0QnV0dG9uJykuc3R5bGUuZGlzcGxheSA9ICdu
+      b25lJzsKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2NsaWNrJykuc3R5bGUuZGlz
+      cGxheSA9ICdub25lJzsKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3dhcm4td29y
+      a2VySWQnKS5pbm5lclRleHQgPSB3b3JrZXJJZDsKICAgICAgICAgICAgZG9jdW1lbnQuZ2V0RWxlbWVu
+      dEJ5SWQoJ3dhcm4nKS5zdHlsZS5kaXNwbGF5ID0gJ2Jsb2NrJzsKICAgICAgICAgIH0KICAgICAgICB9
+      CiAgICAgIH0KICAgIDwvc2NyaXB0PgogICAgPHNjcmlwdCB0eXBlPSJhcHBsaWNhdGlvbi9qYXZhc2Ny
+      aXB0Ij4KICAgICAgZnVuY3Rpb24gZ2V0SVAoanNvbikgewogICAgICAgIGRvY3VtZW50LmdldEVsZW1l
+      bnRCeUlkKCdqYXZhc2NyaXB0LWNsaWVudElwJykudmFsdWUgPSBqc29uLmlwOwogICAgICB9CiAgICA8
+      L3NjcmlwdD4KICAgIDxzY3JpcHQgdHlwZT0iYXBwbGljYXRpb24vamF2YXNjcmlwdCIgc3JjPSJodHRw
+      czovL2FwaS5pcGlmeS5vcmc/Zm9ybWF0PWpzb25wJmNhbGxiYWNrPWdldElQIj48L3NjcmlwdD4KICA8
+      L2JvZHk+CjwvaHRtbD4K
+    </div>
+  </div>
+
+</body>
+</html>

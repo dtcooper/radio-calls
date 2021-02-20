@@ -3,12 +3,12 @@ import re
 from urllib.parse import unquote, urlencode
 
 from twilio.base.exceptions import TwilioRestException
+from twilio.jwt.client import ClientCapabilityToken
 from twilio.rest import Client as TwilioClient
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.twiml.voice_response import VoiceResponse
-from twilio.jwt.client import ClientCapabilityToken
 
-from flask import Flask, Response, jsonify, request, render_template, url_for
+from flask import Flask, Response, jsonify, render_template, request, url_for
 
 # sip password = ***REMOVED***
 TWILIO_ACCOUNT_SID = "***REMOVED***"
@@ -31,55 +31,72 @@ AUDIO_BEEP = "beep"
 
 GATHER_WORDS = ("apple", "banana", "orange", "tomato", "lemon", "mango")
 HIT_TOPICS = {
-    "poop": [
-        {
-            "type": "Type 1",
-            "name": "Severe Constipation",
-            "description": "Separate hard lumps, like nuts (hard to pass)",
-        },
-        {
-            "type": "Type 2",
-            "name": "Mild Constipation",
-            "description": "Sausage-shaped but lumpy",
-        },
-        {
-            "type": "Type 3",
-            "name": "Normal",
-            "description": "Like a sausage but with cracks on its surface",
-        },
-        {
-            "type": "Type 4",
-            "name": "Normal",
-            "description": "Like a sausage or snake, smooth and soft",
-        },
-        {
-            "type": "Type 5",
-            "name": "Lacking Fiber",
-            "description": "Soft blobs with clear-cut edges",
-        },
-        {
-            "type": "Type 6",
-            "name": "Mild Diarrhea",
-            "description": "Mushy consistency with ragged edges",
-        },
-        {
-            "type": "Type 7",
-            "name": "Severe Diarrhea",
-            "description": "Liquid consistency with no solid pieces",
-        },
-    ],
+    "poop": {
+        "code": "poop",
+        "name": "poop",
+        "description": "most recent poop",
+        "chart_name": "Bristol Stool Chart",
+        "choices": (
+            {
+                "name": "Type 1: Severe Constipation",
+                "description": "Separate hard lumps, like nuts (hard to pass)",
+            },
+            {
+                "name": "Type 2: Mild Constipation",
+                "description": "Sausage-shaped but lumpy",
+            },
+            {
+                "name": "Type 3: Normal",
+                "description": "Like a sausage but with cracks on its surface",
+            },
+            {
+                "name": "Type 4: Normal",
+                "description": "Like a sausage or snake, smooth and soft",
+            },
+            {
+                "name": "Type 5: Lacking Fiber",
+                "description": "Soft blobs with clear-cut edges",
+            },
+            {
+                "name": "Type 6: Mild Diarrhea",
+                "description": "Mushy consistency with ragged edges",
+            },
+            {
+                "name": "Type 7: Severe Diarrhea",
+                "description": "Liquid consistency with no solid pieces",
+            },
+        ),
+    },
+    "pool": {
+        "code": "pool",
+        "name": "swimming",
+        "description": "favourite way to swim",
+        "chart_name": "list of swimming strokes",
+        "choices": (
+            {
+                "name": "Backstroke",
+                "description": (
+                    "Executed on the back and usually consisting of alternating circular arm pulls and a flutter kick"
+                ),
+            },
+            {
+                "name": "Breaststroke",
+                "description": (
+                    "On one's front, in which the arms are pushed forward and then swept back in a circular movement,"
+                    " while the legs are tucked in toward the body and then kicked out in a corresponding movement"
+                ),
+            },
+            {"name": "Freestyle", "description": "Swimming in whatever manner your heart desires"},
+            {
+                "name": "Butterfly Stroke",
+                "description": (
+                    "On the chest, with both arms moving symmetrically, accompanied by the butterfly kick (or flutter"
+                    " kick)"
+                ),
+            },
+        ),
+    },
 }
-
-
-POOP_TYPES = [
-    "Severe Constipation. Separate hard lumps, like nuts (hard to pass).",
-    "Mild Constipation. Sausage-shaped but lumpy.",
-    "Normal. Like a sausage but with cracks on its surface.",
-    "Normal. Like a sausage or snake, smooth and soft.",
-    "Lacking Fiber. Soft blobs with clear-cut edges.",
-    "Mild Diarrhea. Mushy consistency with ragged edges.",
-    "Severe Diarrhea. Liquid consistency with no solid pieces.",
-]
 
 
 app = Flask(__name__)
@@ -162,12 +179,6 @@ def audio_url(filename, external=False):
     return url_for("static", filename=f"audio/{filename}.mp3", _external=external)
 
 
-def cors_jsonify(data):
-    response = jsonify(data)
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    return response
-
-
 @app.route("/")
 def index():
     return Response("There are forty people in the world and five of them are hamburgers.", content_type="text/plain")
@@ -193,26 +204,25 @@ def sip_outgoing():
 
 
 @app.route("/voice-incoming", methods=("POST",))
-@app.route("/voice-incoming/<sip_addr>", methods=("POST",))
-def voice_incoming(sip_addr=None):
+@app.route("/voice-incoming/<sip_addr>/<from_number>", methods=("POST",))
+def voice_incoming(sip_addr=None, from_number=None):
     response = VoiceResponse()
+    skip_song = request.args.get("skip_song")
 
-    if sip_addr:
+    if sip_addr:  # Coming from Amazon
         to_sip = sip_addr
-        from_number = SIP_ADDRESSES_TO_NUMBERS.get(sip_addr)
     else:
         from_number = sanitize_phone_number(request.form["From"])
         to_number = request.form["To"]
         to_sip = NUMBERS_TO_SIP_ADDRESSES.get(to_number)
 
     if to_sip:
-        to_sip = f"{to_sip}@{SIP_DOMAIN}"
         dial = response.dial(
             answer_on_bridge=True,
-            action=url_for("voice_incoming_done", sip_addr=sip_addr),
+            action=url_for("voice_incoming_done", sip_addr=sip_addr, from_number=from_number, skip_song=skip_song),
             caller_id=from_number,
         )
-        dial.sip(to_sip)
+        dial.sip(f"{to_sip}@{SIP_DOMAIN}")
     else:
         response.say("Error. No SIP address for number.")
 
@@ -225,13 +235,18 @@ def voice_incoming_done():
     to_number = request.form["To"]
     status = request.form.get("DialCallStatus")
     sip_code = request.form.get("DialSipResponseCode")
+    skip_song = request.args.get("skip_song")
     sip_addr = request.args.get("sip_addr")
+    from_number = request.args.get("from_number")
 
     if status == "completed":
-        response.play(audio_url(AUDIO_COMPLETED_MUSIC))
+        if skip_song:
+            response.hangup()
+        else:
+            response.play(audio_url(AUDIO_COMPLETED_MUSIC))
     elif status == "busy" and sip_code == "486":  # 486 = Busy Here
         response.play(audio_url(random.choice(AUDIO_HOLD_MUSIC_LIST)))
-        response.redirect(url_for("voice_incoming", sip_addr=sip_addr))
+        response.redirect(url_for("voice_incoming", sip_addr=sip_addr, from_number=from_number, skip_song=skip_song))
     else:
         audio = AUDIO_VOICEMAIL_TO_NUMBERS.get(to_number)
         message = (
@@ -299,7 +314,22 @@ def amazon_admin():
 
 @app.route("/amazon/hit")
 def amazon_hit():
-    return render_template("hit.html")
+    assignment_id = request.args.get("assignmentId")
+    show = request.args.get("show")
+    if show not in SIP_ADDRESSES_TO_NUMBERS:
+        show = "tigwit"
+
+    return render_template(
+        "hit.html",
+        debug=bool(request.args.get("debug")),
+        preview=bool(assignment_id == "ASSIGNMENT_ID_NOT_AVAILABLE"),
+        show=show,
+        submit_to=request.args.get("turkSubmitTo"),
+        topic=random.choice(list(HIT_TOPICS.values())),
+        hit_id=request.args.get("hitId"),
+        assignment_id=assignment_id,
+        worker_id=request.args.get("workerId"),
+    )
 
 
 @app.route("/amazon/token")
@@ -307,27 +337,28 @@ def amazon_token():
     capability = ClientCapabilityToken(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
     capability.allow_client_outgoing(AMAZON_TWIML_APP_SID)
 
-    return cors_jsonify({"token": capability.to_jwt().decode()})
+    return jsonify({"token": capability.to_jwt().decode()})
 
 
-@app.route("/amazon/update-sid/<int:poop_type>/<sip_addr>/<pin_code>/<call_sid>", methods=("POST",))
-def amazon_update_sid(poop_type, sip_addr, pin_code, call_sid):
+@app.route("/amazon/update-sid/<topic>/<int:choice>/<sip_addr>/<pin_code>/<call_sid>", methods=("POST",))
+def amazon_update_sid(topic, choice, sip_addr, pin_code, call_sid):
     success = True
-    poop_type_name = POOP_TYPES[poop_type - 1]
+    choice = HIT_TOPICS[topic]["choices"][choice]
 
     response = VoiceResponse()
     response.say(
-        "Step 5! You are being connected to a live radio show. When your call is complete, you will be able "
-        f"to submit the assignment. Your poop is type {poop_type}, {poop_type_name}. Enjoy your call!"
+        f"Step 5! You are being connected to a live radio show. Your {choice['description']} is {choice['name']}. Enjoy"
+        " your call!"
     )
-    response.redirect(url_for("voice_incoming", sip_addr=sip_addr, AmazonPinCode=pin_code, _external=True))
+    # sip apparently doesn't care about caller IDs from verified phones, so use the PIN code
+    response.redirect(url_for("voice_incoming", sip_addr=sip_addr, from_number=pin_code, skip_song="1", _external=True))
 
     try:
         twilio_client.calls(call_sid).update(twiml=str(response))
     except TwilioRestException:
         success = False
 
-    return cors_jsonify({"success": success})
+    return jsonify({"success": success})
 
 
 @app.route("/amazon/voice-request", methods=("POST",))
@@ -345,7 +376,7 @@ def amazon_voice_request():
                 response.redirect(url_for("amazon_voice_request_pin", AmazonPinCode=pin))
                 return twiml_response(response)
             else:
-                response.say(f"Incorrect word. Try again.")
+                response.say("Incorrect word. Try again.")
         else:
             response.say("I could not hear you. Are you sure that your microphone is working?")
     else:
@@ -353,12 +384,11 @@ def amazon_voice_request():
         response.say("Step 3!")
         response.pause(1)
 
-    say = response.say(f"Your word is {word}.")
+    response.say(f"Your word is {word}.")
 
     gather = response.gather(
         action_on_empty_result=True,
         action=url_for("amazon_voice_request", AmazonPinCode=pin, word=word),
-        enhanced=True,
         hints=", ".join(GATHER_WORDS),
         input="speech",
         speech_model="numbers_and_commands",

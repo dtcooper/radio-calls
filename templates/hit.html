@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta content="width=device-width,initial-scale=1" name="viewport">
+  <title>Radio Call Assignment</title>
+
+  <link rel="stylesheet" href="/static/assets/chota-0.8.0.min.css">
+  <style>
+    :root {
+      --font-family-sans: BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+      --color-primary: #007acc;
+    }
+
+    body {
+      padding-bottom: 150px;
+    }
+
+    #volume-nav {
+      position: -webkit-sticky;
+      position: sticky;
+      top: 0;
+      background-color: #fff;
+      padding-top 5px;
+      z-index: 1;
+    }
+
+    table {
+      text-align: center;
+    }
+
+    td:last-child, th:last-child {
+      width: 35%;
+    }
+
+    h1, h2, h3, h4, h5, h6,
+    button, input, .text-bold {
+      font-weight: bold;
+    }
+
+    #pin-code {
+      max-width: 350px;
+    }
+
+    [x-cloak] {
+      display: none !important;
+    }
+
+    .text-italic {
+      font-style: italic;
+    }
+  </style>
+
+  <script src="/static/assets/twilio-1.14.0.min.js"></script>
+  <script src="/static/assets/alpine-2.8.0.min.js" defer></script>
+  <script src="/static/assets/alpine-magic-helpers-1.0.0.min.js"></script>
+  <script>
+    var blockHangupStep5Seconds = {% if debug %}10{% else %}75{% endif %}
+    var debug = {{ debug|tojson }}
+    var show = {{ show|tojson }}
+    var topic = {{ topic|tojson }}
+    var workerId = {{ worker_id|tojson }}
+    var hitId = {{ hit_id|tojson }}
+
+    function currentTimestamp() {
+      return Math.round(new Date() / 1000)
+    }
+
+    function radioCall() {
+      return {
+        step: 0,
+        choice: null,
+        device: null,
+        connection: null,
+        inputVolume: 0,
+        outputVolume: 0,
+        pinCode: null,
+        pinCodeInput: '',
+        pinVerifying: false,
+        step5HangUpUnblockTime: null,
+        step5StartTime: null,
+        step5EndTime: null,
+        done: false,
+        timestamp: currentTimestamp(),
+        init: async function() {
+          if (workerId === null || hitId === null) {
+            this.pinCode = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+          } else {
+            // Deterministically generate pincode (and don't put it in source!)
+            var s = workerId + hitId + workerId + hitId
+            var n = 0
+            for (var i = 0; i < s.length; i++) {
+              n += s.charCodeAt(i) * ((i % 15) + 1)
+            }
+            this.pinCode = (n % 10000).toString().padStart(4, '0')
+          }
+          if (debug) {
+            this.pinCodeInput = this.pinCode
+          }
+
+          try {
+            var response = await fetch('/amazon/token')
+            var data = await response.json()
+          } catch (err) {
+            alert('An error occurred loading the assignment. Please refresh and try again.')
+            return
+          }
+
+          device = new Twilio.Device(data.token, {
+            closeProtection: true,
+            codecPreferences:	['opus', 'pcmu'],
+            enableRingingState: true
+          })
+
+          device.on('ready', (device) => this.device = device)
+          device.on('connect', () => this.setStep(3))
+          device.on('error', () => {
+            this.setStep(2, true)
+            this.hangUp()
+          })
+          setInterval(() => this.timestamp = currentTimestamp(), 1000)
+        },
+        setStep: function(step, force) {
+          if (force) {
+            this.step = step
+          } else {
+            this.step = Math.max(this.step, step)
+          }
+          setTimeout(() => {
+            var offsetHeight = document.getElementById('volume-nav').offsetHeight
+            this.$scroll('#step' + step, {offset: offsetHeight})
+          }, 20)
+        },
+        call: function() {
+          this.step = 2
+          this.connection = this.device.connect({AmazonPinCode: this.pinCode})
+          this.connection.on('volume', (inputVolume, outputVolume) => {
+            this.inputVolume = inputVolume
+            this.outputVolume = outputVolume
+          })
+          this.connection.on('disconnect', () => {
+            this.hangUp()
+            if (this.step == 5) {
+              this.step5EndTime = currentTimestamp()
+              this.done = true
+              setTimeout(() => this.$scroll('#done'), 20)
+            } else {
+              this.setStep(2, true)
+            }
+          })
+        },
+        hangUp: function(skipDisconnect) {
+          this.device.disconnectAll()
+          this.connection = null
+          this.inputVolume = this.outputVolume = 0
+        },
+        verifyPinCode: async function() {
+          if (this.pinCodeInput.trim() === this.pinCode) {
+            var callSid = this.connection.parameters.CallSid
+            if (callSid) {
+              this.pinVerifying = true
+
+              try {
+                var response = await fetch(`/amazon/update-sid/${topic.code}/${this.choice || 0}/${show}/${this.pinCode}/${callSid}`, {method: 'POST'})
+                var data = await response.json()
+              } catch (err) {
+                this.pinVerifying = false
+                return
+              }
+
+              if (data.success) {
+                this.step5StartTime = currentTimestamp()
+                this.step5HangUpUnblockTime = currentTimestamp() + blockHangupStep5Seconds
+                this.setStep(5)
+              } else {
+                alert('An error occurred. Please try again.')
+                this.setStep(2, true)
+                this.hangUp()
+              }
+              this.pinVerifying = false
+            } else {
+              alert('An error occurred. Refresh the page and try again. (No call found.)')
+              this.setStep(2, true)
+              this.hangUp()
+            }
+          } else {
+            alert('Incorrect PIN code. Try again.')
+          }
+        }
+      }
+    }
+
+  </script>
+</head>
+<body>
+
+  <h1 class="container text-error bd-error" x-data="{show: true}" x-init="show = false" x-show="show">
+    WARNING: Your web browser is <u>NOT</u> supported. Please use one of the following:
+    <a href="https://www.google.com/chrome/" target="_blank">Google Chrome</a>,
+    <a href="https://www.mozilla.org/en-US/firefox/" target="_blank">Mozilla Firefox</a>,
+    or <a href="https://www.microsoft.com/en-us/edge" target="_blank">Microsoft Edge</a>
+    to complete this assignment.
+  </h1>
+
+  <section x-data="radioCall()" x-init="init(); setStep(0)" class="container" x-cloak>
+    <div id="volume-nav" class="grid text-center is-marginless is-paddingless" x-show="device !== null && connection !== null">
+      <div class="row is-marginless is-paddingless">
+        <div class="col-2 is-vertical-align text-center ">Mic Volume:</div>
+        <div class="col-3 is-vertical-align">
+          <progress class="is-full-width" x-bind:value="inputVolume.toString()" min="0" max="0.5"></progress>
+        </div>
+        <div class="col-2 is-vertical-align">
+          <button
+            @click.prevent="hangUp()"
+            class="button is-full-width"
+            style="margin-top: 5px"
+            x-bind:class="{error: step != 5, success: step == 5 && (timestamp >= step5HangUpUnblockTime), dark: step == 5 && (timestamp < step5HangUpUnblockTime)}"
+            x-bind:disabled="step == 5 && (timestamp < step5HangUpUnblockTime)"
+            x-text="step == 5 ? (timestamp < step5HangUpUnblockTime ? `Finish in ${step5HangUpUnblockTime - timestamp - 1} seconds...` : 'Finish Call!') : 'Hang Up'"
+          ></button>
+        </div>
+        <div class="col-2 is-vertical-align text-center">Speaker Volume:</div>
+        <div class="col-3 is-vertical-align">
+          <progress class="is-full-width" x-bind:value="outputVolume.toString()" min="0" max="0.5"></progress>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h1 id="step0" class="text-center">
+        <u>Call a Live Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
+      </h1>
+
+      <p>
+        This is supposed to be a <strong>funny assignment</strong> where you talk to people
+        on a live radio show{% if not preview %} about your <strong><u>{{ topic['description'] }}</u></strong>{% endif %}.
+      </p>
+
+      <p>
+        You will make a call in your web broswer to a radio show to tell the hosts
+        about {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.
+      </p>
+
+      <strong>Rules:</strong>
+      <ul>
+        <li><strong><u>You must speak in English</u></strong>.</li>
+        <li>You must have a working microphone and headset (or speaker)</li>
+        <li class="text-error">You must <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.</li>
+        <li>
+          You can have any conversation you would like, however you should mention
+          {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.
+        </li>
+        <li>If no one answers, you can leave a voicemail{% if not preview %} talking about {{ topic['name'] }}{% endif %}.</li>
+        <li><em>Your will be recorded and broadcast on a live Internet radio show and podcast.</em></li>
+      </ul>
+
+      <p class="text-center">
+        <button class="button {% if preview %}dark{% else %}primary{% endif %}" x-on:click.prevent="setStep(1)" x-bind:disabled="{{ preview|tojson }}">
+          {% if preview %}
+            You are currently <em>previewing</em> this assignment. Press Accept to start.
+          {% else %}
+            I have <u>carefully</u> read and understand the above!
+          {% endif %}
+        </button>
+      </p>
+    </div>
+
+    <div x-show="step >= 1 || debug">
+      <h2 id="step1">Step 1: Describe Your {{ topic['description']|title }}</h2>
+
+      <blockquote>
+        Select the type that most closely matches your <u><em>{{ topic['descriptor'] }}</em></u>
+        from the {{ topic['chart_name'] }} below.
+      </blockquote>
+
+      <table class="striped">
+        <caption><strong>{{ topic['chart_name']|title }}</strong></caption>
+        <thead>
+          <tr>
+            <th>Select</th>
+            <th>Type</th>
+            <th>Diagram</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for choice in topic['choices'] %}
+            <tr>
+              <td>
+                <button @click.prevent="choice = {{ loop.index0 }}; setStep(2)" class="button primary">
+                  Select {{ choice['name'].split(':')[0] }}
+                </button>
+              </td>
+              <td class="text-bold">{{ choice['name'] }}</td>
+              <td><img class="bd-light" srcset="/static/images/{{ topic['code'] }}/{{ loop.index0 }}.jpg 2x"></td>
+              <td class="text-italic">{{ choice['description'] }}.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <template x-if="choice !== null">
+        <p class="text-italic text-bold" x-text="`You selected ${topic.choices[choice].name}.`"></p>
+      </template>
+    </div>
+
+    <div x-show="step >= 2 || debug">
+      <h2 id="step2">Step 2: Make the Call</h2>
+
+      <blockquote>
+        Click the button below to place the call in your browser.<br>
+        <strong class="text-success">You will need to enable your microphone.</strong>
+      </blockquote>
+
+      <p class="text-center">
+        <button x-on:click.prevent="call()" class="button success" x-bind:disabled="device === null || connection !== null">
+          Start Call
+        </button>
+      </p>
+    </div>
+
+    <div x-show="step >= 3 || debug">
+      <h2 id="step3">Step 3: Repeat the Word</h2>
+
+      <blockquote>
+        You will be called and the voice will say a word. Repeat it after the tone.<br>
+        When you have successfully done this, click <em>Ready for Step 4</em> below.
+      </blockquote>
+
+      <p class="text-center">
+        <button x-on:click.prevent="setStep(4)" class="button primary" x-bind:disabled="step >= 4">Ready for Step 4</button>
+      </p>
+
+    </div>
+
+    <div x-show="step >= 4 || debug">
+      <h2 id="step4">Step 4: Enter the PIN Code</h2>
+
+      <blockquote>You will be given a PIN code. Enter it below.</blockquote>
+
+      PIN Code:
+      <input id="pin-code" type="text" name="PinCode" x-model="pinCodeInput" pattern="\d*" maxlength="4" x-bind:disabled="step != 4 || pinVerifying">
+
+      <p class="text-center">
+        <button x-on:click.prevent="verifyPinCode()" class="button primary" x-bind:disabled="step != 4 || pinVerifying">Verify PIN Code</button>
+      </p>
+    </div>
+
+    <div x-show="step >= 5 || debug">
+      <h2 id="step5">Step 5: Talk About {{ topic['name'] }}</h2>
+
+      <blockquote>
+        You are being connected to a live radio show. Please tell the people on the show about {{ topic['description'] }}.
+        <br>
+        If the call is not answered, you can leave a voicemail about {{ topic['name'] }}.
+      </blockquote>
+
+      <template x-if="choice !== null">
+        <table>
+          <caption><strong>{{ topic['chart_name']|title }}</strong></caption>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Diagram</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-italic text-bold" x-text="topic.choices[choice].name"></td>
+              <td>
+                <img class="bd-light" x-bind:srcset="`/static/images/${topic.code}/${choice}.jpg 2x`">
+              </td>
+              <td class="text-italic" x-text="`${topic.choices[choice].description}.`"></td>
+            </tr>
+          </tbody>
+        </table>
+      </template>
+
+      <h3 x-show="!done">
+        Enjoy your call!
+      </h3>
+
+      <h3
+        class="text-error"
+        x-show="step == 5 && !done && (timestamp < step5HangUpUnblockTime)"
+        x-text="`You must stay on the call for another ${step5HangUpUnblockTime - timestamp - 1} seconds.`"
+      ></h3>
+
+      <h3 class="text-success" x-show="step == 5 && !done && (timestamp >= step5HangUpUnblockTime)">
+          When you are done, you can click the <em>Finish Call</em> button above.
+      </h3>
+    </div>
+
+    <div x-show="step >= 1 || debug" style="margin-top: 100px">
+      <hr>
+      <h2 id="done" class="text-success" x-show="done || debug">Congratulations! You are done!</h2>
+
+      <blockquote x-show="done || debug">Click <em>Submit Assignment</em> below.</blockquote>
+
+      {% if assignment_id and submit_to %}
+        <form method="POST" action="{{ submit_to }}/mturk/externalSubmit">
+          <input type="hidden" name="assignmentId" value="{{ assignment_id }}">
+          <input type="hidden" name="PinCode" x-bind:value="pinCode">
+          <input type="hidden" name="CallDurationSeconds" x-bind:value="(step5StartTime !== null && step5EndTime !== null) ? step5EndTime - step5StartTime : -1">
+      {% endif %}
+          <p class="text-center">
+            <input
+              class="button"
+              type="submit"
+              x-bind:class="{success: done, dark: !done}"
+              x-bind:value="'Submit Assignment' + (done ? '' : ' (Enabled when you are done)')"
+              x-bind:disabled="!done"
+              {% if not assignment_id or not submit_to %}
+                @click.prevent="alert(`You did not appear to come from Amazon. Not submitting assignment.}`)"
+              {% endif %}
+            >
+          </p>
+      {% if assignment_id and submit_to %}
+        </form>
+      {% endif %}
+    </div>
+
+{% if debug %}
+<pre>
+step: <span x-text="JSON.stringify(step)"></span>
+choice: <span x-text="JSON.stringify(choice)"></span>
+device: <span x-text="JSON.stringify(device)"></span>
+connection: <span x-text="JSON.stringify(connection)"></span>
+inputVolume: <span x-text="JSON.stringify(inputVolume)"></span>
+outputVolume: <span x-text="JSON.stringify(outputVolume)"></span>
+pinCode: <span x-text="JSON.stringify(pinCode)"></span>
+pinCodeInput: <span x-text="JSON.stringify(pinCodeInput)"></span>
+pinVerifying: <span x-text="JSON.stringify(pinVerifying)"></span>
+step5HangUpUnblockTime: <span x-text="JSON.stringify(step5HangUpUnblockTime)"></span>
+step5StartTime: <span x-text="JSON.stringify(step5StartTime)"></span>
+step5EndTime: <span x-text="JSON.stringify(step5EndTime)"></span>
+done: <span x-text="JSON.stringify(done)"></span>
+timestamp: <span x-text="JSON.stringify(timestamp)"></span>
+</pre>
+{% endif %}
+
+  </section>
+</body>
+</html>
