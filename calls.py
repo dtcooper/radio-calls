@@ -345,8 +345,8 @@ def amazon_token():
     return jsonify({"token": capability.to_jwt().decode()})
 
 
-@app.route("/amazon/update-sid/<topic>/<int:choice>/<sip_addr>/<pin_code>/<call_sid>", methods=("POST",))
-def amazon_update_sid(topic, choice, sip_addr, pin_code, call_sid):
+@app.route("/amazon/update-sid/<topic>/<int:choice>/<sip_addr>/<pin_code>/<worker_id>/<call_sid>", methods=("POST",))
+def amazon_update_sid(topic, choice, sip_addr, pin_code, worker_id, call_sid):
     success = True
     description = HIT_TOPICS[topic]["description"]
     name = HIT_TOPICS[topic]["choices"][choice]["name"]
@@ -355,8 +355,12 @@ def amazon_update_sid(topic, choice, sip_addr, pin_code, call_sid):
     response.say(
         f"Step 5! You are being connected to a live radio show. Your {description} is {name}. Enjoy your call!"
     )
-    # sip apparently doesn't care about caller IDs from verified phones, so use the PIN code
-    response.redirect(url_for("voice_incoming", sip_addr=sip_addr, from_number=pin_code, skip_song="1", _external=True))
+    # sip doesn't care about caller IDs from verified phones, so use the PIN code + worker id
+    response.redirect(
+        url_for(
+            "voice_incoming", sip_addr=sip_addr, from_number=f"{pin_code}.{worker_id}", skip_song="1", _external=True
+        )
+    )
 
     try:
         twilio_client.calls(call_sid).update(twiml=str(response))
@@ -383,7 +387,7 @@ def amazon_voice_request():
             else:
                 response.say("Incorrect word. Try again.")
         else:
-            response.say("I could not hear you. Are you sure that your microphone is working?")
+            response.say("Incorrect. Are you sure that your microphone is working? Try again.")
     else:
         word = random.choice(GATHER_WORDS)
         response.say("Step 3!")

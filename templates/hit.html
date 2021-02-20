@@ -12,8 +12,23 @@
       --font-size: 1.7rem;
     }
 
-    .button.big {
+    .big {
       font-size: 2.2rem;
+    }
+
+    @media screen and (max-width: 899px) {
+      :root { --font-size: 1.6rem; }
+      .big { font-size: 2.0rem; }
+    }
+
+    @media screen and (max-width: 749px) {
+      :root { --font-size: 1.5rem; }
+      .big { font-size: 1.8rem; }
+    }
+
+    @media screen and (max-width: 599px) {
+      :root { --font-size: 1.4rem; }
+      .big { font-size: 1.6rem; }
     }
 
     body {
@@ -47,10 +62,6 @@
       font-weight: bold;
     }
 
-    #pin-code {
-      max-width: 350px;
-    }
-
     [x-cloak] {
       display: none !important;
     }
@@ -68,12 +79,12 @@
   <script src="/static/assets/alpine-2.8.0.min.js" defer></script>
   <script src="/static/assets/alpine-magic-helpers-1.0.0.min.js"></script>
   <script>
-    var blockHangupStep5Seconds = {% if debug %}10{% else %}120{% endif %}
+    var blockHangupSeconds = {% if debug %}10{% else %}120{% endif %}
     var debug = {{ debug|tojson }}
     var show = {{ show|tojson }}
     var topic = {{ topic|tojson }}
     var assignmentId = {{ assignment_id|tojson }}
-    var workerId = {{ worker_id|tojson }}
+    var workerId = {{ worker_id|tojson }} || 'NO_WORKER_ID'
     var hitId = {{ hit_id|tojson }}
 
     function currentTimestamp() {
@@ -92,11 +103,12 @@
         pinCode: null,
         pinCodeInput: '',
         pinVerifying: false,
-        step5HangUpUnblockTime: null,
-        step5StartTime: null,
-        step5EndTime: null,
+        callError: false,
+        callStart: null,
+        callEnd: null,
+        callDuration: -1,
+        hangupBlocked: false,
         done: false,
-        timestamp: currentTimestamp(),
         init: async function() {
           if (workerId === null || hitId === null) {
             this.pinCode = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
@@ -128,12 +140,28 @@
           })
 
           device.on('ready', (device) => this.device = device)
-          device.on('connect', () => this.setStep(3))
-          device.on('error', () => {
+          device.on('connect', () => {
+            this.callError = false
+            this.setStep(3)
+          })
+          device.on('error', (err) => {
+            this.callError = err.code == 31208 ? 'Please enable your microphone and try again.' : true
             this.setStep(2, true)
             this.hangUp()
           })
-          setInterval(() => this.timestamp = currentTimestamp(), 1000)
+          setInterval(() => {
+            if (this.callStart) {
+              if (this.callEnd) {
+                this.callDuration = this.callEnd - this.callStart
+                this.hangupBlocked = false
+              } else {
+                this.callDuration = currentTimestamp() - this.callStart
+                this.hangupBlocked = this.step == 5 && (this.callDuration < blockHangupSeconds)
+              }
+            } else {
+              this.hangupBlocked = false
+            }
+          }, 1000)
         },
         setStep: function(step, force) {
           if (force) {
@@ -148,6 +176,11 @@
         },
         call: function() {
           this.step = 2
+          this.callStart = this.callEnd = null
+          this.callDuration = -1
+          this.hangupBlocked = false
+          this.done = false
+
           this.connection = this.device.connect({AmazonPinCode: this.pinCode})
           this.connection.on('volume', (inputVolume, outputVolume) => {
             this.inputVolume = inputVolume
@@ -156,7 +189,7 @@
           this.connection.on('disconnect', () => {
             this.hangUp()
             if (this.step == 5) {
-              this.step5EndTime = currentTimestamp()
+              this.callEnd = currentTimestamp()
               this.done = true
               setTimeout(() => this.$scroll('#done'), 20)
             } else {
@@ -176,7 +209,7 @@
               this.pinVerifying = true
 
               try {
-                var response = await fetch(`/amazon/update-sid/${topic.code}/${this.choice || 0}/${show}/${this.pinCode}/${callSid}`, {method: 'POST'})
+                var response = await fetch(`/amazon/update-sid/${topic.code}/${this.choice || 0}/${show}/${this.pinCode}/${workerId}/${callSid}`, {method: 'POST'})
                 var data = await response.json()
               } catch (err) {
                 this.pinVerifying = false
@@ -184,17 +217,17 @@
               }
 
               if (data.success) {
-                this.step5StartTime = currentTimestamp()
-                this.step5HangUpUnblockTime = currentTimestamp() + blockHangupStep5Seconds
+                this.callStart = currentTimestamp()
+                this.hangupBlocked = true
                 this.setStep(5)
               } else {
-                alert('An error occurred. Please try again.')
+                this.callError = true
                 this.setStep(2, true)
                 this.hangUp()
               }
               this.pinVerifying = false
             } else {
-              alert('An error occurred. Refresh the page and try again. (No call found.)')
+              this.callError = true
               this.setStep(2, true)
               this.hangUp()
             }
@@ -234,9 +267,9 @@
             @click.prevent="hangUp()"
             class="button is-full-width"
             style="margin-top: 5px"
-            x-bind:class="{error: step != 5, success: step == 5 && (timestamp >= step5HangUpUnblockTime), dark: step == 5 && (timestamp < step5HangUpUnblockTime)}"
-            x-bind:disabled="step == 5 && (timestamp < step5HangUpUnblockTime)"
-            x-text="step == 5 ? (timestamp < step5HangUpUnblockTime ? `Continue for ${step5HangUpUnblockTime - timestamp - 1} seconds...` : 'Finish Call!') : 'Hang Up'"
+            x-bind:class="{error: step != 5, success: step == 5 && !hangupBlocked, dark: step == 5 && hangupBlocked}"
+            x-bind:disabled="hangupBlocked"
+            x-text="step == 5 ? (hangupBlocked ? `Continue for ${blockHangupSeconds - callDuration} seconds...` : 'Finish Call') : 'Hang Up'"
           ></button>
         </div>
         <div class="col-2 is-vertical-align text-center">&#x1F509; Speaker Volume:</div>
@@ -265,7 +298,13 @@
           &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
       </p>
 
-      <p>This assignment will take approximately 5 to 10 minutes to complete. &#x1F552; &#x1F552; &#x1F552;</p>
+      <p>
+        This assignment will take approximately 5 to 10 minutes to complete.
+        &#x1F552; &#x1F552; &#x1F552;
+        <br>
+        You will have to stay on the call for <em>at least 2 minutes</em>, but you are welcome
+        to talk as long as you would like!
+      </p>
 
       <strong id="terms"><u>Important Terms &amp; Conditions:</u>
         {% if not preview %}<em>(Click to Accept &amp; Continue)</em>{% endif %}</strong>
@@ -332,7 +371,7 @@
               </button>
             </td>
             <td x-bind:class="{'text-grey': term > 5}">
-              If no one answers, please leave a voicemail{% if not preview %} talking about {{ topic['name'] }}{% endif %}.
+              If no one answers, please leave a voicemail message{% if not preview %} talking about {{ topic['name'] }}{% endif %}.
               {% if not preview %}&#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
             </td>
           </tr>
@@ -434,8 +473,10 @@
         &#x1F3A4; &#x1F3A4; &#x1F3A4;
       </blockquote>
 
+      <h3 class="text-error" x-show="callError" x-text="typeof callError === 'string' ? callError : 'An error occurred. Please try again.'"></h3>
+
       <p class="text-center">
-        <button x-on:click.prevent="call()" class="button success" x-bind:disabled="device === null || connection !== null">
+        <button x-on:click.prevent="call()" class="button big success" x-bind:disabled="device === null || connection !== null">
           &#x1F4DE;&nbsp;&#x1F4DE;&nbsp;&nbsp;
           Start Call
           &nbsp;&nbsp;&#x1F4DE;&nbsp;&#x1F4DE;
@@ -452,7 +493,7 @@
       </blockquote>
 
       <p class="text-center">
-        <button x-on:click.prevent="setStep(4)" class="button primary" x-bind:disabled="step >= 4">Ready for Step 4</button>
+        <button x-on:click.prevent="setStep(4)" class="button big primary" x-bind:disabled="step >= 4">Ready for Step 4</button>
       </p>
 
     </div>
@@ -462,12 +503,12 @@
 
       <blockquote>You will be given a PIN code. Enter it below.</blockquote>
 
-      <label for="pin-code">PIN Code:</label>
-      <input id="pin-code" type="text" name="PinCode" x-model="pinCodeInput" pattern="\d*" maxlength="4" x-bind:disabled="step != 4 || pinVerifying">
+      <label for="pin-code" class="big bold">PIN Code:</label>
+      <input id="pin-code" class="big bold" style="max-width: 250px;" type="text" name="PinCode" x-model="pinCodeInput" pattern="\d*" maxlength="4" x-bind:disabled="step != 4 || pinVerifying">
       <br>
 
       <p class="text-center">
-        <button x-on:click.prevent="verifyPinCode()" class="button primary" x-bind:disabled="step != 4 || pinVerifying">Verify PIN Code</button>
+        <button x-on:click.prevent="verifyPinCode()" class="button big primary" x-bind:disabled="step != 4 || pinVerifying">Verify PIN Code</button>
       </p>
     </div>
 
@@ -477,7 +518,7 @@
       <blockquote>
         You are being connected to a live radio show. Please tell the people on the show about {{ topic['description'] }}.
         <br>
-        If the call is not answered, you can leave a voicemail about {{ topic['name'] }}.
+        If the call is not answered, please leave a voicemail message about {{ topic['name'] }}.
       </blockquote>
 
       <template x-if="choice !== null">
@@ -502,24 +543,22 @@
         </table>
       </template>
 
-      <h3 x-show="!done">
-        Enjoy your call!
-      </h3>
+      <h3 x-show="!done">Enjoy your call! &#x1F389; &#x1F389; &#x1F389;</h3>
 
       <h3
         class="text-error"
-        x-show="step == 5 && !done && (timestamp < step5HangUpUnblockTime)"
-        x-text="`You must stay on the call for at least another ${step5HangUpUnblockTime - timestamp - 1} seconds.`"
+        x-show="step == 5 && !done && hangupBlocked"
+        x-text="`You must stay on the call for at least another ${blockHangupSeconds - callDuration} seconds.`"
       ></h3>
 
-      <h3 class="text-success" x-show="step == 5 && !done && (timestamp >= step5HangUpUnblockTime)">
+      <h3 class="text-success" x-show="step == 5 && !done && !hangupBlocked">
           When you are done, you can click the <em>Finish Call</em> button above.
       </h3>
     </div>
 
-    <div x-show="step >= 1 || debug" style="margin-top: 100px">
+    <div x-show="step >= 1 || debug" style="margin-top: 50px">
       <hr>
-      <h2 id="done" class="text-success" x-show="done || debug">Congratulations! You are done!</h2>
+      <h2 id="done" class="text-success" x-show="done">Congratulations! You are done! &#x1F389; &#x1F389; &#x1F389;</h2>
 
       <blockquote x-show="done || debug">Click <em>Submit Assignment</em> below.</blockquote>
 
@@ -528,13 +567,13 @@
           <!-- prevent naive form submission -->
           <input type="hidden" name="assignmentId" x-bind:value="done ? assignmentId : ''">
           <input type="hidden" name="PinCode" x-bind:value="pinCode">
-          <input type="hidden" name="CallDurationSeconds" x-bind:value="(step5StartTime !== null && step5EndTime !== null) ? step5EndTime - step5StartTime : -1">
+          <input type="hidden" name="CallDurationSeconds" x-bind:value="callDuration">
       {% endif %}
           <p class="text-center">
             <input
-              class="button"
+              class="button big"
               type="submit"
-              x-bind:class="{success: done, dark: !done}"
+              x-bind:class="{primary: done, dark: !done}"
               x-bind:value="'Submit Assignment' + (done ? '' : ' (Enabled when you are done)')"
               x-bind:disabled="!done"
               {% if not assignment_id or not submit_to %}
@@ -550,19 +589,25 @@
 {% if debug %}
 <pre>
 step: <span x-text="JSON.stringify(step)"></span>
+term: <span x-text="JSON.stringify(term)"></span>
 choice: <span x-text="JSON.stringify(choice)"></span>
-device: <span x-text="JSON.stringify(device)"></span>
-connection: <span x-text="JSON.stringify(connection)"></span>
 inputVolume: <span x-text="JSON.stringify(inputVolume)"></span>
 outputVolume: <span x-text="JSON.stringify(outputVolume)"></span>
 pinCode: <span x-text="JSON.stringify(pinCode)"></span>
 pinCodeInput: <span x-text="JSON.stringify(pinCodeInput)"></span>
 pinVerifying: <span x-text="JSON.stringify(pinVerifying)"></span>
-step5HangUpUnblockTime: <span x-text="JSON.stringify(step5HangUpUnblockTime)"></span>
-step5StartTime: <span x-text="JSON.stringify(step5StartTime)"></span>
-step5EndTime: <span x-text="JSON.stringify(step5EndTime)"></span>
+callStart: <span x-text="JSON.stringify(callStart)"></span>
+callEnd: <span x-text="JSON.stringify(callEnd)"></span>
+callDuration:  <span x-text="JSON.stringify(callDuration)"></span>
+hangupBlocked: <span x-text="JSON.stringify(hangupBlocked)"></span>
 done: <span x-text="JSON.stringify(done)"></span>
-timestamp: <span x-text="JSON.stringify(timestamp)"></span>
+=== Constants ===
+blockHangupSeconds: <span x-text="JSON.stringify(blockHangupSeconds)"></span>
+show: <span x-text="JSON.stringify(show)"></span>
+topic: <span x-text="`${JSON.stringify(topic['code'])} ...`"></span>
+assignmentId: <span x-text="JSON.stringify(assignmentId)"></span>
+workerId: <span x-text="JSON.stringify(workerId)"></span>
+hitId: <span x-text="JSON.stringify(hitId)"></span>
 </pre>
 {% endif %}
 
