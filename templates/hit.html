@@ -126,7 +126,7 @@
           }
 
           try {
-            var response = await fetch('/amazon/token')
+            var response = await fetch(`/amazon/token/${this.pinCode}/${workerId}`)
             var data = await response.json()
           } catch (err) {
             alert('An error occurred loading the assignment. Please refresh and try again.')
@@ -382,12 +382,12 @@
               </button>
             </td>
             <td x-bind:class="{'text-grey': term > 6}">
-              You should have a of humour. &#x1F602; &#x1F602; &#x1F602;
+              You must have a of humour. &#x1F602; &#x1F602; &#x1F602;
               <br>
               <em>You might be made fun of!</em> &#x1F632; &#x1F632; &#x1F632;
               <br>
               <strong x-bind:class="{'text-grey': term > 6, 'text-error': term <= 6}">
-                If you are a sensitive person please <u>DO NOT</u> continue.
+                If you are a sensitive person please <u>DO NOT</u> continue with this assignment!
               </strong>
             </td>
           </tr>
@@ -426,7 +426,8 @@
     </div>
 
     <div x-show="step >= 1 || debug">
-      <h2 id="step1">Step 1: Describe Your {{ topic['description']|title }}</h2>
+      <h2 id="step1">Step 1: Describe Your {{ topic['description']|title }}
+        &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};</h2>
 
       <blockquote>
         Select the type that most closely matches your <u><em>{{ topic['descriptor'] }}</em></u>
@@ -465,7 +466,7 @@
     </div>
 
     <div x-show="step >= 2 || debug">
-      <h2 id="step2">Step 2: Make the Call</h2>
+      <h2 id="step2">Step 2: Make the Call &#x260E;&#xFE0F; &#x260E;&#xFE0F; &#x260E;&#xFE0F;</h2>
 
       <blockquote>
         Click the button below to place the call in your browser.<br>
@@ -485,7 +486,7 @@
     </div>
 
     <div x-show="step >= 3 || debug">
-      <h2 id="step3">Step 3: Repeat the Word</h2>
+      <h2 id="step3">Step 3: Repeat the Word &#x1F501; &#x1F501; &#x1F501;</h2>
 
       <blockquote>
         You will be called and the voice will say a word. Repeat it after the tone, then stay silent for a few moments.<br>
@@ -499,7 +500,7 @@
     </div>
 
     <div x-show="step >= 4 || debug">
-      <h2 id="step4">Step 4: Enter the PIN Code</h2>
+      <h2 id="step4">Step 4: Enter the PIN Code &#x1F511; &#x1F511; &#x1F511;</h2>
 
       <blockquote>You will be given a PIN code. Enter it below.</blockquote>
 
@@ -513,7 +514,7 @@
     </div>
 
     <div x-show="step >= 5 || debug">
-      <h2 id="step5">Step 5: Talk About {{ topic['name'] }}</h2>
+      <h2 id="step5">Step 5: Talk About {{ topic['name'] }} &#x1F4AC; &#x1F4AC; &#x1F4AC;</h2>
 
       <blockquote>
         You are being connected to a live radio show. Please tell the people on the show about {{ topic['description'] }}.
@@ -574,7 +575,7 @@
               class="button big"
               type="submit"
               x-bind:class="{primary: done, dark: !done}"
-              x-bind:value="'Submit Assignment' + (done ? '' : ' (Enabled when you are done)')"
+              x-bind:value="'&#x1F4E5;&nbsp;&#x1F4E5;&nbsp;&nbsp; Submit Assignment ' + (done ? '' : ' (enabled when you are done)') + ' &nbsp;&nbsp;&#x1F4E5;&nbsp;&#x1F4E5;'"
               x-bind:disabled="!done"
               {% if not assignment_id or not submit_to %}
                 @click.prevent="alert('You did not appear to come from Amazon. Not submitting assignment.')"

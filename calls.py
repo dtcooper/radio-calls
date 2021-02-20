@@ -3,7 +3,8 @@ import re
 from urllib.parse import unquote, urlencode
 
 from twilio.base.exceptions import TwilioRestException
-from twilio.jwt.client import ClientCapabilityToken
+from twilio.jwt.access_token import AccessToken
+from twilio.jwt.access_token.grants import VoiceGrant
 from twilio.rest import Client as TwilioClient
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.twiml.voice_response import VoiceResponse
@@ -13,6 +14,8 @@ from flask import Flask, Response, jsonify, render_template, request, url_for
 # sip password = ***REMOVED***
 TWILIO_ACCOUNT_SID = "***REMOVED***"
 TWILIO_AUTH_TOKEN = "***REMOVED***"
+TWILIO_API_KEY = "***REMOVED***"
+TWILIO_API_SECRET = "***REMOVED***"
 AMAZON_TWIML_APP_SID = "***REMOVED***"
 DEFAULT_AREA_CODE = "***REMOVED***"
 SMS_ADMIN_NUMBER = "***REMOVED***"
@@ -337,12 +340,13 @@ def amazon_hit():
     )
 
 
-@app.route("/amazon/token")
-def amazon_token():
-    capability = ClientCapabilityToken(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-    capability.allow_client_outgoing(AMAZON_TWIML_APP_SID)
+@app.route("/amazon/token/<pin_code>/<worker_id>")
+def amazon_token(pin_code, worker_id):
+    token = AccessToken(TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, identity=f'{pin_code}.{worker_id}')
+    grant = VoiceGrant(outgoing_application_sid=AMAZON_TWIML_APP_SID)
+    token.add_grant(grant)
 
-    return jsonify({"token": capability.to_jwt().decode()})
+    return jsonify({"token": token.to_jwt().decode()})
 
 
 @app.route("/amazon/update-sid/<topic>/<int:choice>/<sip_addr>/<pin_code>/<worker_id>/<call_sid>", methods=("POST",))
