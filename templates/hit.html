@@ -4,31 +4,29 @@
   <meta content="width=device-width,initial-scale=1" name="viewport">
   <title>Radio Call Assignment</title>
 
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/assets/chota-0.8.0.min.css">
   <style>
     :root {
-      --font-family-sans: BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+      --font-family-sans: "Space Mono", BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
       --color-primary: #007acc;
-      --font-size: 1.7rem;
+      --font-size: 1.6rem;
     }
 
     .big {
-      font-size: 2.2rem;
+      font-size: 2.0rem;
     }
 
-    @media screen and (max-width: 899px) {
-      :root { --font-size: 1.6rem; }
-      .big { font-size: 2.0rem; }
-    }
 
-    @media screen and (max-width: 749px) {
-      :root { --font-size: 1.5rem; }
-      .big { font-size: 1.8rem; }
+    @media screen and (max-width: 799px) {
+      :root { --font-size: 1.4rem; }
+      .big { font-size: 1.7rem; }
     }
 
     @media screen and (max-width: 599px) {
-      :root { --font-size: 1.4rem; }
-      .big { font-size: 1.6rem; }
+      :root { --font-size: 1.3rem; }
+      .big { font-size: 1.4rem; }
     }
 
     body {
@@ -72,6 +70,14 @@
 
     .underline {
       text-decoration: underline;
+    }
+
+    hr {
+      margin: 50px 0;
+    }
+
+    .bd-choice {
+      background-color: #b7daf1 !important;
     }
   </style>
 
@@ -241,6 +247,11 @@
   </script>
 </head>
 <body>
+  <h1 id="step0" class="text-center">
+    {% if not preview %}&#x{{ topic['emoji'] }};{% endif %}&#x1F4DE;&#x1F4FB;
+    <u>Call a Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
+    &#x1F4FB;&#x1F4DE;{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}
+  </h1>
 
   <div class="container" x-data="{show: true}" x-init="show = false" x-show="show">
     <div class="bd-error" style="padding: 15px; margin: 15px">
@@ -254,67 +265,62 @@
     </div>
   </div>
 
-  <section x-data="radioCall()" x-init="init(); setStep(0)" class="container" x-cloak>
+  <section x-data="radioCall()" x-init="init();{% if not debug %} setStep(0){% endif %}" class="container" x-cloak>
 
     <div id="volume-nav" class="grid text-center is-marginless is-paddingless" x-show="device !== null && connection !== null">
       <div class="row is-marginless is-paddingless">
         <div class="col-2 is-vertical-align text-center">&#x1F3A4; &#x1F399;️&#xFE0F; Mic Volume:</div>
         <div class="col-3 is-vertical-align">
-          <progress class="is-full-width" x-bind:value="inputVolume.toString()" min="0" max="0.5"></progress>
+          <progress class="is-full-width" x-bind:value="inputVolume.toString()" min="0" max="0.65"></progress>
         </div>
         <div class="col-3 is-vertical-align">
           <button
             @click.prevent="hangUp()"
             class="button is-full-width"
             style="margin-top: 5px"
-            x-bind:class="{error: step != 5, success: step == 5 && !hangupBlocked, dark: step == 5 && hangupBlocked}"
+            x-bind:class="{error: !hangupBlocked, dark: hangupBlocked}"
             x-bind:disabled="hangupBlocked"
-            x-text="step == 5 ? (hangupBlocked ? `Continue for ${Math.max(blockHangupSeconds - callDuration - 1, 0)} seconds...` : 'Finish Call') : 'Hang Up'"
+            x-text="hangupBlocked ? `Continue for ${Math.max(blockHangupSeconds - callDuration - 1, 0)} seconds...` : 'End Call'"
           ></button>
         </div>
         <div class="col-2 is-vertical-align text-center">&#x1F509; Speaker Volume:</div>
         <div class="col-2 is-vertical-align">
-          <progress class="is-full-width" x-bind:value="outputVolume.toString()" min="0" max="0.5"></progress>
+          <progress class="is-full-width" x-bind:value="outputVolume.toString()" min="0" max="0.65"></progress>
         </div>
       </div>
     </div>
 
     <div>
-      <h1 id="step0" class="text-center">
-        {% if not preview %}&#x{{ topic['emoji'] }};{% endif %} &#x1F4DE; &#x1F4FB;
-        <u>Call a Live Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
-        &#x1F4FB; &#x1F4DE; {% if not preview %}&#x{{ topic['emoji'] }};{% endif %}
-      </h1>
-
       <p>
-        This is a <strong>funny assignment</strong> &#x1F602; &#x1F602; &#x1F602; where you'll
-        use your web browser to call &#x1F4DE; people on a live radio show. &#x1F4FB;
+        This is a <strong>funny assignment</strong> &#x1F602;&#x1F602;&#x1F602; where you'll
+        use your web browser to call &#x1F4DE; people on a <em>live</em> radio show. &#x1F4FB;
       </p>
 
       <p>
         You will talk to the hosts of the radio show about
         {% if preview %}the topic in the assignment.{% else %}
           <strong>your {{ topic['description'] }}</strong>.
-          &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
+          &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% endif %}
       </p>
 
       <p>
         This assignment will take approximately 5 to 10 minutes to complete.
-        &#x1F552; &#x1F552; &#x1F552;
+        &#x1F552;&#x1F552;&#x1F552;
         <br>
         You will have to stay on the call for <em>at least 2 minutes</em>, but you are welcome
         to talk as long as you would like!
       </p>
+      <br>
 
-      <strong id="terms"><u>Important Terms &amp; Conditions:</u>
-        {% if not preview %}<em>(Click to Accept &amp; Continue)</em>{% endif %}</strong>
+      <strong id="terms"><u>Important Terms &amp; Conditions:</u><br>
+        {% if not preview %}<em>(Click each button to accept &amp; continue)</em>{% endif %}</strong>
 
       <table class="tight">
         <tbody>
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1; $scroll('#terms')" x-bind:disabled="{% if preview %}true{% else %}term != 0{% endif %}" class="button primary">
-                I agree&nbsp;&nbsp;&#x2714;
+                I agree &#x2714;
               </button>
             </td>
             <td class="bold" x-bind:class="{'text-grey': term > 0}">
@@ -324,18 +330,18 @@
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 1" class="button primary">
-                I have this&nbsp;&nbsp;&#x2714;
+                I have this &#x2714;
               </button>
             </td>
             <td class="bold" x-bind:class="{'text-grey': term > 1}">
               You <u>MUST</u> have a <em>working</em> headset &#x1F3A7; (or speaker &#x1F509;)
-                with a <u>microphone</u>. &#x1F3A4; &#x1F399;️&#xFE0F;
+                with a <u>microphone</u>. &#x1F3A4;&#x1F399;️&#xFE0F;
             </td>
           </tr>
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 2" class="button primary">
-                I understand&nbsp;&nbsp;&#x2714;
+                I understand &#x2714;
               </button>
             </td>
             <td class="bold" x-bind:class="{'text-grey': term > 2}">
@@ -345,7 +351,7 @@
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 3" class="button primary">
-               I will not&nbsp;&nbsp;&#x2714;
+               I will not &#x2714;
               </button>
             </td>
             <td x-bind:class="{'text-grey': term > 3, 'text-error': term <= 3}">
@@ -355,36 +361,36 @@
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 4" class="button primary">
-                I will&nbsp;&nbsp;&#x2714;
+                I will &#x2714;
               </button>
             </td>
             <td x-bind:class="{'text-grey': term > 4}">
-              You can have any conversation you would like, but <strong>please mention
+              You can have any conversation you would like, but <strong>mention
               {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.</strong>
-              {% if not preview %}&#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
+              {% if not preview %}&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% endif %}
             </td>
           </tr>
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 5" class="button primary">
-                I will&nbsp;&nbsp;&#x2714;
+                I will &#x2714;
               </button>
             </td>
             <td x-bind:class="{'text-grey': term > 5}">
               If no one answers, please leave a voicemail message{% if not preview %} talking about {{ topic['name'] }}{% endif %}.
-              {% if not preview %}&#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
+              {% if not preview %}&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% endif %}
             </td>
           </tr>
           <tr>
             <td class="text-right">
               <button @click.prevent="term += 1" x-bind:disabled="term != 6" class="button primary">
-                I understand&nbsp;&nbsp;&#x2714;
+                I understand &#x2714;
               </button>
             </td>
             <td x-bind:class="{'text-grey': term > 6}">
-              You must have a <strong>good</strong> sense of <strong>humour</strong>. &#x1F602; &#x1F602; &#x1F602;<br>
-              <em>You might be made fun of!</em> &#x1F632; &#x1F632; &#x1F632;<br>
-              The conversation may be inapproriate or NSFW (not safe for work). &#x1F601; &#x1F51E; &#x1F601; &#x1F51E;<br>
+              You must have a <strong>good</strong> sense of <strong>humour</strong>. &#x1F602;&#x1F602;&#x1F602;<br>
+              <em>You might be made fun of!</em> &#x1F632;&#x1F632;&#x1F632;<br>
+              The conversation may be inapproriate or NSFW (not safe for work). &#x1F601;&#x1F51E;&#x1F601;&#x1F51E;<br>
               <strong x-bind:class="{'text-grey': term > 6, 'text-error': term <= 6}">
                 If you are a sensitive person please <u>DO NOT</u> continue with this assignment!
               </strong>
@@ -392,8 +398,8 @@
           </tr>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1; $scroll('#accept-terms')" x-bind:disabled="term != 7" class="button primary">
-              I understand&nbsp;&nbsp;&#x2714;
+              <button @click.prevent="term += 1; $nextTick(() => $scroll('#accept-terms-scroll'))" x-bind:disabled="term != 7" class="button primary">
+                I understand &#x2714;
               </button>
             </td>
             <td class="italic" x-bind:class="{'text-grey': term > 7}">
@@ -406,27 +412,27 @@
         </tbody>
       </table>
 
-      <h3 class="text-success" x-show="term >= 8">
+      <h3 id="accept-terms-scroll" class="text-success" x-show="term >= 8">
         <em>All right! Are you ready to have some fun?!</em>
         &#x1F973; &#x1F92A; &#x{{ topic['emoji']}}; &#x1F4DE; &#x1F4FB; &#x1F602;
       </h3>
+      <br>
 
-      <hr>
-
-      <p id="accept-terms" class="text-center">
+      <p class="text-center">
         <button class="button big {% if preview %}dark{% else %}primary{% endif %}" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)">
           {% if preview %}
             You are currently <em>previewing</em> this assignment. Press Accept to start.
           {% else %}
-            I have <u>carefully</u> read, understood and agree to the above terms &amp; conditions.
+            I have <u>carefully</u> read, understand and agree to the above terms &amp; conditions.
           {% endif %}
         </button>
       </p>
     </div>
 
     <div x-show="step >= 1 || debug">
+      <hr>
       <h2 id="step1">Step 1: Describe Your {{ topic['description']|title }}
-        &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};</h2>
+        &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};</h2>
 
       <blockquote>
         Select the type that most closely matches your <u><em>{{ topic['description'] }}</em></u>
@@ -445,11 +451,14 @@
         </thead>
         <tbody>
           {% for choice in topic['choices'] %}
-            <tr>
+            <tr x-bind:class="{'bd-choice': choice === {{ loop.index0|tojson }}}">
               <td>
-                <button @click.prevent="choice = {{ loop.index0 }}; setStep(2)" class="button primary">
-                  Select {{ choice['name'].split(':')[0] }}
-                </button>
+                <button
+                  @click.prevent="choice = {{ loop.index0 }}; setStep(2)"
+                  class="button primary"
+                  x-text="choice === {{ loop.index0|tojson }} ? 'Selected' : ('Select {{ choice['name'].split(':')[0] }}')"
+                  x-bind:disabled="choice === {{ loop.index0|tojson }}"
+                ></button>
               </td>
               <td class="bold">{{ choice['name'] }}</td>
               <td><img class="bd-light" srcset="/static/images/{{ topic['code'] }}/{{ loop.index0 }}.jpg 2x"></td>
@@ -465,7 +474,8 @@
     </div>
 
     <div x-show="step >= 2 || debug">
-      <h2 id="step2">Step 2: Make the Call &#x260E;&#xFE0F; &#x260E;&#xFE0F; &#x260E;&#xFE0F;</h2>
+      <hr>
+      <h2 id="step2">Step 2: Make the Call &#x260E;&#xFE0F;&#x260E;&#xFE0F;&#x260E;&#xFE0F;</h2>
 
       <blockquote>
         Click the button below to place the call in your browser.<br>
@@ -477,15 +487,14 @@
 
       <p class="text-center">
         <button @click.prevent="call()" class="button big success" x-bind:disabled="device === null || connection !== null">
-          &#x1F4DE;&nbsp;&#x1F4DE;&nbsp;&nbsp;
-          Start Call
-          &nbsp;&nbsp;&#x1F4DE;&nbsp;&#x1F4DE;
+          &#x1F4DE;&#x1F4DE; Start Call &#x1F4DE;&#x1F4DE;
         </button>
       </p>
     </div>
 
     <div x-show="step >= 3 || debug">
-      <h2 id="step3">Step 3: Repeat the Word &#x1F501; &#x1F501; &#x1F501;</h2>
+      <hr>
+      <h2 id="step3">Step 3: Repeat the Word &#x1F501;&#x1F501;&#x1F501;</h2>
 
       <blockquote>
         You will be called and the voice will say a word. Repeat the word after the tone, then stay silent for a few moments.<br>
@@ -495,11 +504,11 @@
       <p class="text-center">
         <button @click.prevent="setStep(4)" class="button big primary" x-bind:disabled="step >= 4">Ready for Step 4</button>
       </p>
-
     </div>
 
     <div x-show="step >= 4 || debug">
-      <h2 id="step4">Step 4: Enter the PIN Code &#x1F511; &#x1F511; &#x1F511;</h2>
+      <hr>
+      <h2 id="step4">Step 4: Enter the PIN Code &#x1F511;&#x1F511;&#x1F511;</h2>
 
       <blockquote>You will be given a PIN code. Enter it below.</blockquote>
 
@@ -519,10 +528,11 @@
     </div>
 
     <div x-show="step >= 5 || debug">
+      <hr>
       <h2 id="step5">Step 5: Talk About {{ topic['name'] }} &#x1F4AC; &#x1F4AC; &#x1F4AC;</h2>
 
       <blockquote>
-        You are being connected to a live radio show. Please tell the people on the show about your {{ topic['description'] }}.
+        You are being connected to a <em>live</em> radio show. Please mention <em>your {{ topic['description'] }}</em>.
         <br>
         If the call is not answered, please leave a voicemail message about {{ topic['name'] }}.
         <br>
@@ -551,7 +561,10 @@
         </table>
       </template>
 
-      <h3 x-show="!done"><em>Enjoy your call! Say whatever you want! You can even insult the hosts!</em> &#x1F389; &#x1F389; &#x1F389;</h3>
+      <h3 x-show="!done">
+        <em>Enjoy your call! Say whatever you want!
+          <br>You can even insult the hosts!</em> &#x1F389;&#x1F389;&#x1F389;
+      </h3>
 
       <h3
         class="text-error"
@@ -560,13 +573,13 @@
       ></h3>
 
       <h3 class="text-success" x-show="step == 5 && !done && !hangupBlocked">
-          When you are done, you can click the <em>Finish Call</em> button above.
+          When you are done, you can click the <em>End Call</em> button above.
       </h3>
     </div>
 
-    <div x-show="step >= 1 || debug" style="margin-top: 50px">
+    <div x-show="step >= 1 || debug">
       <hr>
-      <h2 id="done" class="text-success" x-show="done">Congratulations! You are done! &#x1F389; &#x1F389; &#x1F389;</h2>
+      <h2 id="done" class="text-success" x-show="done || debug">Congratulations! You are done! &#x1F389;&#x1F389;&#x1F389;</h2>
 
       <blockquote x-show="done || debug">Click <em>Submit Assignment</em> below.</blockquote>
 
@@ -582,7 +595,7 @@
               class="button big"
               type="submit"
               x-bind:class="{primary: done, dark: !done}"
-              x-text="'&#x1F4E5;&nbsp;&#x1F4E5;&nbsp;&nbsp; Submit Assignment ' + (done ? '' : ' (enabled when you are done)') + ' &nbsp;&nbsp;&#x1F4E5;&nbsp;&#x1F4E5;'"
+              x-text="'&#x1F4E5;&#x1F4E5; Submit Assignment ' + (done ? '' : ' (enabled when you are done)') + ' &#x1F4E5;&#x1F4E5;'"
               x-bind:disabled="!done"
               {% if not assignment_id or not submit_to %}
                 @click.prevent="alert('You did not appear to come from Amazon. Not submitting assignment.')"
