@@ -322,7 +322,7 @@ def amazon_admin():
 
 @app.route("/amazon/hit")
 def amazon_hit():
-    force_topic = request.args.get('force_topic')
+    force_topic = request.args.get("force_topic")
     assignment_id = request.args.get("assignmentId")
     show = request.args.get("show")
     if show not in SIP_ADDRESSES_TO_NUMBERS:

@@ -480,7 +480,7 @@
       <blockquote>
         Click the button below to place the call in your browser.<br>
         <strong class="text-success">You will need to enable your microphone.</strong>
-        &#x1F3A4; &#x1F399;️&#xFE0F; &#x1F3A4; &#x1F399;️&#xFE0F; &#x1F3A4; &#x1F399;️&#xFE0F;
+        &#x1F3A4;&#x1F399;️&#xFE0F;&#x1F3A4;&#x1F399;️&#xFE0F;&#x1F3A4;&#x1F399;️&#xFE0F;
       </blockquote>
 
       <h3 class="text-error" x-show="callError" x-text="typeof callError === 'string' ? callError : 'An error occurred. Please try again.'"></h3>
@@ -529,7 +529,7 @@
 
     <div x-show="step >= 5 || debug">
       <hr>
-      <h2 id="step5">Step 5: Talk About {{ topic['name'] }} &#x1F4AC; &#x1F4AC; &#x1F4AC;</h2>
+      <h2 id="step5">Step 5: Talk About {{ topic['name']|title }} &#x1F4AC;&#x1F4AC;&#x1F4AC;</h2>
 
       <blockquote>
         You are being connected to a <em>live</em> radio show. Please mention <em>your {{ topic['description'] }}</em>.
