@@ -342,7 +342,7 @@ def amazon_hit():
 
 @app.route("/amazon/token/<pin_code>/<worker_id>")
 def amazon_token(pin_code, worker_id):
-    token = AccessToken(TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, identity=f'{pin_code}.{worker_id}')
+    token = AccessToken(TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, identity=f"{pin_code}.{worker_id}")
     grant = VoiceGrant(outgoing_application_sid=AMAZON_TWIML_APP_SID)
     token.add_grant(grant)
 

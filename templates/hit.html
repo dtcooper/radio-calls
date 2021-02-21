@@ -269,7 +269,7 @@
             style="margin-top: 5px"
             x-bind:class="{error: step != 5, success: step == 5 && !hangupBlocked, dark: step == 5 && hangupBlocked}"
             x-bind:disabled="hangupBlocked"
-            x-text="step == 5 ? (hangupBlocked ? `Continue for ${blockHangupSeconds - callDuration} seconds...` : 'Finish Call') : 'Hang Up'"
+            x-text="step == 5 ? (hangupBlocked ? `Continue for ${Math.max(blockHangupSeconds - callDuration - 1, 0)} seconds...` : 'Finish Call') : 'Hang Up'"
           ></button>
         </div>
         <div class="col-2 is-vertical-align text-center">&#x1F509; Speaker Volume:</div>
@@ -549,7 +549,7 @@
       <h3
         class="text-error"
         x-show="step == 5 && !done && hangupBlocked"
-        x-text="`You must stay on the call for at least another ${blockHangupSeconds - callDuration} seconds.`"
+        x-text="`You must stay on the call for at least another ${Math.max(blockHangupSeconds - callDuration - 1, 0)} seconds.`"
       ></h3>
 
       <h3 class="text-success" x-show="step == 5 && !done && !hangupBlocked">
