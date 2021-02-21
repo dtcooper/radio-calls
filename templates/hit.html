@@ -258,7 +258,7 @@
 
     <div id="volume-nav" class="grid text-center is-marginless is-paddingless" x-show="device !== null && connection !== null">
       <div class="row is-marginless is-paddingless">
-        <div class="col-2 is-vertical-align text-center ">&#x1F3A4; Mic Volume:</div>
+        <div class="col-2 is-vertical-align text-center">&#x1F3A4; &#x1F399;️&#xFE0F; Mic Volume:</div>
         <div class="col-3 is-vertical-align">
           <progress class="is-full-width" x-bind:value="inputVolume.toString()" min="0" max="0.5"></progress>
         </div>
@@ -287,12 +287,12 @@
       </h1>
 
       <p>
-        This is a <strong>funny assignment</strong> &#x1F602; &#x1F602; &#x1F602; where you will
+        This is a <strong>funny assignment</strong> &#x1F602; &#x1F602; &#x1F602; where you'll
         use your web browser to call &#x1F4DE; people on a live radio show. &#x1F4FB;
       </p>
 
       <p>
-        You will talk to the the hosts of the radio show about
+        You will talk to the hosts of the radio show about
         {% if preview %}the topic in the assignment.{% else %}
           <strong>your {{ topic['description'] }}</strong>.
           &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};{% endif %}
@@ -329,7 +329,7 @@
             </td>
             <td class="bold" x-bind:class="{'text-grey': term > 1}">
               You <u>MUST</u> have a <em>working</em> headset &#x1F3A7; (or speaker &#x1F509;)
-                with a <u>microphone</u>. &#x1F3A4;
+                with a <u>microphone</u>. &#x1F3A4; &#x1F399;️&#xFE0F;
             </td>
           </tr>
           <tr>
@@ -382,10 +382,9 @@
               </button>
             </td>
             <td x-bind:class="{'text-grey': term > 6}">
-              You must have a of humour. &#x1F602; &#x1F602; &#x1F602;
-              <br>
-              <em>You might be made fun of!</em> &#x1F632; &#x1F632; &#x1F632;
-              <br>
+              You must have a <strong>good</strong> sense of <strong>humour</strong>. &#x1F602; &#x1F602; &#x1F602;<br>
+              <em>You might be made fun of!</em> &#x1F632; &#x1F632; &#x1F632;<br>
+              The conversation may be inapproriate or NSFW (not safe for work). &#x1F601; &#x1F51E; &#x1F601; &#x1F51E;<br>
               <strong x-bind:class="{'text-grey': term > 6, 'text-error': term <= 6}">
                 If you are a sensitive person please <u>DO NOT</u> continue with this assignment!
               </strong>
@@ -401,7 +400,7 @@
               You <strong>may</strong> use a <u>fake name</u>.<br>
               You <strong>do not</strong> have to <u>tell the truth</u>.<br>
               You <strong>may</strong> <u>lie</u> about your <u>personal life</u>.<br>
-              You <strong>do not</strong> need to say <u>anything</u> you're <u>not comfortable</u> with.
+              You <strong>do not</strong> need to say <u>anything</u> you're <u>uncomfortable</u> with.
             </td>
           </tr>
         </tbody>
@@ -415,7 +414,7 @@
       <hr>
 
       <p id="accept-terms" class="text-center">
-        <button class="button big {% if preview %}dark{% else %}primary{% endif %}" x-on:click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)">
+        <button class="button big {% if preview %}dark{% else %}primary{% endif %}" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)">
           {% if preview %}
             You are currently <em>previewing</em> this assignment. Press Accept to start.
           {% else %}
@@ -430,7 +429,7 @@
         &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }}; &#x{{ topic['emoji'] }};</h2>
 
       <blockquote>
-        Select the type that most closely matches your <u><em>{{ topic['descriptor'] }}</em></u>
+        Select the type that most closely matches your <u><em>{{ topic['description'] }}</em></u>
         from the {{ topic['chart_name'] }} below.
       </blockquote>
 
@@ -462,7 +461,7 @@
 
       <br>
 
-      <p class="italic bold" x-text="choice === null ? 'You must make a choice above to continue.' : `You selected ${topic.choices[choice].name}.`"></p>
+      <p class="italic bold" x-text="choice === null ? 'You must make a choice above to continue.' : `You selected ${topic.choices[choice].name} as your ${topic.description}.`"></p>
     </div>
 
     <div x-show="step >= 2 || debug">
@@ -471,13 +470,13 @@
       <blockquote>
         Click the button below to place the call in your browser.<br>
         <strong class="text-success">You will need to enable your microphone.</strong>
-        &#x1F3A4; &#x1F3A4; &#x1F3A4;
+        &#x1F3A4; &#x1F399;️&#xFE0F; &#x1F3A4; &#x1F399;️&#xFE0F; &#x1F3A4; &#x1F399;️&#xFE0F;
       </blockquote>
 
       <h3 class="text-error" x-show="callError" x-text="typeof callError === 'string' ? callError : 'An error occurred. Please try again.'"></h3>
 
       <p class="text-center">
-        <button x-on:click.prevent="call()" class="button big success" x-bind:disabled="device === null || connection !== null">
+        <button @click.prevent="call()" class="button big success" x-bind:disabled="device === null || connection !== null">
           &#x1F4DE;&nbsp;&#x1F4DE;&nbsp;&nbsp;
           Start Call
           &nbsp;&nbsp;&#x1F4DE;&nbsp;&#x1F4DE;
@@ -489,12 +488,12 @@
       <h2 id="step3">Step 3: Repeat the Word &#x1F501; &#x1F501; &#x1F501;</h2>
 
       <blockquote>
-        You will be called and the voice will say a word. Repeat it after the tone, then stay silent for a few moments.<br>
+        You will be called and the voice will say a word. Repeat the word after the tone, then stay silent for a few moments.<br>
         When you have successfully done this, click <em>Ready for Step 4</em> below.
       </blockquote>
 
       <p class="text-center">
-        <button x-on:click.prevent="setStep(4)" class="button big primary" x-bind:disabled="step >= 4">Ready for Step 4</button>
+        <button @click.prevent="setStep(4)" class="button big primary" x-bind:disabled="step >= 4">Ready for Step 4</button>
       </p>
 
     </div>
@@ -504,12 +503,18 @@
 
       <blockquote>You will be given a PIN code. Enter it below.</blockquote>
 
-      <label for="pin-code" class="big bold">PIN Code:</label>
-      <input id="pin-code" class="big bold" style="max-width: 250px;" type="text" name="PinCode" x-model="pinCodeInput" pattern="\d*" maxlength="4" x-bind:disabled="step != 4 || pinVerifying">
+      <div class="row">
+        <div class="col-2">
+          <label for="pin-code" class="big bold">PIN Code:</label>
+        </div>
+        <div class="col-10">
+          <input id="pin-code" class="big bold" style="max-width: 250px;" type="text" name="PinCode" x-model="pinCodeInput" pattern="\d*" maxlength="4" x-bind:disabled="step != 4 || pinVerifying">
+        </div>
+      </div>
       <br>
 
       <p class="text-center">
-        <button x-on:click.prevent="verifyPinCode()" class="button big primary" x-bind:disabled="step != 4 || pinVerifying">Verify PIN Code</button>
+        <button @click.prevent="verifyPinCode()" class="button big primary" x-bind:disabled="step != 4 || pinVerifying">Verify PIN Code</button>
       </p>
     </div>
 
@@ -517,9 +522,11 @@
       <h2 id="step5">Step 5: Talk About {{ topic['name'] }} &#x1F4AC; &#x1F4AC; &#x1F4AC;</h2>
 
       <blockquote>
-        You are being connected to a live radio show. Please tell the people on the show about {{ topic['description'] }}.
+        You are being connected to a live radio show. Please tell the people on the show about your {{ topic['description'] }}.
         <br>
         If the call is not answered, please leave a voicemail message about {{ topic['name'] }}.
+        <br>
+        <em>You may be placed on a brief hold.</em>
       </blockquote>
 
       <template x-if="choice !== null">
@@ -544,7 +551,7 @@
         </table>
       </template>
 
-      <h3 x-show="!done">Enjoy your call! &#x1F389; &#x1F389; &#x1F389;</h3>
+      <h3 x-show="!done"><em>Enjoy your call! Say whatever you want! You can even insult the hosts!</em> &#x1F389; &#x1F389; &#x1F389;</h3>
 
       <h3
         class="text-error"
@@ -571,16 +578,16 @@
           <input type="hidden" name="CallDurationSeconds" x-bind:value="callDuration">
       {% endif %}
           <p class="text-center">
-            <input
+            <button
               class="button big"
               type="submit"
               x-bind:class="{primary: done, dark: !done}"
-              x-bind:value="'&#x1F4E5;&nbsp;&#x1F4E5;&nbsp;&nbsp; Submit Assignment ' + (done ? '' : ' (enabled when you are done)') + ' &nbsp;&nbsp;&#x1F4E5;&nbsp;&#x1F4E5;'"
+              x-text="'&#x1F4E5;&nbsp;&#x1F4E5;&nbsp;&nbsp; Submit Assignment ' + (done ? '' : ' (enabled when you are done)') + ' &nbsp;&nbsp;&#x1F4E5;&nbsp;&#x1F4E5;'"
               x-bind:disabled="!done"
               {% if not assignment_id or not submit_to %}
                 @click.prevent="alert('You did not appear to come from Amazon. Not submitting assignment.')"
               {% endif %}
-            >
+            ></button>
           </p>
       {% if assignment_id and submit_to %}
         </form>
