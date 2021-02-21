@@ -322,6 +322,7 @@ def amazon_admin():
 
 @app.route("/amazon/hit")
 def amazon_hit():
+    force_topic = request.args.get('force_topic')
     assignment_id = request.args.get("assignmentId")
     show = request.args.get("show")
     if show not in SIP_ADDRESSES_TO_NUMBERS:
@@ -333,7 +334,7 @@ def amazon_hit():
         preview=bool(assignment_id == "ASSIGNMENT_ID_NOT_AVAILABLE"),
         show=show,
         submit_to=request.args.get("turkSubmitTo"),
-        topic=random.choice(list(HIT_TOPICS.values())),
+        topic=HIT_TOPICS[force_topic] if force_topic in HIT_TOPICS else random.choice(list(HIT_TOPICS.values())),
         hit_id=request.args.get("hitId"),
         assignment_id=assignment_id,
         worker_id=request.args.get("workerId"),
