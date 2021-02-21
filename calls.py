@@ -2,6 +2,7 @@ import random
 import re
 from urllib.parse import unquote, urlencode
 
+import requests
 from twilio.base.exceptions import TwilioRestException
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VoiceGrant
@@ -16,6 +17,7 @@ TWILIO_ACCOUNT_SID = "***REMOVED***"
 TWILIO_AUTH_TOKEN = "***REMOVED***"
 TWILIO_API_KEY = "***REMOVED***"
 TWILIO_API_SECRET = "***REMOVED***"
+IPSTACK_API_KEY = "***REMOVED***"
 AMAZON_TWIML_APP_SID = "***REMOVED***"
 DEFAULT_AREA_CODE = "***REMOVED***"
 SMS_ADMIN_NUMBER = "***REMOVED***"
@@ -325,11 +327,20 @@ def amazon_hit():
     force_topic = request.args.get("force_topic")
     assignment_id = request.args.get("assignmentId")
     show = request.args.get("show")
+    geoip = {"country_code": "XX", "city": "Unknown", "country_name": "Unknown"}
+
     if show not in SIP_ADDRESSES_TO_NUMBERS:
         show = "tigwit"
 
+    if app.env == "production" or request.args.get("force_geoip"):
+        ip_addr = request.headers.get("X-Forwarded-For") or request.remote_addr
+        lookup = requests.get(f"http://api.ipstack.com/{ip_addr}", params={"access_key": IPSTACK_API_KEY}).json()
+        for key in geoip.keys():
+            geoip[key] = lookup.get(key) or geoip[key]
+
     return render_template(
         "hit.html",
+        geoip=geoip,
         debug=bool(request.args.get("debug")),
         preview=bool(assignment_id == "ASSIGNMENT_ID_NOT_AVAILABLE"),
         show=show,
@@ -350,8 +361,11 @@ def amazon_token(pin_code, worker_id):
     return jsonify({"token": token.to_jwt().decode()})
 
 
-@app.route("/amazon/update-sid/<topic>/<int:choice>/<sip_addr>/<pin_code>/<worker_id>/<call_sid>", methods=("POST",))
-def amazon_update_sid(topic, choice, sip_addr, pin_code, worker_id, call_sid):
+@app.route(
+    "/amazon/update-sid/<topic>/<int:choice>/<sip_addr>/<country_code>/<pin_code>/<worker_id>/<call_sid>",
+    methods=("POST",),
+)
+def amazon_update_sid(topic, choice, sip_addr, country_code, pin_code, worker_id, call_sid):
     success = True
     description = HIT_TOPICS[topic]["description"]
     name = HIT_TOPICS[topic]["choices"][choice]["name"]
@@ -360,11 +374,10 @@ def amazon_update_sid(topic, choice, sip_addr, pin_code, worker_id, call_sid):
     response.say(
         f"Step 5! You are being connected to a live radio show. Your {description} is {name}. Enjoy your call!"
     )
-    # sip doesn't care about caller IDs from verified phones, so use the PIN code + worker id
+    # sip doesn't care about caller IDs from verified phones, so use an informative one
+    from_number = f"{pin_code}.{country_code}.{worker_id}"
     response.redirect(
-        url_for(
-            "voice_incoming", sip_addr=sip_addr, from_number=f"{pin_code}.{worker_id}", skip_song="1", _external=True
-        )
+        url_for("voice_incoming", sip_addr=sip_addr, from_number=from_number, skip_song="1", _external=True)
     )
 
     try:

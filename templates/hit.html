@@ -85,6 +85,7 @@
   <script src="/static/assets/alpine-2.8.0.min.js" defer></script>
   <script src="/static/assets/alpine-magic-helpers-1.0.0.min.js"></script>
   <script>
+    var countryCode = {{ geoip['country_code']|tojson }}
     var blockHangupSeconds = {% if debug %}10{% else %}120{% endif %}
     var debug = {{ debug|tojson }}
     var show = {{ show|tojson }}
@@ -215,7 +216,8 @@
               this.pinVerifying = true
 
               try {
-                var response = await fetch(`/amazon/update-sid/${topic.code}/${this.choice || 0}/${show}/${this.pinCode}/${workerId}/${callSid}`, {method: 'POST'})
+                var url = `/amazon/update-sid/${topic.code}/${this.choice || 0}/${show}/${countryCode}/${this.pinCode}/${workerId}/${callSid}`
+                var response = await fetch(url, {method: 'POST'})
                 var data = await response.json()
               } catch (err) {
                 this.pinVerifying = false
@@ -583,28 +585,36 @@
 
       <blockquote x-show="done || debug">Click <em>Submit Assignment</em> below.</blockquote>
 
-      {% if assignment_id and submit_to %}
-        <form method="POST" action="{{ submit_to }}/mturk/externalSubmit">
-          <!-- prevent naive form submission -->
-          <input type="hidden" name="assignmentId" x-bind:value="done ? assignmentId : ''">
-          <input type="hidden" name="PinCode" x-bind:value="pinCode">
-          <input type="hidden" name="CallDurationSeconds" x-bind:value="callDuration">
-      {% endif %}
-          <p class="text-center">
-            <button
-              class="button big"
-              type="submit"
-              x-bind:class="{primary: done, dark: !done}"
-              x-text="'&#x1F4E5;&#x1F4E5; Submit Assignment ' + (done ? '' : ' (enabled when you are done)') + ' &#x1F4E5;&#x1F4E5;'"
-              x-bind:disabled="!done"
-              {% if not assignment_id or not submit_to %}
-                @click.prevent="alert('You did not appear to come from Amazon. Not submitting assignment.')"
-              {% endif %}
-            ></button>
-          </p>
-      {% if assignment_id and submit_to %}
-        </form>
-      {% endif %}
+      <form id="submit-form" method="POST" action="{{ submit_to }}/mturk/externalSubmit">
+        <!-- prevent naive form submission -->
+        <input type="hidden" name="assignmentId" x-bind:value="done ? assignmentId : ''">
+        <input type="hidden" name="PinCode" x-bind:value="pinCode">
+        <input type="hidden" name="CallDurationSeconds" x-bind:value="callDuration">
+        {% for key, value in geoip.items() %}
+          <input type="hidden" name="{{ key.replace('_', ' ').title().replace(' ', '') }}" value="{{ value }}">
+        {% endfor %}
+        <p class="text-center">
+          <button
+            class="button big"
+            type="submit"
+            x-bind:class="{primary: done, dark: !done}"
+            x-text="'&#x1F4E5;&#x1F4E5; Submit Assignment ' + (done ? '' : ' (enabled when you are done)') + ' &#x1F4E5;&#x1F4E5;'"
+            x-bind:disabled="!done"
+            {% if not assignment_id or not submit_to %}
+              @click.prevent="
+                var formData = new FormData(document.querySelector('#submit-form'))
+                var alertString = 'You did not appear to come from Amazon. Not submitting.\nForm data:'
+                for (var [key, value] of formData.entries()) {
+                  if (key !== 'assignmentId' && value) {
+                    alertString += `\n * ${key} = ${JSON.stringify(value)}`
+                  }
+                }
+                alert(alertString)
+              "
+            {% endif %}
+          ></button>
+        </p>
+      </form>
     </div>
 
 {% if debug %}
