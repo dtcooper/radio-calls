@@ -369,7 +369,9 @@
         This assignment will take approximately 5 to 10 minutes to complete.
         &#x1F552;&#x1F552;&#x1F552;
         <br>
-        You will have to stay on the call for <em>at least 2 minutes</em>, but you are welcome
+        {% set block_hangup_seconds_pretty = ((block_hangup_seconds / 60|round(1))|string).rstrip('.0') %}
+        You will have to stay on the call for <em>at least {{ block_hangup_seconds_pretty }}
+        minute{% if block_hangup_seconds_pretty|float != 1.0 %}s{% endif %}</em>, but you are welcome
         to talk as long as you would like!
       </p>
 
@@ -612,14 +614,16 @@
 
       <blockquote>
         <ul>
-          <li>You are being connected to a <em>live</em> radio show. Please mention <em>your {{ topic['description'] }}.</em></li>
+          <li>
+            You are being connected to a <em>live</em> radio show.
+            <strong>Please mention <em>your {{ topic['description'] }}.</em></strong>
+          </li>
           <li>If the call is not answered, please leave a voicemail message about {{ topic['name'] }}.</li>
           <li>You <em>may</em> be placed on a brief hold.</em></li>
           <li>
-            {% set block_hangup_seconds_pretty = ((block_hangup_seconds / 60|round(1))|string).rstrip('.0') %}
-            You must stay on the call for at least {{ block_hangup_seconds_pretty }}
-            minute{% if block_hangup_seconds_pretty|float != 1.0 %}s{% endif %}, <em>but you
-            are welcome to stay on for longer if you're having fun!</em>
+            You will have to stay on the call for <em>at least {{ block_hangup_seconds_pretty }}
+              minute{% if block_hangup_seconds_pretty|float != 1.0 %}s{% endif %}, but you are welcome
+              to talk longer if you're having fun!</em>
           </li>
         </ul>
       </blockquote>
