@@ -44,6 +44,21 @@
       .big { font-size: 1.4rem; }
     }
 
+    @media screen and (min-width: 600px) {
+      /* From chota.css */
+      .is-right-not-sm {
+          display: -webkit-box;
+          display: -ms-flexbox;
+          display: flex;
+          -webkit-box-align: center;
+              -ms-flex-align: center;
+                  align-items: center;
+          -webkit-box-pack: end;
+              -ms-flex-pack: end;
+                  justify-content: flex-end;
+      }
+    }
+
     body {
       padding-bottom: 150px;
     }
@@ -300,12 +315,13 @@
 
   <section x-data="radioCall()" x-init="init();{% if not debug %} setStep(0){% endif %}" class="container" x-cloak>
 
-    <div id="volume-nav" class="grid text-center is-marginless is-paddingless" x-show="device !== null && connection !== null">
+    <div id="volume-nav" class="grid" x-show="device !== null && connection !== null">
       <div class="row is-marginless is-paddingless">
-        <div class="col-2 is-vertical-align text-center">&#x1F3A4; &#x1F399;️&#xFE0F; Mic Volume:</div>
-        <div class="col-3 is-vertical-align">
+        <div class="col-2 is-vertical-align is-right-not-sm">&#x1F3A4;&#x1F399;️&#xFE0F; Mic:</div>
+        <div class="col-2 is-vertical-align">
           <progress class="is-full-width" x-bind:value="inputVolume.toString()" min="0" max="0.65"></progress>
         </div>
+        <div class="col-1"></div>
         <div class="col-3 is-vertical-align">
           <button
             @click.prevent="hangUp()"
@@ -316,7 +332,7 @@
             x-text="hangupBlocked ? `Continue for ${Math.max(blockHangupSeconds - callDuration - 1, 0)} seconds...` : 'End Call'"
           ></button>
         </div>
-        <div class="col-2 is-vertical-align text-center">&#x1F509; Speaker Volume:</div>
+        <div class="col-2 is-vertical-align is-right-not-sm">&#x1F509; Speaker:</div>
         <div class="col-2 is-vertical-align">
           <progress class="is-full-width" x-bind:value="outputVolume.toString()" min="0" max="0.65"></progress>
         </div>
@@ -556,10 +572,10 @@
       <blockquote>You will be given a PIN code. Enter it below.</blockquote>
 
       <div class="row">
-        <div class="col-2">
+        <div class="col-3 is-vertical-align is-right-not-sm">
           <label for="pin-code" class="big bold">PIN Code:</label>
         </div>
-        <div class="col-10">
+        <div class="col-9">
           <input
             id="pin-code"
             class="big bold"
