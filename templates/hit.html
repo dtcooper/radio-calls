@@ -155,6 +155,9 @@
     var workerId = {{ worker_id|tojson }} || 'NO_WORKER_ID'
     var hitId = {{ hit_id|tojson }}
 
+    var userAgent = navigator.userAgent.toLowerCase()
+    var isSafari = userAgent.indexOf('safari') !== -1 && userAgent.indexOf('chrome') === -1
+
     function currentTimestamp() {
       return Math.round(new Date() / 1000)
     }
@@ -404,92 +407,85 @@
             <td class="bold underline text-center is-marginless is-paddingless">I agree</th>
             <td class="is-marginless is-paddingless">&nbsp;</th>
           </tr>
+
+        {% set render_term_ns = namespace(num=0, total=-1) %}
+        {% macro render_term_row(last=False) %}
+          {% set num = render_term_ns.num %}
+          {% set first = num == 0 %}
           <tr>
-            <td class="text-center">
-              <input type="checkbox" @click="term += 1; $scroll('#start-terms-scroll')" x-bind:class="{pulse: step == 0 && term == 0}" x-bind:readonly="term > 0">
+            <td
+              class="text-center"
+              x-bind:class="{pulse: isSafari {% if first %}&& step == 0 {% endif %}&& term == {{ num }}}"
+            >
+              <input
+                type="checkbox"
+                @click="term += 1; {% if first %}$scroll('#start-terms-scroll'){% elif last %}$nextTick(() => $scroll('#accept-terms-scroll')){% endif %}"
+                x-bind:class="{pulse: !isSafari {% if first %}&& step == 0 {% endif %}&& term == {{ num }}}"
+                x-bind:readonly="term > {{ num }}"
+                {% if num > 0 %}x-bind:disabled="term < {{ num }}"{% endif %}
+              >
             </td>
-            <td class="bold">
-              You <u>MUST</u> speak in English.
+            <td>
+              {{ caller() }}
             </td>
           </tr>
-          <tr>
-            <td class="text-center">
-              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 1}" x-bind:disabled="term < 1" x-bind:readonly="term > 1">
-            </td>
-            <td class="bold">
+          {% set render_term_ns.total = num %}
+          {% set render_term_ns.num = num + 1 %}
+        {% endmacro %}
+
+
+
+          {% call render_term_row() %}
+            <strong>You <u>MUST</u> speak in English.</strong>
+          {% endcall %}
+          {% call render_term_row() %}
+            <strong>
               You <u>MUST</u> have a <em>working</em> headset &#x1F3A7; (or speaker &#x1F509;)
                 with a <u>microphone</u>. &#x1F3A4;&#x1F399;️&#xFE0F;
-            </td>
-          </tr>
-          <tr>
-            <td class="text-center">
-              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 2}" x-bind:disabled="term < 2" x-bind:readonly="term > 2">
-            </td>
-            <td class="bold">
+            </strong>
+          {% endcall %}
+          {% call render_term_row() %}
+            <strong>
               Your call will be <u>recorded</u> and <u>broadcast</u> on a live Internet radio show &#x1F4FB; (and podcast).
-            </td>
-          </tr>
-          <tr>
-            <td class="text-center">
-              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 3}" x-bind:disabled="term < 3" x-bind:readonly="term > 3">
-            </td>
-            <td class="text-error">
-              You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.
-            </td>
-          </tr>
-          <tr>
-            <td class="text-center">
-              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 4}" x-bind:disabled="term < 4" x-bind:readonly="term > 4">
-            </td>
-            <td>
-              You can have any conversation you would like, but <strong>mention
-              {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.</strong>
-              {% if not preview %}&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% endif %}
-            </td>
-          </tr>
-          <tr>
-            <td class="text-center">
-              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 5}" x-bind:disabled="term < 5" x-bind:readonly="term > 5">
-            </td>
-            <td>
-              If no one answers, please leave a voicemail message{% if not preview %} talking about {{ topic['name'] }}{% endif %}.
-              {% if not preview %}&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% endif %}
-            </td>
-          </tr>
-          <tr>
-            <td class="text-center">
-              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 6}" x-bind:disabled="term < 6" x-bind:readonly="term > 6">
-            </td>
-            <td>
-              You must have a <strong>good</strong> sense of <strong>humour</strong>. &#x1F602;&#x1F602;&#x1F602;<br>
-              <em>You might be made fun of!</em> &#x1F632;&#x1F632;&#x1F632;<br>
-              The conversation may be inapproriate or NSFW (not safe for work). &#x1F601;&#x1F51E;&#x1F601;&#x1F51E;<br>
-              <strong class="text-error">
-                If you are a sensitive person please <u>DO NOT</u> continue with this assignment!
-              </strong>
-            </td>
-          </tr>
-          <tr>
-            <td class="text-center">
-              <input type="checkbox" @click="term += 1; $nextTick(() => $scroll('#accept-terms-scroll'))" x-bind:class="{pulse: term == 7}" x-bind:disabled="term < 7" x-bind:readonly="term > 7">
-            </td>
-            <td class="italic">
+            </strong>
+          {% endcall %}
+          {% call render_term_row() %}
+            <span class="text-error">You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.</span>
+          {% endcall %}
+          {% call render_term_row() %}
+            You can have any conversation you would like, but <strong>mention your {{ topic['description'] }}.</strong>
+            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};
+          {% endcall %}
+          {% call render_term_row() %}
+            If no one answers, please leave a voicemail message talking about {{ topic['name'] }}.
+            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};
+          {% endcall %}
+          {% call render_term_row() %}
+            You must have a <strong>good</strong> sense of <strong>humour</strong>. &#x1F602;&#x1F602;&#x1F602;<br>
+            <em>You might be made fun of!</em> &#x1F632;&#x1F632;&#x1F632;<br>
+            The conversation may be inapproriate or NSFW (not safe for work). &#x1F601;&#x1F51E;&#x1F601;&#x1F51E;<br>
+            <strong class="text-error">
+              If you are a sensitive person please <u>DO NOT</u> continue with this assignment!
+            </strong>
+          {% endcall %}
+          {% call render_term_row(last=True) %}
+            <em>
               You <strong>may</strong> use a <u>fake name</u>.<br>
               You <strong>do not</strong> have to <u>tell the truth</u>.<br>
               You <strong>may</strong> <u>lie</u> about your <u>personal life</u>.<br>
               You <strong>do not</strong> need to say <u>anything</u> you're <u>uncomfortable</u> with.
-            </td>
-          </tr>
+            </em>
+          {% endcall %}
         </tbody>
       </table>
 
-      <h3 id="accept-terms-scroll" class="text-success" x-show="term >= 8">
+      <h3 id="accept-terms-scroll" class="text-success" x-show="term >= {{ render_term_ns.total }}">
         <em>All right! Are you ready to have some fun?!</em>
-        &#x1F973; &#x1F92A; &#x{{ topic['emoji']}}; &#x1F4DE; &#x1F4FB; &#x1F602;
+        &#x1F973;&#x1F92A;&#x{{ topic['emoji']}};&#x1F4DE;&#x1F4FB;&#x1F602;
       </h3>
 
       <p class="text-center">
-        <button class="button big primary" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)" x-bind:class="{pulse: step == 0 && term == 8}">
+        <button class="button big primary" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < {{ render_term_ns.total }} && !debug)" x-bind:class="{pulse: step == 0 && term == {{ render_term_ns.total }}}">
           I have <u>carefully</u> read, understand, and agree to the above terms &amp; conditions.
         </button>
       </p>
@@ -734,6 +730,7 @@ topic: <span x-text="`${JSON.stringify(topic['code'])} ...`"></span>
 assignmentId: <span x-text="JSON.stringify(assignmentId)"></span>
 workerId: <span x-text="JSON.stringify(workerId)"></span>
 hitId: <span x-text="JSON.stringify(hitId)"></span>
+isSafari: <span x-text="JSON.stringify(isSafari)"></span>
 </pre>
 {% endif %}
 
