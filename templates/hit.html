@@ -331,7 +331,7 @@
   </div>
 
   <section x-data="radioCall()" x-init="init()" class="container" x-cloak>
-    <div id="volume-nav" class="grid" x-show="device !== null && connection !== null">
+    <div id="volume-nav" class="grid" x-show="debug || (device !== null && connection !== null)">
       <div class="row is-marginless is-paddingless">
         <div class="col-2 is-vertical-align is-right-not-sm">&#x1F3A4;&#x1F399;️&#xFE0F; Mic:</div>
         <div class="col-2 is-vertical-align">
@@ -344,7 +344,7 @@
             class="button is-full-width"
             style="margin-top: 5px"
             x-bind:class="{error: !hangupBlocked, dark: hangupBlocked}"
-            x-bind:disabled="hangupBlocked"
+            x-bind:disabled="hangupBlocked || (debug && (device === null || connection === null))"
             x-text="hangupBlocked ? `Talk for ${Math.max(blockHangupSeconds - callDuration - 1, 0)} seconds` : 'End Call'"
           ></button>
         </div>
@@ -573,7 +573,8 @@
       <h2 id="step3"><em><u>Step 3</u>: Repeat the Word</em> &#x1F501;&#x1F501;&#x1F501;</h2>
 
       <blockquote>
-        You will be called and the voice will say a word. Repeat the word after the tone, then stay silent for a few moments.<br>
+        You will be called and the voice will say a word.<br>
+        Repeat the word after the tone, then stay silent for a few moments.<br>
         When you have successfully done this, click <em>Ready for Step 4</em> below.
       </blockquote>
 
