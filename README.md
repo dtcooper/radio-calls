@@ -18,8 +18,10 @@ Callboard
   [Twilio](https://www.twilio.com/)'s
   [Sip Registration](https://www.twilio.com/blog/support-regional-sip-registration)
   product.
-* Calls: Any SIP client, but I like [Blink](http://icanblink.com/) or
-  [Zoiper](https://www.zoiper.com/) which support multiparty conferencing.
+* Taking Calls/VoIP: Any
+  [SIP](https://en.wikipedia.org/wiki/Session_Initiation_Protocol) client, but
+  I like [Blink](http://icanblink.com/) or [Zoiper](https://www.zoiper.com/)
+  which support multiparty conferencing.
 
 Amazon Mechanical Turk HIT
 
