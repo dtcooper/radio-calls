@@ -384,7 +384,7 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
     )
     # sip doesn't care about caller IDs from verified phones, so assign this worker a random word
     if worker_id == "NO_WORKER_ID":
-        worker_alias = "no_worker_id"
+        worker_alias = "none"
     else:
         worker_hash_int = int(hashlib.sha1(worker_id.encode()).hexdigest(), 16)
         worker_alias = MTURK_WORKER_ALIAS_WORDS[worker_hash_int % len(MTURK_WORKER_ALIAS_WORDS)]
