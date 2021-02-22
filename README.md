@@ -15,8 +15,8 @@ Workers can then call into my shows using only their web browser.
 Callboard
 
 * Backend: [Flask](https://flask.palletsprojects.com/en/1.1.x/) and
-  [Twilio](https://www.twilio.com/)'s
-  [Sip Registration](https://www.twilio.com/blog/support-regional-sip-registration)
+  [Twilio](https://www.twilio.com/)'s Programmable Voice
+  [SIP Registration](https://www.twilio.com/blog/support-regional-sip-registration)
   product.
 * Taking Calls/VoIP: Any
   [SIP](https://en.wikipedia.org/wiki/Session_Initiation_Protocol) client, but
