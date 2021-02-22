@@ -109,7 +109,7 @@
       display: none !important;
     }
 
-    h1, h2, .italic {
+    .italic {
       font-style: italic;
     }
 
@@ -176,6 +176,7 @@
         callEnd: null,
         callDuration: -1,
         hangupBlocked: false,
+        workerAlias: "unknown",
         done: false,
         init: async function() {
           if (workerId === null || hitId === null) {
@@ -277,7 +278,7 @@
               this.pinVerifying = true
 
               try {
-                var url = `/amazon/update-sid/${topic.code}/${this.choice || 0}/${show}/${countryCode}/${this.pinCode}/${workerId}/${callSid}`
+                var url = `/amazon/update-sid/${topic.code}/${this.choice || 0}/${show}/${countryCode}/${workerId}/${callSid}`
                 var response = await fetch(url, {method: 'POST'})
                 var data = await response.json()
               } catch (err) {
@@ -286,6 +287,7 @@
               }
 
               if (data.success) {
+                this.workerAlias = data.worker_alias
                 this.callStart = currentTimestamp()
                 this.hangupBlocked = true
                 this.setStep(5)
@@ -312,7 +314,7 @@
 <body>
   <h1 class="text-center">
     {% if not preview %}&#x{{ topic['emoji'] }};{% endif %}&#x1F4DE;&#x1F4FB;
-    <u>Call a Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
+    <u class="italic">Call a Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
     &#x1F4FB;&#x1F4DE;{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}
   </h1>
 
@@ -394,7 +396,7 @@
 
     <div x-show="step >= 0 || debug">
       <hr>
-      <h2 id="step0">Important Terms &amp; Conditions</h2>
+      <h2 id="step0"><em>Important Terms &amp; Conditions</em> &#x2696;&#xFE0F;&#x2696;&#xFE0F;&#x2696;&#xFE0F;</h2>
 
       <table id="start-terms-scroll" class="tight">
         <tbody>
@@ -485,7 +487,6 @@
         <em>All right! Are you ready to have some fun?!</em>
         &#x1F973; &#x1F92A; &#x{{ topic['emoji']}}; &#x1F4DE; &#x1F4FB; &#x1F602;
       </h3>
-      <br>
 
       <p class="text-center">
         <button class="button big primary" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)" x-bind:class="{pulse: step == 0 && term == 8}">
@@ -496,7 +497,7 @@
 
     <div x-show="step >= 1 || debug">
       <hr>
-      <h2 id="step1">Step 1: Describe Your {{ topic['description']|title }}
+      <h2 id="step1"><em><u>Step 1</u>: Describe Your {{ topic['description']|title }}</em>
         &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};</h2>
 
       <blockquote>
@@ -545,7 +546,7 @@
 
     <div x-show="step >= 2 || debug">
       <hr>
-      <h2 id="step2">Step 2: Make the Call &#x260E;&#xFE0F;&#x260E;&#xFE0F;&#x260E;&#xFE0F;</h2>
+      <h2 id="step2"><em><u>Step 2</u>: Make the Call</em> &#x260E;&#xFE0F;&#x260E;&#xFE0F;&#x260E;&#xFE0F;</h2>
 
       <blockquote>
         Click the button below to place the call in your browser.<br>
@@ -569,7 +570,7 @@
 
     <div x-show="step >= 3 || debug">
       <hr>
-      <h2 id="step3">Step 3: Repeat the Word &#x1F501;&#x1F501;&#x1F501;</h2>
+      <h2 id="step3"><em><u>Step 3</u>: Repeat the Word</em> &#x1F501;&#x1F501;&#x1F501;</h2>
 
       <blockquote>
         You will be called and the voice will say a word. Repeat the word after the tone, then stay silent for a few moments.<br>
@@ -577,13 +578,13 @@
       </blockquote>
 
       <p class="text-center">
-        <button @click.prevent="setStep(4)" class="button big primary" x-bind:class="{pulse: step == 3}" x-bind:disabled="step >= 4">Ready for Step 4</button>
+        <button @click.prevent="setStep(4)" class="button big primary" x-bind:class="{pulse: step == 3}" x-bind:disabled="step != 3">Ready for Step 4</button>
       </p>
     </div>
 
     <div x-show="step >= 4 || debug">
       <hr>
-      <h2 id="step4">Step 4: Enter the PIN Code &#x1F511;&#x1F511;&#x1F511;</h2>
+      <h2 id="step4"><em>Step 4: Enter the PIN Code</em> &#x1F511;&#x1F511;&#x1F511;</h2>
 
       <blockquote>You will be given a PIN code. Enter it below.</blockquote>
 
@@ -606,7 +607,6 @@
           >
         </div>
       </div>
-      <br>
 
       <p class="text-center">
         <button
@@ -620,7 +620,7 @@
 
     <div x-show="step >= 5 || debug">
       <hr>
-      <h2 id="step5">Step 5: Talk About {{ topic['name']|title }} &#x1F4AC;&#x1F4AC;&#x1F4AC;</h2>
+      <h2 id="step5"><em><u>Step 5</u>: Talk About {{ topic['name']|title }}</em> &#x1F4AC;&#x1F4AC;&#x1F4AC;</h2>
 
       <blockquote>
         You are being connected to a <em>live</em> radio show. Please mention <em>your {{ topic['description'] }}</em>.
@@ -670,7 +670,9 @@
 
     <div x-show="step >= 1 || debug">
       <hr>
-      <h2 id="done" class="text-success" x-show="done || debug">Congratulations! You are done! &#x1F389;&#x1F389;&#x1F389;</h2>
+      <h2 id="done" class="text-success" x-show="done || debug">
+        <em>Congratulations! You are done!</em> &#x1F389;&#x1F389;&#x1F389;
+      </h2>
 
       <blockquote x-show="done || debug">Click <em>Submit Assignment</em> below.</blockquote>
 
@@ -678,6 +680,7 @@
         <!-- prevent naive form submission -->
         <input type="hidden" name="assignmentId" x-bind:value="done ? assignmentId : ''">
         <input type="hidden" name="PinCode" x-bind:value="pinCode">
+        <input type="hidden" name="WorkerAlias" x-bind:value="workerAlias">
         <input type="hidden" name="CallDurationSeconds" x-bind:value="callDuration">
         {% for key, value in geoip.items() %}
           <input type="hidden" name="{{ key.replace('_', ' ').title().replace(' ', '') }}" value="{{ value }}">
@@ -720,6 +723,7 @@ callStart: <span x-text="JSON.stringify(callStart)"></span>
 callEnd: <span x-text="JSON.stringify(callEnd)"></span>
 callDuration:  <span x-text="JSON.stringify(callDuration)"></span>
 hangupBlocked: <span x-text="JSON.stringify(hangupBlocked)"></span>
+workerAlias: <span x-text="JSON.stringify(workerAlias)"></span>
 done: <span x-text="JSON.stringify(done)"></span>
 === Constants ===
 countryCode: <span x-text="JSON.stringify(countryCode)"></span>

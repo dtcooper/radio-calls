@@ -1,3 +1,5 @@
+import hashlib
+import os
 import random
 import re
 from urllib.parse import unquote, urlencode
@@ -39,6 +41,9 @@ AUDIO_NOT_IN_SERVICE = "not-in-service"
 AUDIO_BEEP = "beep"
 
 GATHER_WORDS = ("apple", "banana", "orange", "tomato", "lemon", "mango")
+with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'worker_alias_words.txt')) as word_file:
+    MTURK_WORKER_ALIAS_WORDS = tuple(line.rstrip('\n') for line in word_file.readlines())
+
 HIT_TOPICS = {
     "poop": {
         "code": "poop",
@@ -314,7 +319,7 @@ def sms():
 ### Amazon Stuff
 
 
-@app.route("/amazon")
+@app.route("/amazon/manage")
 def amazon_admin():
     if request.authorization and request.authorization.password == MTURK_ADMIN_PASSWORD:
         return render_template(
@@ -365,10 +370,10 @@ def amazon_token(pin_code, worker_id):
 
 
 @app.route(
-    "/amazon/update-sid/<topic>/<int:choice>/<sip_addr>/<country_code>/<pin_code>/<worker_id>/<call_sid>",
+    "/amazon/update-sid/<topic>/<int:choice>/<sip_addr>/<country_code>/<worker_id>/<call_sid>",
     methods=("POST",),
 )
-def amazon_update_sid(topic, choice, sip_addr, country_code, pin_code, worker_id, call_sid):
+def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid):
     success = True
     description = HIT_TOPICS[topic]["description"]
     name = HIT_TOPICS[topic]["choices"][choice]["name"]
@@ -377,8 +382,14 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, pin_code, worker_id
     response.say(
         f"Step 5! You are being connected to a live radio show. Your {description} is {name}. Enjoy your call!"
     )
-    # sip doesn't care about caller IDs from verified phones, so use an informative one
-    from_number = f"{pin_code}.{country_code}.{worker_id}"
+    # sip doesn't care about caller IDs from verified phones, so assign this worker a random word
+    if worker_id == 'NO_WORKER_ID':
+        worker_alias = 'no_worker_id'
+    else:
+        worker_hash_int = int(hashlib.sha1(worker_id.encode()).hexdigest(), 16)
+        worker_alias = MTURK_WORKER_ALIAS_WORDS[worker_hash_int % len(MTURK_WORKER_ALIAS_WORDS)]
+
+    from_number = f"{country_code}.{worker_alias}.{worker_id}"
     response.redirect(
         url_for("voice_incoming", sip_addr=sip_addr, from_number=from_number, skip_song="1", _external=True)
     )
@@ -388,7 +399,7 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, pin_code, worker_id
     except TwilioRestException:
         success = False
 
-    return jsonify({"success": success})
+    return jsonify({"success": success, "worker_alias": worker_alias})
 
 
 @app.route("/amazon/voice-request", methods=("POST",))
