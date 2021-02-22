@@ -151,9 +151,6 @@
     var workerId = {{ worker_id|tojson }} || 'NO_WORKER_ID'
     var hitId = {{ hit_id|tojson }}
 
-    var userAgent = navigator.userAgent.toLowerCase()
-    var isSafari = userAgent.indexOf('safari') !== -1 && userAgent.indexOf('chrome') === -1
-
     function currentTimestamp() {
       return Math.round(new Date() / 1000)
     }
@@ -407,22 +404,13 @@
           {% set render_term_ns = namespace(num=0, total=-1) %}
           {% macro render_term_row(last=False) %}
             {% set num = render_term_ns.num %}
-            {% set first = num == 0 %}
+            {% set term_check %}term == {{ num }}{% if num == 0 %} && step == 0{% endif %}{% endset %}
             <tr
-              @click.prevent="if (term == {{ num }}) {term += 1; {% if first %}$scroll('#terms-table'){% elif last %}$nextTick(() => $scroll('#accept-terms-scroll')){% endif %}}"
-              x-bind:class="{'table-hover': {% if first %}step == 0 && {% endif %}term == {{ num }}, pointer: term == {{ num }}}"
+              @click.prevent="if (term == {{ num }}) {term += 1; {% if num == 0 %}$scroll('#terms-table'){% endif %}{% if last %}$nextTick(() => $scroll('#accept-terms-scroll')){% endif %}}"
+              x-bind:class="{'table-hover': {{ term_check }}, pointer: term == {{ num }}, pulse: {{ term_check }}}"}"
             >
-              <td
-                class="text-center"
-                x-bind:class="{pulse: isSafari {% if first %}&& step == 0 {% endif %}&& term == {{ num }}}"
-              >
-                <input
-                  type="checkbox"
-                  x-bind:class="{pulse: !isSafari {% if first %}&& step == 0 {% endif %}&& term == {{ num }}}"
-                  x-bind:readonly="term > {{ num }}"
-                  x-bind:checked="term > {{ num }}"
-                  {% if num > 0 %}x-bind:disabled="term < {{ num }}"{% endif %}
-                >
+              <td class="text-center">
+                <input type="checkbox" x-bind:readonly="term > {{ num }}" x-bind:checked="term > {{ num }}" x-bind:disabled="term < {{ num }}">
               </td>
               <td>
                 {{ caller() }}
@@ -670,7 +658,7 @@
       <blockquote x-show="done || debug">Click <em>Submit Assignment</em> below.</blockquote>
 
       <form id="submit-form" method="POST" action="{{ submit_to }}/mturk/externalSubmit">
-        <!-- prevent naive form submission -->
+        <!-- prevent naive form submission by making sure assignmentId isn't set until done -->
         <input type="hidden" name="assignmentId" x-bind:value="done ? assignmentId : ''">
         <input type="hidden" name="PinCode" x-bind:value="pinCode">
         <input type="hidden" name="WorkerAlias" x-bind:value="workerAlias">
@@ -726,7 +714,6 @@ topic: <span x-text="`${JSON.stringify(topic['code'])} ...`"></span>
 assignmentId: <span x-text="JSON.stringify(assignmentId)"></span>
 workerId: <span x-text="JSON.stringify(workerId)"></span>
 hitId: <span x-text="JSON.stringify(hitId)"></span>
-isSafari: <span x-text="JSON.stringify(isSafari)"></span>
 </pre>
 {% endif %}
 
