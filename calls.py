@@ -31,6 +31,7 @@ SIP_DOMAIN = env['SIP_DOMAIN']
 VOICEMAIL_EMAIL = env['VOICEMAIL_EMAIL']
 MTURK_ADMIN_PASSWORD = env['MTURK_ADMIN_PASSWORD']
 
+MTURK_BLOCK_HANGUP_SECONDS = 90
 AUDIO_NUMBERS_TO_VOICEMAIL = {env['TIGWIT_NUMBER']: "voicemail", env['POOLABS_NUMBER']: "poolabs-voicemail"}
 AUDIO_HOLD_MUSIC_LIST = ("hold-music-1", "hold-music-2", "hold-music-3")
 AUDIO_COMPLETED_MUSIC = "completed-music"
@@ -350,6 +351,7 @@ def amazon_hit():
         hit_id=request.args.get("hitId"),
         assignment_id=assignment_id,
         worker_id=request.args.get("workerId"),
+        block_hangup_seconds=MTURK_BLOCK_HANGUP_SECONDS,
     )
 
 

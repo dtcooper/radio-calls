@@ -15,10 +15,12 @@
       --color-pulseStart: rgba(0, 122, 204, 0.7);
       --color-pulseEnd: rgba(0, 122, 204, 0);
       --font-size: 1.6rem;
+      --font-sizeBig: 2.0rem;
     }
 
     .big {
-      font-size: 2.0rem;
+      margin-top: 1rem;
+      font-size: var(--font-sizeBig);
     }
 
     .button.success {
@@ -33,15 +35,28 @@
       --color-pulseEnd: rgba(210, 214, 221, 0);
     }
 
+    input[type="checkbox"] {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    input[type="checkbox"][readonly] {
+      pointer-events: none;
+    }
+
 
     @media screen and (max-width: 799px) {
-      :root { --font-size: 1.4rem; }
-      .big { font-size: 1.7rem; }
+      :root {
+        --font-size: 1.4rem;
+        --font-sizeBig: 1.7rem;
+      }
     }
 
     @media screen and (max-width: 599px) {
-      :root { --font-size: 1.3rem; }
-      .big { font-size: 1.4rem; }
+      :root {
+        --font-size: 1.3rem;
+        --font-sizeBig: 1.4rem;
+      }
     }
 
     @media screen and (min-width: 600px) {
@@ -94,7 +109,7 @@
       display: none !important;
     }
 
-    .italic {
+    h1, h2, .italic {
       font-style: italic;
     }
 
@@ -132,7 +147,7 @@
   <script src="/static/assets/alpine-magic-helpers-1.0.0.min.js"></script>
   <script>
     var countryCode = {{ geoip['country_code']|tojson }}
-    var blockHangupSeconds = {% if debug %}10{% else %}120{% endif %}
+    var blockHangupSeconds = {% if debug %}10{% else %}{{ block_hangup_seconds }}{% endif %}
     var debug = {{ debug|tojson }}
     var show = {{ show|tojson }}
     var topic = {{ topic|tojson }}
@@ -146,7 +161,7 @@
 
     function radioCall() {
       return {
-        step: 0,
+        step: -1,
         term: 0,
         choice: null,
         device: null,
@@ -295,7 +310,7 @@
   </script>
 </head>
 <body>
-  <h1 id="step0" class="text-center">
+  <h1 class="text-center">
     {% if not preview %}&#x{{ topic['emoji'] }};{% endif %}&#x1F4DE;&#x1F4FB;
     <u>Call a Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
     &#x1F4FB;&#x1F4DE;{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}
@@ -313,8 +328,7 @@
     </div>
   </div>
 
-  <section x-data="radioCall()" x-init="init();{% if not debug %} setStep(0){% endif %}" class="container" x-cloak>
-
+  <section x-data="radioCall()" x-init="init()" class="container" x-cloak>
     <div id="volume-nav" class="grid" x-show="device !== null && connection !== null">
       <div class="row is-marginless is-paddingless">
         <div class="col-2 is-vertical-align is-right-not-sm">&#x1F3A4;&#x1F399;️&#xFE0F; Mic:</div>
@@ -329,7 +343,7 @@
             style="margin-top: 5px"
             x-bind:class="{error: !hangupBlocked, dark: hangupBlocked}"
             x-bind:disabled="hangupBlocked"
-            x-text="hangupBlocked ? `Continue for ${Math.max(blockHangupSeconds - callDuration - 1, 0)} seconds...` : 'End Call'"
+            x-text="hangupBlocked ? `Talk for ${Math.max(blockHangupSeconds - callDuration - 1, 0)} seconds` : 'End Call'"
           ></button>
         </div>
         <div class="col-2 is-vertical-align is-right-not-sm">&#x1F509; Speaker:</div>
@@ -359,99 +373,105 @@
         You will have to stay on the call for <em>at least 2 minutes</em>, but you are welcome
         to talk as long as you would like!
       </p>
-      <br>
 
-      <strong id="terms"><u>Important Terms &amp; Conditions:</u><br>
-        {% if not preview %}<em>(Click each button to accept &amp; continue)</em>{% endif %}</strong>
+      <p class="text-center">
+        <button
+          @click.prevent="setStep(0)"
+          class="button big {% if preview %}dark{% else %}primary{% endif %}"
+          x-bind:disabled="{% if preview %}true{% else %}step > -1{% endif %}"
+          {% if not preview %}
+            x-bind:class="{pulse: step == -1}"
+          {% endif %}
+        >
+          {% if preview %}
+            You are currently <em class="underline">previewing</em> this assignment. Press Accept to start.
+          {% else %}
+            Continue With Assignment
+          {% endif %}
+        </button>
+      </p>
+    </div>
 
-      <table class="tight">
+    <div x-show="step >= 0 || debug">
+      <hr>
+      <h2 id="step0">Important Terms &amp; Conditions</h2>
+
+      <table id="start-terms-scroll" class="tight">
         <tbody>
           <tr>
-            <td class="text-right">
-              <button @click.prevent="term += 1; $scroll('#terms')" x-bind:disabled="{% if preview %}true{% else %}term != 0{% endif %}" class="button primary" x-bind:class="{pulse: term == 0}">
-                I agree &#x2714;
-              </button>
+            <td class="bold underline text-center is-marginless is-paddingless">I agree</th>
+            <td class="is-marginless is-paddingless">&nbsp;</th>
+          </tr>
+          <tr>
+            <td class="text-center">
+              <input type="checkbox" @click="term += 1; $scroll('#start-terms-scroll')" x-bind:class="{pulse: step == 0 && term == 0}" x-bind:readonly="term > 0">
             </td>
-            <td class="bold" x-bind:class="{'text-grey': term > 0}">
+            <td class="bold">
               You <u>MUST</u> speak in English.
             </td>
           </tr>
           <tr>
-            <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 1" class="button primary" x-bind:class="{pulse: term == 1}">
-                I have this &#x2714;
-              </button>
+            <td class="text-center">
+              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 1}" x-bind:disabled="term < 1" x-bind:readonly="term > 1">
             </td>
-            <td class="bold" x-bind:class="{'text-grey': term > 1}">
+            <td class="bold">
               You <u>MUST</u> have a <em>working</em> headset &#x1F3A7; (or speaker &#x1F509;)
                 with a <u>microphone</u>. &#x1F3A4;&#x1F399;️&#xFE0F;
             </td>
           </tr>
           <tr>
-            <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 2" class="button primary" x-bind:class="{pulse: term == 2}">
-                I understand &#x2714;
-              </button>
+            <td class="text-center">
+              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 2}" x-bind:disabled="term < 2" x-bind:readonly="term > 2">
             </td>
-            <td class="bold" x-bind:class="{'text-grey': term > 2}">
+            <td class="bold">
               Your call will be <u>recorded</u> and <u>broadcast</u> on a live Internet radio show &#x1F4FB; (and podcast).
             </td>
           </tr>
           <tr>
-            <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 3" class="button primary" x-bind:class="{pulse: term == 3}">
-               I will not &#x2714;
-              </button>
+            <td class="text-center">
+              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 3}" x-bind:disabled="term < 3" x-bind:readonly="term > 3">
             </td>
-            <td x-bind:class="{'text-grey': term > 3, 'text-error': term <= 3}">
+            <td class="text-error">
               You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.
             </td>
           </tr>
           <tr>
-            <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 4" class="button primary" x-bind:class="{pulse: term == 4}">
-                I will &#x2714;
-              </button>
+            <td class="text-center">
+              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 4}" x-bind:disabled="term < 4" x-bind:readonly="term > 4">
             </td>
-            <td x-bind:class="{'text-grey': term > 4}">
+            <td>
               You can have any conversation you would like, but <strong>mention
               {% if preview %}the topic in the assignment{% else %}your {{ topic['description'] }}{% endif %}.</strong>
               {% if not preview %}&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% endif %}
             </td>
           </tr>
           <tr>
-            <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 5" class="button primary" x-bind:class="{pulse: term == 5}">
-                I will &#x2714;
-              </button>
+            <td class="text-center">
+              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 5}" x-bind:disabled="term < 5" x-bind:readonly="term > 5">
             </td>
-            <td x-bind:class="{'text-grey': term > 5}">
+            <td>
               If no one answers, please leave a voicemail message{% if not preview %} talking about {{ topic['name'] }}{% endif %}.
               {% if not preview %}&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% endif %}
             </td>
           </tr>
           <tr>
-            <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 6" class="button primary" x-bind:class="{pulse: term == 6}">
-                I understand &#x2714;
-              </button>
+            <td class="text-center">
+              <input type="checkbox" @click="term += 1" x-bind:class="{pulse: term == 6}" x-bind:disabled="term < 6" x-bind:readonly="term > 6">
             </td>
-            <td x-bind:class="{'text-grey': term > 6}">
+            <td>
               You must have a <strong>good</strong> sense of <strong>humour</strong>. &#x1F602;&#x1F602;&#x1F602;<br>
               <em>You might be made fun of!</em> &#x1F632;&#x1F632;&#x1F632;<br>
               The conversation may be inapproriate or NSFW (not safe for work). &#x1F601;&#x1F51E;&#x1F601;&#x1F51E;<br>
-              <strong x-bind:class="{'text-grey': term > 6, 'text-error': term <= 6}">
+              <strong class="text-error">
                 If you are a sensitive person please <u>DO NOT</u> continue with this assignment!
               </strong>
             </td>
           </tr>
           <tr>
-            <td class="text-right">
-              <button @click.prevent="term += 1; $nextTick(() => $scroll('#accept-terms-scroll'))" x-bind:disabled="term != 7" class="button primary" x-bind:class="{pulse: term == 7}">
-                I understand &#x2714;
-              </button>
+            <td class="text-center">
+              <input type="checkbox" @click="term += 1; $nextTick(() => $scroll('#accept-terms-scroll'))" x-bind:class="{pulse: term == 7}" x-bind:disabled="term < 7" x-bind:readonly="term > 7">
             </td>
-            <td class="italic" x-bind:class="{'text-grey': term > 7}">
+            <td class="italic">
               You <strong>may</strong> use a <u>fake name</u>.<br>
               You <strong>do not</strong> have to <u>tell the truth</u>.<br>
               You <strong>may</strong> <u>lie</u> about your <u>personal life</u>.<br>
@@ -468,12 +488,8 @@
       <br>
 
       <p class="text-center">
-        <button class="button big {% if preview %}dark{% else %}primary{% endif %}" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)" x-bind:class="{pulse: step == 0 && term == 8}">
-          {% if preview %}
-            You are currently <em>previewing</em> this assignment. Press Accept to start.
-          {% else %}
-            I have <u>carefully</u> read, understand and agree to the above terms &amp; conditions.
-          {% endif %}
+        <button class="button big primary" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)" x-bind:class="{pulse: step == 0 && term == 8}">
+          I have <u>carefully</u> read, understand, and agree to the above terms &amp; conditions.
         </button>
       </p>
     </div>
