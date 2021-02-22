@@ -9,6 +9,9 @@ run:
 ssh:
 	ssh containers 'cd radio-calls; make stop' && ssh -R 5142:localhost:5142 containers
 
+deploy:
+	ssh containers 'cd radio-calls; git pull --ff-only && make prod'
+
 prod: build stop
 	docker run -itd --restart=always -p 127.0.0.1:$(PORT):5000 -e FLASK_ENV=production --name $(CONTAINER) radio-calls
 
