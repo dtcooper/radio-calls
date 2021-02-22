@@ -309,8 +309,9 @@
 </head>
 <body>
   <h1 class="text-center">
+    <span class="hide-sm hide-xs">{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}&#x1F399;️&#xFE0F;&#x1F4FB;</span>
     <u class="italic">Call a Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
-    &#x260E;&#xFE0F;&#x1F4FB;&#x1F399;️&#xFE0F;{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}
+    &#x1F4FB;&#x1F399;️&#xFE0F;{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}
   </h1>
 
   <div class="container" x-data="{show: true}" x-init="show = {{ force_no_browser_support|tojson }}" x-show="show">
