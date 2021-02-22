@@ -488,7 +488,7 @@
         &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};</h2>
 
       <blockquote>
-        Select the type that most closely matches your <u><em>{{ topic['description'] }}</em></u>
+        Click on the type that most closely matches your <u><em>{{ topic['description'] }}</em></u>
         from the {{ topic['chart_name'] }} below.
       </blockquote>
 
@@ -574,7 +574,7 @@
       <hr>
       <h2 id="step4"><em>Step 4: Enter the PIN Code</em> &#x1F511;&#x1F511;&#x1F511;</h2>
 
-      <blockquote>You will be given a PIN code. Enter it below.</blockquote>
+      <blockquote>You will be given a PIN code. Enter it below and then click <em>Verify PIN Code.</em></blockquote>
 
       <div class="row">
         <div class="col-3 is-vertical-align is-right-not-sm">
@@ -611,11 +611,17 @@
       <h2 id="step5"><em><u>Step 5</u>: Talk About {{ topic['name']|title }}</em> &#x1F4AC;&#x1F4AC;&#x1F4AC;</h2>
 
       <blockquote>
-        You are being connected to a <em>live</em> radio show. Please mention <em>your {{ topic['description'] }}</em>.
-        <br>
-        If the call is not answered, please leave a voicemail message about {{ topic['name'] }}.
-        <br>
-        <em>You may be placed on a brief hold.</em>
+        <ul>
+          <li>You are being connected to a <em>live</em> radio show. Please mention <em>your {{ topic['description'] }}.</em></li>
+          <li>If the call is not answered, please leave a voicemail message about {{ topic['name'] }}.</li>
+          <li>You <em>may</em> be placed on a brief hold.</em></li>
+          <li>
+            {% set block_hangup_seconds_pretty = ((block_hangup_seconds / 60|round(1))|string).rstrip('.0') %}
+            You must stay on the call for at least {{ block_hangup_seconds_pretty }}
+            minute{% if block_hangup_seconds_pretty|float != 1.0 %}s{% endif %}, <em>but you
+            are welcome to stay on for longer if you're having fun!</em>
+          </li>
+        </ul>
       </blockquote>
 
       <template x-if="choice !== null">
