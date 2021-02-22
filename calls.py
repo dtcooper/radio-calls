@@ -15,34 +15,33 @@ from twilio.twiml.voice_response import VoiceResponse
 
 from flask import Flask, Response, jsonify, render_template, request, url_for
 
-
 env = dotenv_values()
-AWS_ACCESS_KEY_ID = env['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = env['AWS_SECRET_ACCESS_KEY']
-TWILIO_ACCOUNT_SID = env['TWILIO_ACCOUNT_SID']
-TWILIO_AUTH_TOKEN = env['TWILIO_AUTH_TOKEN']
-TWILIO_API_KEY = env['TWILIO_API_KEY']
-TWILIO_API_SECRET = env['TWILIO_API_SECRET']
-IPSTACK_API_KEY = env['IPSTACK_API_KEY']
-AMAZON_TWIML_APP_SID = env['AMAZON_TWIML_APP_SID']
-DEFAULT_AREA_CODE = env['DEFAULT_AREA_CODE']
-SMS_ADMIN_NUMBER = env['SMS_ADMIN_NUMBER']
-NUMBERS_TO_SIP_ADDRESSES = {env['TIGWIT_NUMBER']: "tigwit", env['POOLABS_NUMBER']: "poolabs"}
+AWS_ACCESS_KEY_ID = env["AWS_ACCESS_KEY_ID"]
+AWS_SECRET_ACCESS_KEY = env["AWS_SECRET_ACCESS_KEY"]
+TWILIO_ACCOUNT_SID = env["TWILIO_ACCOUNT_SID"]
+TWILIO_AUTH_TOKEN = env["TWILIO_AUTH_TOKEN"]
+TWILIO_API_KEY = env["TWILIO_API_KEY"]
+TWILIO_API_SECRET = env["TWILIO_API_SECRET"]
+IPSTACK_API_KEY = env["IPSTACK_API_KEY"]
+AMAZON_TWIML_APP_SID = env["AMAZON_TWIML_APP_SID"]
+DEFAULT_AREA_CODE = env["DEFAULT_AREA_CODE"]
+SMS_ADMIN_NUMBER = env["SMS_ADMIN_NUMBER"]
+NUMBERS_TO_SIP_ADDRESSES = {env["TIGWIT_NUMBER"]: "tigwit", env["POOLABS_NUMBER"]: "poolabs"}
 SIP_ADDRESSES_TO_NUMBERS = {v: k for k, v in NUMBERS_TO_SIP_ADDRESSES.items()}
-SIP_DOMAIN = env['SIP_DOMAIN']
-VOICEMAIL_EMAIL = env['VOICEMAIL_EMAIL']
-MTURK_ADMIN_PASSWORD = env['MTURK_ADMIN_PASSWORD']
+SIP_DOMAIN = env["SIP_DOMAIN"]
+VOICEMAIL_EMAIL = env["VOICEMAIL_EMAIL"]
+MTURK_ADMIN_PASSWORD = env["MTURK_ADMIN_PASSWORD"]
 
 MTURK_BLOCK_HANGUP_SECONDS = 90
-AUDIO_NUMBERS_TO_VOICEMAIL = {env['TIGWIT_NUMBER']: "voicemail", env['POOLABS_NUMBER']: "poolabs-voicemail"}
+AUDIO_NUMBERS_TO_VOICEMAIL = {env["TIGWIT_NUMBER"]: "voicemail", env["POOLABS_NUMBER"]: "poolabs-voicemail"}
 AUDIO_HOLD_MUSIC_LIST = ("hold-music-1", "hold-music-2", "hold-music-3")
 AUDIO_COMPLETED_MUSIC = "completed-music"
 AUDIO_NOT_IN_SERVICE = "not-in-service"
 AUDIO_BEEP = "beep"
 
 GATHER_WORDS = ("apple", "banana", "orange", "tomato", "lemon", "mango")
-with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'worker_alias_words.txt')) as word_file:
-    MTURK_WORKER_ALIAS_WORDS = tuple(line.rstrip('\n') for line in word_file.readlines())
+with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "worker_alias_words.txt")) as word_file:
+    MTURK_WORKER_ALIAS_WORDS = tuple(line.rstrip("\n") for line in word_file.readlines())
 
 HIT_TOPICS = {
     "poop": {
@@ -347,16 +346,17 @@ def amazon_hit():
 
     return render_template(
         "hit.html",
-        geoip=geoip,
+        assignment_id=assignment_id,
+        block_hangup_seconds=MTURK_BLOCK_HANGUP_SECONDS,
         debug=bool(request.args.get("debug")),
+        force_no_browser_support=bool(request.args.get("force_no_browser_support")),
+        geoip=geoip,
+        hit_id=request.args.get("hitId"),
         preview=bool(assignment_id == "ASSIGNMENT_ID_NOT_AVAILABLE"),
         show=show,
         submit_to=request.args.get("turkSubmitTo"),
         topic=HIT_TOPICS[force_topic] if force_topic in HIT_TOPICS else random.choice(list(HIT_TOPICS.values())),
-        hit_id=request.args.get("hitId"),
-        assignment_id=assignment_id,
         worker_id=request.args.get("workerId"),
-        block_hangup_seconds=MTURK_BLOCK_HANGUP_SECONDS,
     )
 
 
@@ -383,8 +383,8 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
         f"Step 5! You are being connected to a live radio show. Your {description} is {name}. Enjoy your call!"
     )
     # sip doesn't care about caller IDs from verified phones, so assign this worker a random word
-    if worker_id == 'NO_WORKER_ID':
-        worker_alias = 'no_worker_id'
+    if worker_id == "NO_WORKER_ID":
+        worker_alias = "no_worker_id"
     else:
         worker_hash_int = int(hashlib.sha1(worker_id.encode()).hexdigest(), 16)
         worker_alias = MTURK_WORKER_ALIAS_WORDS[worker_hash_int % len(MTURK_WORKER_ALIAS_WORDS)]

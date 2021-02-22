@@ -7,13 +7,13 @@ import pprint
 import sys
 from urllib.parse import urlencode
 
-from dotenv import dotenv_values
 import boto3
+from dotenv import dotenv_values
 
 env = dotenv_values()
-AWS_ACCESS_KEY_ID = env['AWS_ACCESS_KEY_ID']
-AWS_SECRET_ACCESS_KEY = env['AWS_SECRET_ACCESS_KEY']
-MTURK_QUESTION_URL = env['MTURK_QUESTION_URL']
+AWS_ACCESS_KEY_ID = env["AWS_ACCESS_KEY_ID"]
+AWS_SECRET_ACCESS_KEY = env["AWS_SECRET_ACCESS_KEY"]
+MTURK_QUESTION_URL = env["MTURK_QUESTION_URL"]
 
 EXTERNAL_QUESTION_XML = """\
 <?xml version="1.0" encoding="UTF-8"?>

@@ -35,16 +35,6 @@
       --color-pulseEnd: rgba(210, 214, 221, 0);
     }
 
-    input[type="checkbox"] {
-      width: 2.5rem;
-      height: 2.5rem;
-    }
-
-    input[type="checkbox"][readonly] {
-      pointer-events: none;
-    }
-
-
     @media screen and (max-width: 799px) {
       :root {
         --font-size: 1.4rem;
@@ -92,8 +82,14 @@
       width: 35%;
     }
 
-    table.tight {
+    #terms-table {
       width: auto;
+    }
+
+    #terms-table input[type="checkbox"] {
+      width: 2.5rem;
+      height: 2.5rem;
+      pointer-events: none;
     }
 
     table.tight button {
@@ -121,11 +117,11 @@
       margin: 50px 0;
     }
 
-    .bd-choice, .bd-choice-hover {
+    .bd-choice, .table-hover {
       background-color: var(--color-primaryFaded) !important;
     }
 
-    .bd-choice-hover {
+    .pointer {
       cursor: pointer;
     }
 
@@ -316,27 +312,27 @@
 </head>
 <body>
   <h1 class="text-center">
-    {% if not preview %}&#x{{ topic['emoji'] }};{% endif %}&#x1F4DE;&#x1F4FB;
     <u class="italic">Call a Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
-    &#x1F4FB;&#x1F4DE;{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}
+    &#x260E;&#xFE0F;&#x1F4FB;&#x1F399;️&#xFE0F;{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}
   </h1>
 
-  <div class="container" x-data="{show: true}" x-init="show = false" x-show="show">
+  <div class="container" x-data="{show: true}" x-init="show = {{ force_no_browser_support|tojson }}" x-show="show">
     <div class="bd-error" style="padding: 15px; margin: 15px">
       <h1 class="text-error is-marginless">
-        WARNING: Your web browser is <u>NOT</u> supported. Please use one of the following:
-        <a href="https://www.google.com/chrome/" target="_blank">Google Chrome</a>,
+        WARNING: Your web browser is <u>NOT</u> supported. Please use the <u>most recent</u>
+         one of the following: <a href="https://www.google.com/chrome/" target="_blank">Google Chrome</a>,
         <a href="https://www.mozilla.org/en-US/firefox/" target="_blank">Mozilla Firefox</a>,
-        or <a href="https://www.microsoft.com/en-us/edge" target="_blank">Microsoft Edge</a>
-        to complete this assignment.
+        <a href="https://www.microsoft.com/en-us/edge" target="_blank">Microsoft Edge</a>,
+        or <a href="https://www.apple.com/safari/" target="_blank">Apple's Safari</a> to complete this
+        assignment.
       </h1>
     </div>
   </div>
 
-  <section x-data="radioCall()" x-init="init()" class="container" x-cloak>
+  <section x-data="radioCall()" x-init="init()" class="container{% if force_no_browser_support %} is-hidden{% endif %}" x-cloak>
     <div id="volume-nav" class="grid" x-show="debug || (device !== null && connection !== null)">
       <div class="row is-marginless is-paddingless">
-        <div class="col-2 is-vertical-align is-right-not-sm">&#x1F3A4;&#x1F399;️&#xFE0F; Mic:</div>
+        <div class="col-2 is-vertical-align is-right-not-sm">&#x1F3A4;&#xFE0F;&#x1F399;️&#xFE0F; Mic:</div>
         <div class="col-2 is-vertical-align">
           <progress class="is-full-width" x-bind:value="inputVolume.toString()" min="0" max="0.65"></progress>
         </div>
@@ -401,39 +397,39 @@
       <hr>
       <h2 id="step0"><em>Important Terms &amp; Conditions</em> &#x2696;&#xFE0F;&#x2696;&#xFE0F;&#x2696;&#xFE0F;</h2>
 
-      <table id="start-terms-scroll" class="tight">
+      <table id="terms-table" class="tight">
         <tbody>
           <tr>
             <td class="bold underline text-center is-marginless is-paddingless">I agree</th>
             <td class="is-marginless is-paddingless">&nbsp;</th>
           </tr>
 
-        {% set render_term_ns = namespace(num=0, total=-1) %}
-        {% macro render_term_row(last=False) %}
-          {% set num = render_term_ns.num %}
-          {% set first = num == 0 %}
-          <tr>
-            <td
-              class="text-center"
-              x-bind:class="{pulse: isSafari {% if first %}&& step == 0 {% endif %}&& term == {{ num }}}"
+          {% set render_term_ns = namespace(num=0, total=-1) %}
+          {% macro render_term_row(last=False) %}
+            {% set num = render_term_ns.num %}
+            {% set first = num == 0 %}
+            <tr
+              @click.prevent="if (term == {{ num }}) {term += 1; {% if first %}$scroll('#terms-table'){% elif last %}$nextTick(() => $scroll('#accept-terms-scroll')){% endif %}}"
+              x-bind:class="{'table-hover': {% if first %}step == 0 && {% endif %}term == {{ num }}, pointer: term == {{ num }}}"
             >
-              <input
-                type="checkbox"
-                @click="term += 1; {% if first %}$scroll('#start-terms-scroll'){% elif last %}$nextTick(() => $scroll('#accept-terms-scroll')){% endif %}"
-                x-bind:class="{pulse: !isSafari {% if first %}&& step == 0 {% endif %}&& term == {{ num }}}"
-                x-bind:readonly="term > {{ num }}"
-                {% if num > 0 %}x-bind:disabled="term < {{ num }}"{% endif %}
+              <td
+                class="text-center"
+                x-bind:class="{pulse: isSafari {% if first %}&& step == 0 {% endif %}&& term == {{ num }}}"
               >
-            </td>
-            <td>
-              {{ caller() }}
-            </td>
-          </tr>
-          {% set render_term_ns.total = num %}
-          {% set render_term_ns.num = num + 1 %}
-        {% endmacro %}
-
-
+                <input
+                  type="checkbox"
+                  x-bind:class="{pulse: !isSafari {% if first %}&& step == 0 {% endif %}&& term == {{ num }}}"
+                  x-bind:readonly="term > {{ num }}"
+                  x-bind:checked="term > {{ num }}"
+                  {% if num > 0 %}x-bind:disabled="term < {{ num }}"{% endif %}
+                >
+              </td>
+              <td>
+                {{ caller() }}
+              </td>
+            </tr>
+            {% set render_term_ns.num = num + 1 %}
+          {% endmacro %}
 
           {% call render_term_row() %}
             <strong>You <u>MUST</u> speak in English.</strong>
@@ -441,7 +437,7 @@
           {% call render_term_row() %}
             <strong>
               You <u>MUST</u> have a <em>working</em> headset &#x1F3A7; (or speaker &#x1F509;)
-                with a <u>microphone</u>. &#x1F3A4;&#x1F399;️&#xFE0F;
+                with a <u>microphone</u>. &#x1F3A4;&#xFE0F;&#x1F399;️&#xFE0F;
             </strong>
           {% endcall %}
           {% call render_term_row() %}
@@ -479,13 +475,13 @@
         </tbody>
       </table>
 
-      <h3 id="accept-terms-scroll" class="text-success" x-show="term >= {{ render_term_ns.total }}">
+      <h3 id="accept-terms-scroll" class="text-success" x-show="term >= {{ render_term_ns.num }}">
         <em>All right! Are you ready to have some fun?!</em>
         &#x1F973;&#x1F92A;&#x{{ topic['emoji']}};&#x1F4DE;&#x1F4FB;&#x1F602;
       </h3>
 
       <p class="text-center">
-        <button class="button big primary" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < {{ render_term_ns.total }} && !debug)" x-bind:class="{pulse: step == 0 && term == {{ render_term_ns.total }}}">
+        <button class="button big primary" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < {{ render_term_ns.num }} && !debug)" x-bind:class="{pulse: step == 0 && term == {{ render_term_ns.num }}}">
           I have <u>carefully</u> read, understand, and agree to the above terms &amp; conditions.
         </button>
       </p>
@@ -514,9 +510,9 @@
         <tbody>
           {% for choice in topic['choices'] %}
             <tr
-              x-bind:class="{'bd-choice': choice === {{ loop.index0|tojson }}}"
-              @mouseenter="if (choice === null) { $event.target.classList.add('bd-choice-hover') }"
-              @mouseleave="$event.target.classList.remove('bd-choice-hover')"
+              x-bind:class="{'bd-choice': choice === {{ loop.index0|tojson }}, pointer: step == 1}"
+              @mouseenter="if (choice === null) { $event.target.classList.add('table-hover') }"
+              @mouseleave="$event.target.classList.remove('table-hover')"
               @click.prevent="if (choice === null) { choice = {{ loop.index0 }}; setStep(2) }"
             >
               <td>
@@ -547,7 +543,7 @@
       <blockquote>
         Click the button below to place the call in your browser.<br>
         <strong class="text-success">You will need to enable your microphone.</strong>
-        &#x1F3A4;&#x1F399;️&#xFE0F;&#x1F3A4;&#x1F399;️&#xFE0F;&#x1F3A4;&#x1F399;️&#xFE0F;
+        &#x1F3A4;&#xFE0F;&#x1F399;️&#xFE0F;&#x1F3A4;&#xFE0F;&#x1F399;️&#xFE0F;&#x1F3A4;&#xFE0F;&#x1F399;️&#xFE0F;
       </blockquote>
 
       <h3 class="text-error" x-show="callError" x-text="typeof callError === 'string' ? callError : 'An error occurred. Please try again.'"></h3>
