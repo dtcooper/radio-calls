@@ -11,11 +11,26 @@
     :root {
       --font-family-sans: "Space Mono", BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
       --color-primary: #007acc;
+      --color-primaryFaded: #e6f5ff;
+      --color-pulseStart: rgba(0, 122, 204, 0.7);
+      --color-pulseEnd: rgba(0, 122, 204, 0);
       --font-size: 1.6rem;
     }
 
     .big {
       font-size: 2.0rem;
+    }
+
+    .button.success {
+      /* based off #28bd14 */
+      --color-pulseStart: rgba(40, 189, 20, 0.7);
+      --color-pulseEnd: rgba(40, 189, 20, 0);
+    }
+
+    #pin-code {
+      /* based off #d2d6dd */
+      --color-pulseStart: rgba(210, 214, 221, 0.7);
+      --color-pulseEnd: rgba(210, 214, 221, 0);
     }
 
 
@@ -37,7 +52,7 @@
       position: -webkit-sticky;
       position: sticky;
       top: 0;
-      background-color: #fff;
+      background-color: var(--bg-color);
       padding-top: 5px;
       border-bottom: 1px solid var(--color-lightGrey);
       z-index: 1;
@@ -76,8 +91,24 @@
       margin: 50px 0;
     }
 
-    .bd-choice {
-      background-color: #b7daf1 !important;
+    .bd-choice, .bd-choice-hover {
+      background-color: var(--color-primaryFaded) !important;
+    }
+
+    .bd-choice-hover {
+      cursor: pointer;
+    }
+
+    .pulse {
+      animation: pulse 1.25s infinite cubic-bezier(0.66, 0, 0, 1);
+      transition: all 300ms ease-in-out;
+      box-shadow: 0 0 0 0 var(--color-pulseStart);
+    }
+
+    @keyframes pulse {
+      to {
+        box-shadow: 0 0 0 35px var(--color-pulseEnd);
+      }
     }
   </style>
 
@@ -321,7 +352,7 @@
         <tbody>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1; $scroll('#terms')" x-bind:disabled="{% if preview %}true{% else %}term != 0{% endif %}" class="button primary">
+              <button @click.prevent="term += 1; $scroll('#terms')" x-bind:disabled="{% if preview %}true{% else %}term != 0{% endif %}" class="button primary" x-bind:class="{pulse: term == 0}">
                 I agree &#x2714;
               </button>
             </td>
@@ -331,7 +362,7 @@
           </tr>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 1" class="button primary">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 1" class="button primary" x-bind:class="{pulse: term == 1}">
                 I have this &#x2714;
               </button>
             </td>
@@ -342,7 +373,7 @@
           </tr>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 2" class="button primary">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 2" class="button primary" x-bind:class="{pulse: term == 2}">
                 I understand &#x2714;
               </button>
             </td>
@@ -352,7 +383,7 @@
           </tr>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 3" class="button primary">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 3" class="button primary" x-bind:class="{pulse: term == 3}">
                I will not &#x2714;
               </button>
             </td>
@@ -362,7 +393,7 @@
           </tr>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 4" class="button primary">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 4" class="button primary" x-bind:class="{pulse: term == 4}">
                 I will &#x2714;
               </button>
             </td>
@@ -374,7 +405,7 @@
           </tr>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 5" class="button primary">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 5" class="button primary" x-bind:class="{pulse: term == 5}">
                 I will &#x2714;
               </button>
             </td>
@@ -385,7 +416,7 @@
           </tr>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1" x-bind:disabled="term != 6" class="button primary">
+              <button @click.prevent="term += 1" x-bind:disabled="term != 6" class="button primary" x-bind:class="{pulse: term == 6}">
                 I understand &#x2714;
               </button>
             </td>
@@ -400,7 +431,7 @@
           </tr>
           <tr>
             <td class="text-right">
-              <button @click.prevent="term += 1; $nextTick(() => $scroll('#accept-terms-scroll'))" x-bind:disabled="term != 7" class="button primary">
+              <button @click.prevent="term += 1; $nextTick(() => $scroll('#accept-terms-scroll'))" x-bind:disabled="term != 7" class="button primary" x-bind:class="{pulse: term == 7}">
                 I understand &#x2714;
               </button>
             </td>
@@ -421,7 +452,7 @@
       <br>
 
       <p class="text-center">
-        <button class="button big {% if preview %}dark{% else %}primary{% endif %}" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)">
+        <button class="button big {% if preview %}dark{% else %}primary{% endif %}" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < 8 && !debug)" x-bind:class="{pulse: step == 0 && term == 8}">
           {% if preview %}
             You are currently <em>previewing</em> this assignment. Press Accept to start.
           {% else %}
@@ -453,10 +484,15 @@
         </thead>
         <tbody>
           {% for choice in topic['choices'] %}
-            <tr x-bind:class="{'bd-choice': choice === {{ loop.index0|tojson }}}">
+            <tr
+              x-bind:class="{'bd-choice': choice === {{ loop.index0|tojson }}}"
+              @mouseenter="if (choice === null) { $event.target.classList.add('bd-choice-hover') }"
+              @mouseleave="$event.target.classList.remove('bd-choice-hover')"
+              @click.prevent="if (choice === null) { choice = {{ loop.index0 }}; setStep(2) }"
+            >
               <td>
                 <button
-                  @click.prevent="choice = {{ loop.index0 }}; setStep(2)"
+                  @click.prevent="if (choice !== null) { choice = {{ loop.index0 }}; setStep(2) }"
                   class="button primary"
                   x-text="choice === {{ loop.index0|tojson }} ? 'Selected' : ('Select {{ choice['name'].split(':')[0] }}')"
                   x-bind:disabled="choice === {{ loop.index0|tojson }}"
@@ -488,7 +524,12 @@
       <h3 class="text-error" x-show="callError" x-text="typeof callError === 'string' ? callError : 'An error occurred. Please try again.'"></h3>
 
       <p class="text-center">
-        <button @click.prevent="call()" class="button big success" x-bind:disabled="device === null || connection !== null">
+        <button
+          @click.prevent="call()"
+          class="button big success"
+          x-bind:disabled="device === null || connection !== null"
+          x-bind:class="{pulse: step == 2 && device !== null && connection === null}"
+        >
           &#x1F4DE;&#x1F4DE; Start Call &#x1F4DE;&#x1F4DE;
         </button>
       </p>
@@ -504,7 +545,7 @@
       </blockquote>
 
       <p class="text-center">
-        <button @click.prevent="setStep(4)" class="button big primary" x-bind:disabled="step >= 4">Ready for Step 4</button>
+        <button @click.prevent="setStep(4)" class="button big primary" x-bind:class="{pulse: step == 3}" x-bind:disabled="step >= 4">Ready for Step 4</button>
       </p>
     </div>
 
@@ -519,13 +560,29 @@
           <label for="pin-code" class="big bold">PIN Code:</label>
         </div>
         <div class="col-10">
-          <input id="pin-code" class="big bold" style="max-width: 250px;" type="text" name="PinCode" x-model="pinCodeInput" pattern="\d*" maxlength="4" x-bind:disabled="step != 4 || pinVerifying">
+          <input
+            id="pin-code"
+            class="big bold"
+            style="max-width: 250px;"
+            type="text"
+            name="PinCode"
+            x-model="pinCodeInput"
+            pattern="\d*"
+            maxlength="4"
+            x-bind:disabled="step != 4 || pinVerifying"
+            x-bind:class="{pulse: step == 4 && !pinVerifying}"
+          >
         </div>
       </div>
       <br>
 
       <p class="text-center">
-        <button @click.prevent="verifyPinCode()" class="button big primary" x-bind:disabled="step != 4 || pinVerifying">Verify PIN Code</button>
+        <button
+          @click.prevent="verifyPinCode()"
+          class="button big primary"
+          x-bind:disabled="step != 4 || pinVerifying"
+          x-bind:class="{pulse: step == 4 && !pinVerifying}"
+        >Verify PIN Code</button>
       </p>
     </div>
 
@@ -575,7 +632,7 @@
       ></h3>
 
       <h3 class="text-success" x-show="step == 5 && !done && !hangupBlocked">
-          When you are done, you can click the <em>End Call</em> button above.
+          When you are done, you can click the <em class="text-error">End Call</em> button above.
       </h3>
     </div>
 
@@ -597,7 +654,7 @@
           <button
             class="button big"
             type="submit"
-            x-bind:class="{primary: done, dark: !done}"
+            x-bind:class="{primary: done, dark: !done, pulse: done}"
             x-text="'&#x1F4E5;&#x1F4E5; Submit Assignment ' + (done ? '' : ' (enabled when you are done)') + ' &#x1F4E5;&#x1F4E5;'"
             x-bind:disabled="!done"
             {% if not assignment_id or not submit_to %}
