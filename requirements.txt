@@ -1,5 +1,6 @@
 flask
 gunicorn
+python-dotenv
 requests
 twilio
 watchdog

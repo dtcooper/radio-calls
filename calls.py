@@ -2,6 +2,7 @@ import random
 import re
 from urllib.parse import unquote, urlencode
 
+from dotenv import dotenv_values
 import requests
 from twilio.base.exceptions import TwilioRestException
 from twilio.jwt.access_token import AccessToken
@@ -12,23 +13,25 @@ from twilio.twiml.voice_response import VoiceResponse
 
 from flask import Flask, Response, jsonify, render_template, request, url_for
 
-# sip password = ***REMOVED***
-TWILIO_ACCOUNT_SID = "***REMOVED***"
-TWILIO_AUTH_TOKEN = "***REMOVED***"
-TWILIO_API_KEY = "***REMOVED***"
-TWILIO_API_SECRET = "***REMOVED***"
-IPSTACK_API_KEY = "***REMOVED***"
-AMAZON_TWIML_APP_SID = "***REMOVED***"
-DEFAULT_AREA_CODE = "***REMOVED***"
-SMS_ADMIN_NUMBER = "***REMOVED***"
-NUMBERS_TO_SIP_ADDRESSES = {"***REMOVED***": "tigwit", "***REMOVED***": "poolabs"}
-SIP_DOMAIN = "***REMOVED***"
-VOICEMAIL_EMAIL = "***REMOVED***"
-MTURK_ADMIN_PASSWORD = "***REMOVED***"
-AWS_ACCESS_KEY_ID = "***REMOVED***"
-AWS_SECRET_ACCESS_KEY = "***REMOVED***"
 
-AUDIO_VOICEMAIL_TO_NUMBERS = {"***REMOVED***": "voicemail", "***REMOVED***": "poolabs-voicemail"}
+env = dotenv_values()
+AWS_ACCESS_KEY_ID = env['AWS_ACCESS_KEY_ID']
+AWS_SECRET_ACCESS_KEY = env['AWS_SECRET_ACCESS_KEY']
+TWILIO_ACCOUNT_SID = env['TWILIO_ACCOUNT_SID']
+TWILIO_AUTH_TOKEN = env['TWILIO_AUTH_TOKEN']
+TWILIO_API_KEY = env['TWILIO_API_KEY']
+TWILIO_API_SECRET = env['TWILIO_API_SECRET']
+IPSTACK_API_KEY = env['IPSTACK_API_KEY']
+AMAZON_TWIML_APP_SID = env['AMAZON_TWIML_APP_SID']
+DEFAULT_AREA_CODE = env['DEFAULT_AREA_CODE']
+SMS_ADMIN_NUMBER = env['SMS_ADMIN_NUMBER']
+NUMBERS_TO_SIP_ADDRESSES = {env['TIGWIT_NUMBER']: "tigwit", env['POOLABS_NUMBER']: "poolabs"}
+SIP_ADDRESSES_TO_NUMBERS = {v: k for k, v in NUMBERS_TO_SIP_ADDRESSES.items()}
+SIP_DOMAIN = env['SIP_DOMAIN']
+VOICEMAIL_EMAIL = env['VOICEMAIL_EMAIL']
+MTURK_ADMIN_PASSWORD = env['MTURK_ADMIN_PASSWORD']
+
+AUDIO_NUMBERS_TO_VOICEMAIL = {env['TIGWIT_NUMBER']: "voicemail", env['POOLABS_NUMBER']: "poolabs-voicemail"}
 AUDIO_HOLD_MUSIC_LIST = ("hold-music-1", "hold-music-2", "hold-music-3")
 AUDIO_COMPLETED_MUSIC = "completed-music"
 AUDIO_NOT_IN_SERVICE = "not-in-service"
@@ -145,8 +148,6 @@ else:
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
 
-SIP_ADDRESSES_TO_NUMBERS = {v: k for k, v in NUMBERS_TO_SIP_ADDRESSES.items()}
-
 
 twilio_client = client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
@@ -255,7 +256,7 @@ def voice_incoming_done():
         response.play(audio_url(random.choice(AUDIO_HOLD_MUSIC_LIST)))
         response.redirect(url_for("voice_incoming", sip_addr=sip_addr, from_number=from_number, skip_song=skip_song))
     else:
-        audio = AUDIO_VOICEMAIL_TO_NUMBERS.get(to_number)
+        audio = AUDIO_NUMBERS_TO_VOICEMAIL.get(to_number)
         message = (
             audio_url(audio, external=True)
             if audio
