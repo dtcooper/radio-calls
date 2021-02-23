@@ -349,6 +349,7 @@ def amazon_hit():
         assignment_id=assignment_id,
         block_hangup_seconds=MTURK_BLOCK_HANGUP_SECONDS,
         debug=bool(request.args.get("debug")),
+        development_mode=app.env == 'development',
         force_no_browser_support=bool(request.args.get("force_no_browser_support")),
         geoip=geoip,
         hit_id=request.args.get("hitId"),
@@ -433,9 +434,10 @@ def amazon_voice_request():
         hints=", ".join(GATHER_WORDS),
         input="speech",
         speech_model="numbers_and_commands",
-        timeout=2.5,
+        speech_timeout="auto",
+        timeout=3,
     )
-    gather.say(f"After the tone, please say the word {word}. Then stay silent for a few moments.")
+    gather.say(f"After the tone, please say the word {word}.")
     gather.play(audio_url(AUDIO_BEEP))
 
     return twiml_response(response)

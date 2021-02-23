@@ -308,6 +308,10 @@
   </script>
 </head>
 <body>
+  {% if development_mode %}
+    <div class="bg-error"><h4 class="text-center text-white">WARNING: Development Environment</h4></div>
+  {% endif %}
+
   <h1 class="text-center">
     <span class="hide-sm hide-xs">{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}&#x1F399;️&#xFE0F;&#x1F4FB;</span>
     <u class="italic">Call a Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
