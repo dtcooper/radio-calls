@@ -267,7 +267,7 @@ def voice_incoming_done():
             if audio
             else (
                 "The radio show can not take your call right now. Please leave a message after the tone. When you are"
-                " done, stay silent for a few moments to end the call."
+                " finished, please press the pound key."
             )
         )
         response.redirect(

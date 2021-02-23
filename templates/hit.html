@@ -574,7 +574,7 @@
 
     <div x-show="step >= 4 || debug">
       <hr>
-      <h2 id="step4"><em>Step 4: Enter the PIN Code</em> &#x1F511;&#x1F511;&#x1F511;</h2>
+      <h2 id="step4"><em><u>Step 4</u>: Enter the PIN Code</em> &#x1F511;&#x1F511;&#x1F511;</h2>
 
       <blockquote>You will be given a PIN code. Enter it below and then click <em>Verify PIN Code.</em></blockquote>
 
@@ -664,6 +664,15 @@
       <h3 class="text-success" x-show="step == 5 && !done && !hangupBlocked">
           When you are done, you can click the <em class="text-error">End Call</em> button above.
       </h3>
+
+      <p class="text-center">
+        <button
+          class="button"
+          x-bind:class="{pulse: step == 3}"
+          x-bind:disabled="device === null || connection === null"
+          @click.prevent="connection.sendDigits('#')"
+        ># Pound Key #</button>
+      </p>
     </div>
 
     <div x-show="step >= 1 || debug">
