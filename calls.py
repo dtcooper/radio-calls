@@ -272,7 +272,7 @@ def voice_incoming_done():
         )
         response.redirect(
             "http://twimlets.com/voicemail?"
-            + urlencode({"Email": VOICEMAIL_EMAIL, "Message": message, "Transcribe": "True"})
+            + urlencode({"Email": VOICEMAIL_EMAIL, "Message": message, "Transcribe": "true"})
         )
 
     return twiml_response(response)
@@ -381,7 +381,7 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
 
     response = VoiceResponse()
     response.say(
-        f"Step 5! You are being connected to a live radio show. Your {description} is {name}. Enjoy your call!"
+        f"Step 5! You are being connected to the radio show. Your {description} is {name}. Enjoy your call!"
     )
     # sip doesn't care about caller IDs from verified phones, so assign this worker a random word
     if worker_id == "NO_WORKER_ID":
@@ -435,7 +435,7 @@ def amazon_voice_request():
         input="speech",
         speech_model="numbers_and_commands",
         speech_timeout="auto",
-        timeout=3,
+        timeout=4,
     )
     gather.say(f"After the tone, please say the word {word}.")
     gather.play(audio_url(AUDIO_BEEP))
