@@ -201,12 +201,30 @@
           device = new Twilio.Device(data.token, {
             closeProtection: true,
             codecPreferences:	['opus', 'pcmu'],
-            enableRingingState: true
+            enableRingingState: true,
+            fakeLocalDTMF: true
           })
 
           device.on('ready', (device) => this.device = device)
-          device.on('connect', () => {
+          device.on('connect', (connection) => {
             this.callError = false
+
+            connection.on('volume', (inputVolume, outputVolume) => {
+              this.inputVolume = inputVolume
+              this.outputVolume = outputVolume
+            })
+            connection.on('disconnect', () => {
+              this.hangUp()
+              if (this.step == 5) {
+                this.callEnd = currentTimestamp()
+                this.done = true
+                setTimeout(() => this.$scroll('#done'), 20)
+              } else {
+                this.setStep(2, true)
+              }
+            })
+
+            this.connection = connection
             this.setStep(3)
           })
           device.on('error', (err) => {
@@ -246,21 +264,7 @@
           this.hangupBlocked = false
           this.done = false
 
-          this.connection = this.device.connect({AmazonPinCode: this.pinCode})
-          this.connection.on('volume', (inputVolume, outputVolume) => {
-            this.inputVolume = inputVolume
-            this.outputVolume = outputVolume
-          })
-          this.connection.on('disconnect', () => {
-            this.hangUp()
-            if (this.step == 5) {
-              this.callEnd = currentTimestamp()
-              this.done = true
-              setTimeout(() => this.$scroll('#done'), 20)
-            } else {
-              this.setStep(2, true)
-            }
-          })
+          this.device.connect({AmazonPinCode: this.pinCode})
         },
         hangUp: function(skipDisconnect) {
           this.device.disconnectAll()
@@ -345,7 +349,7 @@
             class="button is-full-width"
             style="margin-top: 5px"
             x-bind:class="{error: !hangupBlocked, dark: hangupBlocked}"
-            x-bind:disabled="hangupBlocked || (debug && (device === null || connection === null))"
+            x-bind:disabled="hangupBlocked || (debug && (connection === null))"
             x-text="hangupBlocked ? `Talk for ${Math.max(blockHangupSeconds - callDuration - 1, 0)} seconds` : 'End Call'"
           ></button>
         </div>
