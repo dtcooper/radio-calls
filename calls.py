@@ -28,6 +28,7 @@ DEFAULT_AREA_CODE = env["DEFAULT_AREA_CODE"]
 SMS_ADMIN_NUMBER = env["SMS_ADMIN_NUMBER"]
 NUMBERS_TO_SIP_ADDRESSES = {env["TIGWIT_NUMBER"]: "tigwit", env["POOLABS_NUMBER"]: "poolabs"}
 SIP_ADDRESSES_TO_NUMBERS = {v: k for k, v in NUMBERS_TO_SIP_ADDRESSES.items()}
+SIP_ADDRESSES = list(SIP_ADDRESSES_TO_NUMBERS.keys())
 SIP_DOMAIN = env["SIP_DOMAIN"]
 VOICEMAIL_EMAIL = env["VOICEMAIL_EMAIL"]
 MTURK_ADMIN_PASSWORD = env["MTURK_ADMIN_PASSWORD"]
@@ -192,6 +193,21 @@ def audio_url(filename, external=False):
     return url_for("static", filename=f"audio/{filename}.mp3", _external=external)
 
 
+def geoip_lookup():
+    geoip_keys = ("country_code", "city", "country_name", "region_name")
+    lookup = {}
+    lookup = {key.removesuffix("_name"): ("XX" if key.endswith("_code") else "Unknown") for key in geoip_keys}
+
+    if app.env == "production" or request.args.get("force_geoip"):
+        ip_addr = request.headers.get("X-Forwarded-For") or request.remote_addr
+        response = requests.get(f"http://api.ipstack.com/{ip_addr}", params={"access_key": IPSTACK_API_KEY}).json()
+        for key in geoip_keys:
+            value = response.get(key)
+            if value:
+                lookup[key.removesuffix("_name")] = value
+    return lookup
+
+
 @app.route("/")
 def index():
     return Response("There are forty people in the world and five of them are hamburgers.", content_type="text/plain")
@@ -333,25 +349,17 @@ def amazon_hit():
     force_topic = request.args.get("force_topic")
     assignment_id = request.args.get("assignmentId")
     show = request.args.get("show")
-    geoip = {"country_code": "XX", "city": "Unknown", "country_name": "Unknown"}
-
-    if show not in SIP_ADDRESSES_TO_NUMBERS:
+    if show not in SIP_ADDRESSES:
         show = "tigwit"
-
-    if app.env == "production" or request.args.get("force_geoip"):
-        ip_addr = request.headers.get("X-Forwarded-For") or request.remote_addr
-        lookup = requests.get(f"http://api.ipstack.com/{ip_addr}", params={"access_key": IPSTACK_API_KEY}).json()
-        for key in geoip.keys():
-            geoip[key] = lookup.get(key) or geoip[key]
 
     return render_template(
         "hit.html",
         assignment_id=assignment_id,
         block_hangup_seconds=MTURK_BLOCK_HANGUP_SECONDS,
         debug=bool(request.args.get("debug")),
-        development_mode=app.env == 'development',
+        development_mode=app.env == "development",
         force_no_browser_support=bool(request.args.get("force_no_browser_support")),
-        geoip=geoip,
+        geoip=geoip_lookup(),
         hit_id=request.args.get("hitId"),
         preview=bool(assignment_id == "ASSIGNMENT_ID_NOT_AVAILABLE"),
         show=show,
@@ -380,9 +388,7 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
     name = HIT_TOPICS[topic]["choices"][choice]["name"]
 
     response = VoiceResponse()
-    response.say(
-        f"Step 5! You are being connected to the radio show. Your {description} is {name}. Enjoy your call!"
-    )
+    response.say(f"Step 5! You are being connected to the radio show. Your {description} is {name}. Enjoy your call!")
     # sip doesn't care about caller IDs from verified phones, so assign this worker a random word
     if worker_id == "NO_WORKER_ID":
         worker_alias = "none"
@@ -400,7 +406,13 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
     except TwilioRestException:
         success = False
 
-    return jsonify({"success": success, "worker_alias": worker_alias})
+    return jsonify(
+        {
+            "success": success,
+            "worker_alias": worker_alias,
+            "twimlet_caller_id": "".join(x for x in from_number if x.isdigit()) or "none",
+        }
+    )
 
 
 @app.route("/amazon/voice-request", methods=("POST",))

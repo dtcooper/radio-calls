@@ -173,6 +173,7 @@
         callDuration: -1,
         hangupBlocked: false,
         workerAlias: "unset",
+        twimletCallerId: "unset",
         done: false,
         init: async function() {
           if (workerId === null || hitId === null) {
@@ -288,6 +289,7 @@
 
               if (data.success) {
                 this.workerAlias = data.worker_alias
+                this.twimletCallerId = data.twimlet_caller_id
                 this.callStart = currentTimestamp()
                 this.hangupBlocked = true
                 this.setStep(5)
@@ -697,6 +699,7 @@
         <input type="hidden" name="PinCode" x-bind:value="pinCode">
         <input type="hidden" name="WorkerAlias" x-bind:value="workerAlias">
         <input type="hidden" name="CallDurationSeconds" x-bind:value="callDuration">
+        <input type="hidden" name="TwimletCallerId" x-bind:value="twimletCallerId">
         {% for key, value in geoip.items() %}
           <input type="hidden" name="{{ key.replace('_', ' ').title().replace(' ', '') }}" value="{{ value }}">
         {% endfor %}

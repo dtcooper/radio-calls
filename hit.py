@@ -27,6 +27,7 @@ HIT_TITLE = "Call a Live Radio Show"
 HIT_DESCRIPTION = "Call a live radio show in your browser and have a funny conversation with the hosts"
 HIT_KEYWORDS = "telephone, call, talking, radio show, radio, funny, joke, swimming, poop, inappropriate"
 SHOW_CHOICES = ("poolabs", "tigwit")
+TOPICS = ("pool", "poop")
 
 
 class FullHelpParser(argparse.ArgumentParser):
@@ -48,12 +49,33 @@ def main():
     parser.add_argument("-n", "--num", help="The number of assignments", type=int, required=True)
     parser.add_argument("-d", "--debug", action="store_true", help="Set debug flag to on in hit HTML")
     parser.add_argument("-s", "--show", choices=SHOW_CHOICES, help="Show to choose", required=True)
+    parser.add_argument("-T", "--topic", choices=TOPICS, help="Force a topic")
 
     args = parser.parse_args()
+
+    duration = round(args.hours * 60 * 60) + round(args.minutes * 60)
+
+    fee = 0.2 if args.num < 10 else 0.4
+    print(f"Environment: {('sandbox' if args.sandbox else 'production')}")
+
+    if args.prod:
+        print(
+            f"  Unit Cost: ${args.reward:.02f} reward + ${args.reward * fee:.02f} w/ {int(fee * 100)}% fee ="
+            f" ${args.reward * (fee + 1):.02f} each{' (incl. num +10 penalty of 20%)' if args.num >= 10 else ''}",
+        )
+        print(
+            f"Total Cost: {args.num} assignments @ ${args.reward * (fee + 1):.02f} each ="
+            f" ${args.num * args.reward * (fee + 1):.02f} total"
+        )
+        if not input("\nAre you sure you want to use production (y/N)? ").strip().lower().startswith("y"):
+            print("Exiting.")
+            sys.exit(0)
 
     url_kwargs = {"show": args.show}
     if args.debug:
         url_kwargs["debug"] = "1"
+    if args.topic:
+        url_kwargs["force_topic"] = args.topic
 
     url = f"{MTURK_QUESTION_URL}?{urlencode(url_kwargs)}"
     question = EXTERNAL_QUESTION_XML.format(html.escape(url))
@@ -65,8 +87,6 @@ def main():
         aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
         **({"endpoint_url": "https://mturk-requester-sandbox.us-east-1.amazonaws.com"} if args.sandbox else {}),
     )
-
-    duration = round(args.hours * 60 * 60) + round(args.minutes * 60)
 
     response = client.create_hit(
         AssignmentDurationInSeconds=duration,
