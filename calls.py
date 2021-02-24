@@ -283,7 +283,7 @@ def voice_incoming_done():
             if audio
             else (
                 "The radio show can not take your call right now. Please leave a message after the tone. When you are"
-                " finished, please press the pound key."
+                " finished, please press the pound key, or stay silent for a few moments."
             )
         )
         response.redirect(
@@ -365,13 +365,30 @@ def amazon_hit():
         show=show,
         submit_to=request.args.get("turkSubmitTo"),
         topic=HIT_TOPICS[force_topic] if force_topic in HIT_TOPICS else random.choice(list(HIT_TOPICS.values())),
-        worker_id=request.args.get("workerId"),
+        worker_id=request.args.get("workerId") or 'NO_WORKER_ID',
     )
 
+    from_number = get_caller_identity(country_code, worker_id)
 
-@app.route("/amazon/token/<pin_code>/<worker_id>")
-def amazon_token(pin_code, worker_id):
-    token = AccessToken(TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, identity=f"{pin_code}.{worker_id}")
+
+def get_caller_identity(country_code, worker_id):
+    # sip doesn't care about caller IDs from verified phones, so assign this worker a caller based on a "hash" of a
+    # unique word mapping to their worker ID and their country
+    if worker_id in ("NO_WORKER_ID"):
+        worker_alias = "none"
+        worker_hash_int = 0
+    else:
+        worker_hash_int = int(hashlib.sha1(worker_id.encode()).hexdigest(), 16) % len(MTURK_WORKER_ALIAS_WORDS)
+        worker_alias = MTURK_WORKER_ALIAS_WORDS[worker_hash_int]
+
+    worker_hash = str(worker_hash_int).zfill(len(str(len(MTURK_WORKER_ALIAS_WORDS) - 1)))
+    return worker_alias, f"{country_code}.{worker_alias}.{worker_id}.{worker_hash}"
+
+
+@app.route("/amazon/token/<country_code>/<worker_id>")
+def amazon_token(country_code, worker_id):
+    _, identity = get_caller_identity(country_code, worker_id)
+    token = AccessToken(TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, identity=identity)
     grant = VoiceGrant(outgoing_application_sid=AMAZON_TWIML_APP_SID)
     token.add_grant(grant)
 
@@ -389,14 +406,8 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
 
     response = VoiceResponse()
     response.say(f"Step 5! You are being connected to the radio show. Your {description} is {name}. Enjoy your call!")
-    # sip doesn't care about caller IDs from verified phones, so assign this worker a random word
-    if worker_id == "NO_WORKER_ID":
-        worker_alias = "none"
-    else:
-        worker_hash_int = int(hashlib.sha1(worker_id.encode()).hexdigest(), 16)
-        worker_alias = MTURK_WORKER_ALIAS_WORDS[worker_hash_int % len(MTURK_WORKER_ALIAS_WORDS)]
 
-    from_number = f"{country_code}.{worker_alias}.{worker_id}"
+    worker_alias, from_number = get_caller_identity(country_code, worker_id)
     response.redirect(
         url_for("voice_incoming", sip_addr=sip_addr, from_number=from_number, skip_song="1", _external=True)
     )
@@ -409,8 +420,10 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
     return jsonify(
         {
             "success": success,
+            "caller_id": from_number,
+            # Twimlet strips everything but the digits
+            "twimlet_caller_id": ''.join(c for c in from_number if c.isdigit()),
             "worker_alias": worker_alias,
-            "twimlet_caller_id": "".join(x for x in from_number if x.isdigit()) or "none",
         }
     )
 
