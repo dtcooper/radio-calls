@@ -365,7 +365,7 @@ def amazon_hit():
         show=show,
         submit_to=request.args.get("turkSubmitTo"),
         topic=HIT_TOPICS[force_topic] if force_topic in HIT_TOPICS else random.choice(list(HIT_TOPICS.values())),
-        worker_id=request.args.get("workerId") or 'NO_WORKER_ID',
+        worker_id=request.args.get("workerId") or "NO_WORKER_ID",
     )
 
     from_number = get_caller_identity(country_code, worker_id)
@@ -422,7 +422,7 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
             "success": success,
             "caller_id": from_number,
             # Twimlet strips everything but the digits
-            "twimlet_caller_id": ''.join(c for c in from_number if c.isdigit()),
+            "twimlet_caller_id": "".join(c for c in from_number if c.isdigit()),
             "worker_alias": worker_alias,
         }
     )

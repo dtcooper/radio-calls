@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-import datetime
+from datetime import datetime, timedelta
 import html
 import pprint
 import sys
@@ -23,8 +23,12 @@ EXTERNAL_QUESTION_XML = """\
     <FrameHeight>0</FrameHeight>
 </ExternalQuestion>
 """
-HIT_TITLE = "Call a Live Radio Show"
-HIT_DESCRIPTION = "Call a live radio show in your browser and have a funny conversation with the hosts"
+HIT_TITLE = "Call a Live Radio Show & Talk About Your Poop or Swimming"
+HIT_DESCRIPTION = (
+    "Call a live radio show in your browser and have a funny conversation with the hosts. You will talk about either"
+    " your most recent poop or your favourite way to swim - the topic is assigned randomly at the start of the"
+    " assignment."
+)
 HIT_KEYWORDS = "telephone, call, talking, radio show, radio, funny, joke, swimming, poop, inappropriate"
 SHOW_CHOICES = ("poolabs", "tigwit")
 TOPICS = ("pool", "poop")
@@ -46,6 +50,7 @@ def main():
     duration_group = parser.add_mutually_exclusive_group(required=True)
     duration_group.add_argument("-H", "--hours", help="Duration of assignment (hours)", type=float, default=0)
     duration_group.add_argument("-m", "--minutes", help="Duration of assignment (minutes)", type=float, default=0)
+    parser.add_argument("--buffer-minutes", type=int, default=15, help="Additional lifetime mins (default: 15)")
     parser.add_argument("-n", "--num", help="The number of assignments", type=int, required=True)
     parser.add_argument("-d", "--debug", action="store_true", help="Set debug flag to on in hit HTML")
     parser.add_argument("-s", "--show", choices=SHOW_CHOICES, help="Show to choose", required=True)
@@ -59,12 +64,13 @@ def main():
     print(f"Environment: {('sandbox' if args.sandbox else 'production')}")
 
     if args.prod:
+        print(f"   Duration: {timedelta(seconds=duration)} (+{timedelta(minutes=args.buffer_minutes)} buffer)")
         print(
             f"  Unit Cost: ${args.reward:.02f} reward + ${args.reward * fee:.02f} w/ {int(fee * 100)}% fee ="
             f" ${args.reward * (fee + 1):.02f} each{' (incl. num +10 penalty of 20%)' if args.num >= 10 else ''}",
         )
         print(
-            f"Total Cost: {args.num} assignments @ ${args.reward * (fee + 1):.02f} each ="
+            f" Total Cost: {args.num} assignments @ ${args.reward * (fee + 1):.02f} each ="
             f" ${args.num * args.reward * (fee + 1):.02f} total"
         )
         if not input("\nAre you sure you want to use production (y/N)? ").strip().lower().startswith("y"):
@@ -91,14 +97,14 @@ def main():
     response = client.create_hit(
         AssignmentDurationInSeconds=duration,
         AutoApprovalDelayInSeconds=3 * 24 * 60 * 60,  # 3 days
-        LifetimeInSeconds=duration + 15 * 60,  # Add 15 minutes afterwards
+        LifetimeInSeconds=duration + args.buffer_minutes * 60,
         MaxAssignments=args.num,
         Question=question,
         Reward=f"{args.reward:.02f}",
         Title=HIT_TITLE,
         Description=HIT_DESCRIPTION,
         Keywords=HIT_KEYWORDS,
-        RequesterAnnotation=f"Radio Calls ({args.show}) @ {datetime.datetime.now().replace(microsecond=0)}",
+        RequesterAnnotation=f"Radio Calls ({args.show}) @ {datetime.now().replace(microsecond=0)}",
     )
 
     pprint.pprint(response)

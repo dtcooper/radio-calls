@@ -339,7 +339,7 @@
     </div>
   </div>
 
-  <section x-data="radioCall()" x-init="init()" class="container{% if force_no_browser_support %} is-hidden{% endif %}" x-cloak>
+  <section x-data="radioCall()" {% if not preview %}x-init="init()" {% endif %}class="container{% if force_no_browser_support %} is-hidden{% endif %}" x-cloak>
     <div id="volume-nav" class="grid" x-show="debug || (device !== null && connection !== null)">
       <div class="row is-marginless is-paddingless">
         <div class="col-2 is-vertical-align is-right-not-sm">&#x1F399;️&#xFE0F;&#x1F3A4;&#xFE0F; Mic:</div>
