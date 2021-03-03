@@ -21,7 +21,7 @@ stop:
 	docker rm $(CONTAINER) || true
 
 logs:
-	docker logs -f $(CONTAINER)
+	docker logs -n 25 -f $(CONTAINER)
 
 build:
 	docker build -t $(CONTAINER) .
