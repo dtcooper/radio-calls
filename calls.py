@@ -368,8 +368,6 @@ def amazon_hit():
         worker_id=request.args.get("workerId") or "NO_WORKER_ID",
     )
 
-    from_number = get_caller_identity(country_code, worker_id)
-
 
 def get_caller_identity(country_code, worker_id):
     # sip doesn't care about caller IDs from verified phones, so assign this worker a caller based on a "hash" of a
