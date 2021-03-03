@@ -50,6 +50,16 @@ class FullHelpParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
+def get_client(sandbox=True):
+    return boto3.client(
+        "mturk",
+        region_name="us-east-1",
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        **({"endpoint_url": "https://mturk-requester-sandbox.us-east-1.amazonaws.com"} if sandbox else {}),
+    )
+
+
 def main():
     parser = FullHelpParser("Submit HIT to Amazon's MTurk API")
     environment_group = parser.add_mutually_exclusive_group(required=True)
@@ -166,13 +176,7 @@ def main():
     external_question_url = f"{EXTERNAL_QUESTION_URL}?{urlencode(external_question_url_kwargs)}"
     question = EXTERNAL_QUESTION_XML.format(html.escape(external_question_url))
 
-    client = boto3.client(
-        "mturk",
-        region_name="us-east-1",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        **({"endpoint_url": "https://mturk-requester-sandbox.us-east-1.amazonaws.com"} if args.sandbox else {}),
-    )
+    client = get_client(sandbox=args.sandbox)
 
     print()
 
