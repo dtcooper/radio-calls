@@ -152,7 +152,7 @@ def main():
             {
                 "QualificationTypeId": COUNTRY_QUAL_ID,
                 "Comparator": "In",
-                "LocaleValues": [{'Country': country} for country in countries],
+                "LocaleValues": [{"Country": country} for country in countries],
             }
         )
 

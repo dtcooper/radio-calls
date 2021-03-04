@@ -198,7 +198,7 @@ def geoip_lookup():
     lookup = {}
     lookup = {key.removesuffix("_name"): ("XX" if key.endswith("_code") else "Unknown") for key in geoip_keys}
 
-    if app.env == "production" or request.args.get("force_geoip"):
+    if (app.env == "production" or request.args.get("force_geoip")) and not request.args.get("skip_geoip"):
         ip_addr = request.headers.get("X-Forwarded-For") or request.remote_addr
         response = requests.get(f"http://api.ipstack.com/{ip_addr}", params={"access_key": IPSTACK_API_KEY}).json()
         for key in geoip_keys:
