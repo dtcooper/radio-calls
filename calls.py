@@ -352,7 +352,7 @@ def amazon_hit():
     if show not in SIP_ADDRESSES:
         show = "tigwit"
 
-    if force_topic == 'none':
+    if force_topic == "none":
         topic = None
     elif force_topic in HIT_TOPICS:
         topic = HIT_TOPICS[force_topic]
@@ -409,7 +409,7 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
 
     response = VoiceResponse()
     response.say(f"Step {'4' if topic == 'none' else '5'}! You are being connected to the radio show.")
-    if topic != 'none':
+    if topic != "none":
         response.say(f"Your {HIT_TOPICS[topic]['description']} is {HIT_TOPICS[topic]['choices'][choice]['name']}.")
     response.say("Enjoy your call!")
 
@@ -446,7 +446,9 @@ def amazon_voice_request():
     if word:
         if speech_result:
             if word.lower() in filter(None, re.split(r"[^a-z']", speech_result.lower())):
-                response.say(f"Correct! Please press the button that says Ready for Step {'3' if topic == 'none' else '4'}.")
+                response.say(
+                    f"Correct! Please press the button that says Ready for Step {'3' if topic == 'none' else '4'}."
+                )
                 response.redirect(url_for("amazon_voice_request_pin", AmazonPinCode=pin, Topic=topic))
                 return twiml_response(response)
             else:

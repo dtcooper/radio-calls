@@ -84,7 +84,7 @@ def parse_args(argv=None):
     parser.add_argument("-s", "--show", choices=SHOW_CHOICES, help="Show to choose", required=True)
     topic = parser.add_mutually_exclusive_group()
     topic.add_argument("-T", "--topic", choices=TOPICS, help="Force a topic")
-    topic.add_argument('--no-topic', action='store_true', help="Hide topic choosing UI")
+    topic.add_argument("--no-topic", action="store_true", help="Hide topic choosing UI")
     parser.add_argument(
         "-A",
         "--annotation",
@@ -92,7 +92,7 @@ def parse_args(argv=None):
         help="Prepend text to requester annotation (for organization purposes)",
     )
     parser.add_argument("--ignore-balance-check", action="store_true", help="Ignore account balance check")
-    parser.add_argument('-y', '--yes', action='store_true', help="Don't prompt for confirmation")
+    parser.add_argument("-y", "--yes", action="store_true", help="Don't prompt for confirmation")
     parser.add_argument("--debug", action="store_true", help="Set debug flag to on in hit HTML")
 
     qualifications = parser.add_argument_group("worker qualifications")
@@ -208,7 +208,7 @@ def main(argv=None):
     if args.topic:
         external_question_url_kwargs["force_topic"] = args.topic
     elif args.no_topic:
-        external_question_url_kwargs["force_topic"] = 'none'
+        external_question_url_kwargs["force_topic"] = "none"
 
     external_question_url = f"{EXTERNAL_QUESTION_URL}?{urlencode(external_question_url_kwargs)}"
     question = EXTERNAL_QUESTION_XML.format(html.escape(external_question_url))
