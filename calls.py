@@ -352,6 +352,13 @@ def amazon_hit():
     if show not in SIP_ADDRESSES:
         show = "tigwit"
 
+    if force_topic == 'none':
+        topic = None
+    elif force_topic in HIT_TOPICS:
+        topic = HIT_TOPICS[force_topic]
+    else:
+        topic = random.choice(list(HIT_TOPICS.values()))
+
     return render_template(
         "hit.html",
         assignment_id=assignment_id,
@@ -364,7 +371,7 @@ def amazon_hit():
         preview=bool(assignment_id == "ASSIGNMENT_ID_NOT_AVAILABLE"),
         show=show,
         submit_to=request.args.get("turkSubmitTo"),
-        topic=HIT_TOPICS[force_topic] if force_topic in HIT_TOPICS else random.choice(list(HIT_TOPICS.values())),
+        topic=topic,
         worker_id=request.args.get("workerId") or "NO_WORKER_ID",
     )
 
@@ -399,11 +406,12 @@ def amazon_token(country_code, worker_id):
 )
 def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid):
     success = True
-    description = HIT_TOPICS[topic]["description"]
-    name = HIT_TOPICS[topic]["choices"][choice]["name"]
 
     response = VoiceResponse()
-    response.say(f"Step 5! You are being connected to the radio show. Your {description} is {name}. Enjoy your call!")
+    response.say(f"Step {'4' if topic == 'none' else '5'}! You are being connected to the radio show.")
+    if topic != 'none':
+        response.say(f"Your {HIT_TOPICS[topic]['description']} is {HIT_TOPICS[topic]['choices'][choice]['name']}.")
+    response.say("Enjoy your call!")
 
     worker_alias, from_number = get_caller_identity(country_code, worker_id)
     response.redirect(
@@ -429,6 +437,7 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
 @app.route("/amazon/voice-request", methods=("POST",))
 def amazon_voice_request():
     pin = request.values["AmazonPinCode"]
+    topic = request.values["Topic"]
     word = request.args.get("word")
     speech_result = request.form.get("SpeechResult")
 
@@ -437,8 +446,8 @@ def amazon_voice_request():
     if word:
         if speech_result:
             if word.lower() in filter(None, re.split(r"[^a-z']", speech_result.lower())):
-                response.say("Correct! Please press the button that says Ready for Step 4.")
-                response.redirect(url_for("amazon_voice_request_pin", AmazonPinCode=pin))
+                response.say(f"Correct! Please press the button that says Ready for Step {'3' if topic == 'none' else '4'}.")
+                response.redirect(url_for("amazon_voice_request_pin", AmazonPinCode=pin, Topic=topic))
                 return twiml_response(response)
             else:
                 response.say("Incorrect word. Try again.")
@@ -446,14 +455,14 @@ def amazon_voice_request():
             response.say("Incorrect. Are you sure that your microphone is working? Try again.")
     else:
         word = random.choice(GATHER_WORDS)
-        response.say("Step 3!")
+        response.say(f"Step {'2' if topic == 'none' else '3'}!")
         response.pause(1)
 
     response.say(f"Your word is {word}.")
 
     gather = response.gather(
         action_on_empty_result=True,
-        action=url_for("amazon_voice_request", AmazonPinCode=pin, word=word),
+        action=url_for("amazon_voice_request", AmazonPinCode=pin, Topic=topic, word=word),
         hints=", ".join(GATHER_WORDS),
         input="speech",
         speech_model="numbers_and_commands",
@@ -469,12 +478,13 @@ def amazon_voice_request():
 @app.route("/amazon/voice-request/pin", methods=("POST",))
 def amazon_voice_request_pin():
     pin = request.args["AmazonPinCode"]
+    topic = request.values["Topic"]
 
     response = VoiceResponse()
     if not request.args.get("said_step_four"):
-        response.say("Step 4!")
+        response.say(f"Step {'3' if topic == 'none' else '4'}!")
 
     response.say(f'Your pin is {", ".join(pin)}.')
     response.pause(2)
-    response.redirect(url_for("amazon_voice_request_pin", AmazonPinCode=pin, said_step_four="1"))
+    response.redirect(url_for("amazon_voice_request_pin", AmazonPinCode=pin, Topic=topic, said_step_four="1"))
     return twiml_response(response)

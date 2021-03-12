@@ -266,7 +266,7 @@
           this.hangupBlocked = false
           this.done = false
 
-          this.device.connect({AmazonPinCode: this.pinCode})
+          this.device.connect({AmazonPinCode: this.pinCode, Topic: topic ? topic['code'] : 'none'})
         },
         hangUp: function(skipDisconnect) {
           this.device.disconnectAll()
@@ -280,7 +280,7 @@
               this.pinVerifying = true
 
               try {
-                var url = `/amazon/update-sid/${topic.code}/${this.choice || 0}/${show}/${countryCode}/${workerId}/${callSid}`
+                var url = `/amazon/update-sid/${topic ? topic.code : 'none'}/${this.choice || 0}/${show}/${countryCode}/${workerId}/${callSid}`
                 var response = await fetch(url, {method: 'POST'})
                 var data = await response.json()
               } catch (err) {
@@ -321,9 +321,9 @@
   {% endif %}
 
   <h1 class="text-center">
-    <span class="hide-sm hide-xs">{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}&#x1F399;️&#xFE0F;&#x1F4FB;</span>
-    <u class="italic">Call a Radio Show{% if not preview %} and Talk About {{ topic['name']|title }}{% endif %}</u>
-    &#x1F4FB;&#x1F399;️&#xFE0F;{% if not preview %}&#x{{ topic['emoji'] }};{% endif %}
+    <span class="hide-sm hide-xs">&#x{% if preview or not topic %}1F389{% else %}{{ topic['emoji'] }}{% endif %}&#x1F399;️&#xFE0F;&#x1F4FB;</span>
+    <u class="italic">Call a Radio Show{% if not preview and topic %} and Talk About {{ topic['name']|title }}{% endif %}</u>
+    &#x1F4FB;&#x1F399;️&#xFE0F;&#x{% if preview or not topic %}1F389{% else %}{{ topic['emoji'] }}{% endif %}
   </h1>
 
   <div class="container" x-data="{show: true}" x-init="show = {{ force_no_browser_support|tojson }}" x-show="show">
@@ -371,10 +371,12 @@
       </p>
 
       <p>
-        You will talk to the hosts of the radio show about
-        {% if preview %}the topic in the assignment.{% else %}
-          <strong>your {{ topic['description'] }}</strong>.
-          &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% endif %}
+        You will talk to the hosts of the radio show{% if topic %}
+          about
+          {% if preview %}the topic in the assignment.{% else %}
+            <strong>your {{ topic['description'] }}</strong>.
+            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% endif %}
+          {% else %}.{% endif %}
       </p>
 
       <p>
@@ -458,12 +460,12 @@
             <span class="text-error">You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.</span>
           {% endcall %}
           {% call render_term_row() %}
-            You can have any conversation you would like, but <strong>mention your {{ topic['description'] }}.</strong>
-            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};
+            You can have any conversation you would like{% if topic %}, but <strong>mention your {{ topic['description'] }}.</strong>
+            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% else %}.{% endif %}
           {% endcall %}
           {% call render_term_row() %}
-            If no one answers, please leave a voicemail message talking about {{ topic['name'] }}.
-            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};
+            If no one answers, please leave a voicemail{% if topic %} message talking about {{ topic['name'] }}.
+            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% else %}.{% endif %}
           {% endcall %}
           {% call render_term_row() %}
             You must have a <strong>good</strong> sense of <strong>humour</strong>. &#x1F602;&#x1F602;&#x1F602;<br>
@@ -490,64 +492,69 @@
       </h3>
 
       <p class="text-center">
-        <button class="button big primary" @click.prevent="setStep(1)" x-bind:disabled="step > 0 || (term < {{ render_term_ns.num }} && !debug)" x-bind:class="{pulse: step == 0 && term == {{ render_term_ns.num }}}">
+        <button class="button big primary" @click.prevent="setStep({% if topic %}1{% else %}2{% endif %})" x-bind:disabled="step > 0 || (term < {{ render_term_ns.num }} && !debug)" x-bind:class="{pulse: step == 0 && term == {{ render_term_ns.num }}}">
           I have <u>carefully</u> read, understand, and agree to the above terms &amp; conditions.
         </button>
       </p>
     </div>
 
-    <div x-show="step >= 1 || debug">
-      <hr>
-      <h2 id="step1"><em><u>Step 1</u>: Describe Your {{ topic['description']|title }}</em>
-        &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};</h2>
+    {% if topic %}
+      {% set step_offset = 0 %}
+      <div x-show="step >= 1 || debug">
+        <hr>
+        <h2 id="step1"><em><u>Step 1</u>: Describe Your {{ topic['description']|title }}</em>
+          &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};</h2>
 
-      <blockquote>
-        Click on the type that most closely matches your <u><em>{{ topic['description'] }}</em></u>
-        from the {{ topic['chart_name'] }} below.
-      </blockquote>
+        <blockquote>
+          Click on the type that most closely matches your <u><em>{{ topic['description'] }}</em></u>
+          from the {{ topic['chart_name'] }} below.
+        </blockquote>
 
-      <table class="striped limit-right-width text-center">
-        <caption>{{ topic['chart_name']|title }}</caption>
-        <thead>
-          <tr>
-            <th>Select</th>
-            <th>Type</th>
-            <th>Diagram</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for choice in topic['choices'] %}
-            <tr
-              x-bind:class="{'bd-choice': choice === {{ loop.index0|tojson }}, pointer: step == 1}"
-              @mouseenter="if (choice === null) { $event.target.classList.add('table-hover') }"
-              @mouseleave="$event.target.classList.remove('table-hover')"
-              @click.prevent="if (choice === null) { choice = {{ loop.index0 }}; setStep(2) }"
-            >
-              <td>
-                <button
-                  @click.prevent="if (choice !== null) { choice = {{ loop.index0 }}; setStep(2) }"
-                  class="button primary"
-                  x-text="choice === {{ loop.index0|tojson }} ? 'Selected' : ('Select {{ choice['name'].split(':')[0] }}')"
-                  x-bind:disabled="choice === {{ loop.index0|tojson }}"
-                ></button>
-              </td>
-              <td class="bold">{{ choice['name'] }}</td>
-              <td><img class="bd-light" srcset="/static/images/{{ topic['code'] }}/{{ loop.index0 }}.jpg 2x"></td>
-              <td class="italic">{{ choice['description'] }}.</td>
+        <table class="striped limit-right-width text-center">
+          <caption>{{ topic['chart_name']|title }}</caption>
+          <thead>
+            <tr>
+              <th>Select</th>
+              <th>Type</th>
+              <th>Diagram</th>
+              <th>Description</th>
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for choice in topic['choices'] %}
+              <tr
+                x-bind:class="{'bd-choice': choice === {{ loop.index0|tojson }}, pointer: step == 1}"
+                @mouseenter="if (choice === null) { $event.target.classList.add('table-hover') }"
+                @mouseleave="$event.target.classList.remove('table-hover')"
+                @click.prevent="if (choice === null) { choice = {{ loop.index0 }}; setStep(2) }"
+              >
+                <td>
+                  <button
+                    @click.prevent="if (choice !== null) { choice = {{ loop.index0 }}; setStep(2) }"
+                    class="button primary"
+                    x-text="choice === {{ loop.index0|tojson }} ? 'Selected' : ('Select {{ choice['name'].split(':')[0] }}')"
+                    x-bind:disabled="choice === {{ loop.index0|tojson }}"
+                  ></button>
+                </td>
+                <td class="bold">{{ choice['name'] }}</td>
+                <td><img class="bd-light" srcset="/static/images/{{ topic['code'] }}/{{ loop.index0 }}.jpg 2x"></td>
+                <td class="italic">{{ choice['description'] }}.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
 
-      <br>
+        <br>
 
-      <p class="italic bold" x-text="choice === null ? 'You must make a choice above to continue.' : `You selected ${topic.choices[choice].name} as your ${topic.description}.`"></p>
-    </div>
+        <p class="italic bold" x-text="choice === null ? 'You must make a choice above to continue.' : `You selected ${topic.choices[choice].name} as your ${topic.description}.`"></p>
+      </div>
+    {% else %}
+      {% set step_offset = 1 %}
+    {% endif %}
 
     <div x-show="step >= 2 || debug">
       <hr>
-      <h2 id="step2"><em><u>Step 2</u>: Make the Call</em> &#x260E;&#xFE0F;&#x260E;&#xFE0F;&#x260E;&#xFE0F;</h2>
+      <h2 id="step2"><em><u>Step {{ 2 - step_offset }}</u>: Make the Call</em> &#x260E;&#xFE0F;&#x260E;&#xFE0F;&#x260E;&#xFE0F;</h2>
 
       <blockquote>
         Click the button below to place the call in your browser.<br>
@@ -571,22 +578,22 @@
 
     <div x-show="step >= 3 || debug">
       <hr>
-      <h2 id="step3"><em><u>Step 3</u>: Repeat the Word</em> &#x1F501;&#x1F501;&#x1F501;</h2>
+      <h2 id="step3"><em><u>Step {{ 3 - step_offset }}</u>: Repeat the Word</em> &#x1F501;&#x1F501;&#x1F501;</h2>
 
       <blockquote>
         You will be called and the voice will say a word.<br>
         Repeat the word after the tone, then stay silent for a few moments.<br>
-        When you have successfully done this, click <em>Ready for Step 4</em> below.
+        When you have successfully done this, click <em>Ready for Step {{ 4 - step_offset }}</em> below.
       </blockquote>
 
       <p class="text-center">
-        <button @click.prevent="setStep(4)" class="button big primary" x-bind:class="{pulse: step == 3}" x-bind:disabled="step != 3">Ready for Step 4</button>
+        <button @click.prevent="setStep(4)" class="button big primary" x-bind:class="{pulse: step == 3}" x-bind:disabled="step != 3">Ready for Step {{ 4 - step_offset }}</button>
       </p>
     </div>
 
     <div x-show="step >= 4 || debug">
       <hr>
-      <h2 id="step4"><em><u>Step 4</u>: Enter the PIN Code</em> &#x1F511;&#x1F511;&#x1F511;</h2>
+      <h2 id="step4"><em><u>Step {{ 4 - step_offset }}</u>: Enter the PIN Code</em> &#x1F511;&#x1F511;&#x1F511;</h2>
 
       <blockquote>You will be given a PIN code. Enter it below and then click <em>Verify PIN Code.</em></blockquote>
 
@@ -622,15 +629,17 @@
 
     <div x-show="step >= 5 || debug">
       <hr>
-      <h2 id="step5"><em><u>Step 5</u>: Talk About {{ topic['name']|title }}</em> &#x1F4AC;&#x1F4AC;&#x1F4AC;</h2>
+      <h2 id="step5"><em><u>Step {{ 5 - step_offset }}</u>: Talk About {{ topic['name']|title }}</em> &#x1F4AC;&#x1F4AC;&#x1F4AC;</h2>
 
       <blockquote>
         <ul>
           <li>
             You are being connected to a <em>live</em> radio show.
-            <strong>Please mention <em>your {{ topic['description'] }}.</em></strong>
+            {% if topic %}
+              <strong>Please mention <em>your {{ topic['description'] }}.</em></strong>
+            {% endif %}
           </li>
-          <li>If the call is not answered, please leave a voicemail message about {{ topic['name'] }}.</li>
+          <li>If the call is not answered, please leave a voicemail message{% if topic %} about {{ topic['name'] }}{% endif %}.</li>
           <li>You <em>may</em> be placed on a brief hold.</em></li>
           <li>
             You will have to stay on the call for <em>at least {{ block_hangup_seconds_pretty }}
@@ -640,30 +649,32 @@
         </ul>
       </blockquote>
 
-      <template x-if="choice !== null">
-        <table class="limit-right-width text-center">
-          {# Caption copy doesn't make sense for a single "pool" item #}
-          {% if topic['code'] != 'pool' %}
-            <caption>{{ topic['chart_name']|title }}</caption>
-          {% endif %}
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Diagram</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="italic bold" x-text="topic.choices[choice].name"></td>
-              <td>
-                <img class="bd-light" x-bind:srcset="`/static/images/${topic.code}/${choice}.jpg 2x`">
-              </td>
-              <td class="italic" x-text="`${topic.choices[choice].description}.`"></td>
-            </tr>
-          </tbody>
-        </table>
-      </template>
+      {% if topic %}
+        <template x-if="choice !== null">
+          <table class="limit-right-width text-center">
+            {# Caption copy doesn't make sense for a single "pool" item #}
+            {% if topic['code'] != 'pool' %}
+              <caption>{{ topic['chart_name']|title }}</caption>
+            {% endif %}
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Diagram</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="italic bold" x-text="topic.choices[choice].name"></td>
+                <td>
+                  <img class="bd-light" x-bind:srcset="`/static/images/${topic.code}/${choice}.jpg 2x`">
+                </td>
+                <td class="italic" x-text="`${topic.choices[choice].description}.`"></td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
+      {% endif %}
 
       <h3 x-show="!done">
         <em>Enjoy your call! Say whatever you want!
@@ -754,7 +765,7 @@ done: <span x-text="JSON.stringify(done)"></span>
 countryCode: <span x-text="JSON.stringify(countryCode)"></span>
 blockHangupSeconds: <span x-text="JSON.stringify(blockHangupSeconds)"></span>
 show: <span x-text="JSON.stringify(show)"></span>
-topic: <span x-text="`${JSON.stringify(topic['code'])} ...`"></span>
+topic: {% if topic %}<span x-text="`${JSON.stringify(topic['code'])} ...`"></span>{% else %}null{% endif %}
 assignmentId: <span x-text="JSON.stringify(assignmentId)"></span>
 workerId: <span x-text="JSON.stringify(workerId)"></span>
 hitId: <span x-text="JSON.stringify(hitId)"></span>

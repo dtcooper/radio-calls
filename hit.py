@@ -3,6 +3,7 @@
 import argparse
 from datetime import datetime, timedelta
 import html
+import json
 import pprint
 import sys
 import traceback
@@ -43,13 +44,6 @@ NUM_APPROVED_QUAL_ID = "00000000000000000040"
 COUNTRY_QUAL_ID = "00000000000000000071"
 
 
-class FullHelpParser(argparse.ArgumentParser):
-    def error(self, message):
-        self.print_help()
-        sys.stderr.write(f"\nerror: {message}\n")
-        sys.exit(2)
-
-
 def get_client(sandbox=True):
     return boto3.client(
         "mturk",
@@ -60,41 +54,67 @@ def get_client(sandbox=True):
     )
 
 
-def main():
+class FullHelpParser(argparse.ArgumentParser):
+    def error(self, message):
+        self.print_help()
+        sys.stderr.write(f"\nerror: {message}\n")
+        sys.exit(2)
+
+
+def parse_args(argv=None):
     parser = FullHelpParser("Submit HIT to Amazon's MTurk API")
     environment_group = parser.add_mutually_exclusive_group(required=True)
     environment_group.add_argument("-p", "--prod", action="store_true", help="Submit to production environment")
     environment_group.add_argument("-t", "-S", "--sandbox", action="store_true", help="Submit to sandbox environment")
+    parser.add_argument("--dry-run", action="store_true", help="Dry run. Don't actually submit assignment.")
     parser.add_argument(
-        "-r", "--reward", metavar="N", help="Reward in dollars (default: 0.75)", type=float, required=True
+        "-r", "--reward", metavar="int", help="Reward in dollars (default: 0.75)", type=float, required=True
     )
     duration_group = parser.add_mutually_exclusive_group(required=True)
     duration_group.add_argument(
-        "-H", "--hours", metavar="N", help="Duration of assignment (hours)", type=float, default=0
+        "-H", "--hours", metavar="int", help="Duration of assignment (hours)", type=float, default=0
     )
     duration_group.add_argument(
-        "-M", "--minutes", metavar="N", help="Duration of assignment (minutes)", type=float, default=0
+        "-M", "--minutes", metavar="int", help="Duration of assignment (minutes)", type=float, default=0
     )
-    parser.add_argument("--buffer-minutes", type=int, default=15, help="Additional lifetime mins (default: 15)")
-    parser.add_argument("-n", "--num", metavar="N", help="The number of assignments", type=int, required=True)
-    parser.add_argument("-d", "--debug", action="store_true", help="Set debug flag to on in hit HTML")
+    parser.add_argument(
+        "--buffer-minutes", metavar="int", type=int, default=15, help="Extra lifetime mins (default: 15)"
+    )
+    parser.add_argument("-n", "--num", metavar="int", help="The number of assignments", type=int, required=True)
     parser.add_argument("-s", "--show", choices=SHOW_CHOICES, help="Show to choose", required=True)
-    parser.add_argument("-T", "--topic", choices=TOPICS, help="Force a topic")
+    topic = parser.add_mutually_exclusive_group()
+    topic.add_argument("-T", "--topic", choices=TOPICS, help="Force a topic")
+    topic.add_argument('--no-topic', action='store_true', help="Hide topic choosing UI")
+    parser.add_argument(
+        "-A",
+        "--annotation",
+        metavar="str",
+        help="Prepend text to requester annotation (for organization purposes)",
+    )
+    parser.add_argument("--ignore-balance-check", action="store_true", help="Ignore account balance check")
+    parser.add_argument('-y', '--yes', action='store_true', help="Don't prompt for confirmation")
+    parser.add_argument("--debug", action="store_true", help="Set debug flag to on in hit HTML")
 
-    qualifications = parser.add_argument_group("worker qalifications")
+    qualifications = parser.add_argument_group("worker qualifications")
     qualifications.add_argument("-m", "--masters", action="store_true", help="Masters")
-    qualifications.add_argument("-a", "--approval", type=int, help="Greater than N approval percentage")
-    qualifications.add_argument("-N", "--num-prev", type=int, help="Greather than N assignments previously approved")
+    qualifications.add_argument("-a", "--approval", metavar="int", type=int, help="Greater than N approval percentage")
+    qualifications.add_argument(
+        "-N", "--num-prev", metavar="int", type=int, help="Greather than N assignments previously approved"
+    )
     qualifications.add_argument(
         "-c",
         "--country",
         dest="countries",
         metavar="XX",
         action="append",
-        help="Limit to country by code, can use more than once",
+        help="Limit to country code, can used more than once",
     )
 
-    args = parser.parse_args()
+    return parser.parse_args(args=argv)
+
+
+def main(argv=None):
+    args = parse_args(argv=argv)
 
     duration = round(args.hours * 60 * 60) + round(args.minutes * 60)
 
@@ -109,13 +129,25 @@ def main():
     unit_cost = args.reward * (fee_total + 1)
     total_cost = unit_cost * args.num
 
-    print(f"Environment: {('sandbox' if args.sandbox else 'production')}")
-    print(f"   Duration: {timedelta(seconds=duration)} (+{timedelta(minutes=args.buffer_minutes)} buffer)")
+    client = get_client(sandbox=args.sandbox)
+    balance = float(client.get_account_balance()["AvailableBalance"])
+
+    print(f" Environment: {('sandbox' if args.sandbox else 'production')}")
+    print(f"    Duration: {timedelta(seconds=duration)} (+{timedelta(minutes=args.buffer_minutes)} buffer)")
     print(
-        f"  Unit Cost: ${args.reward:.02f} reward + ${unit_fees:.02f} fees = ${unit_cost:.02f} each"
+        f"   Unit Cost: ${args.reward:.02f} reward + ${unit_fees:.02f} fees = ${unit_cost:.02f} each"
         f" ({int(fee_total * 100)}% fee = {', '.join(f'{int(fee * 100)}% {desc}' for fee, desc in fees)})"
     )
-    print(f" Total Cost: {args.num} assignments @ ${unit_cost:.02f} each = ${total_cost:.02f} total")
+    print(f"  Total Cost: {args.num} assignments @ ${unit_cost:.02f} each = ${total_cost:.02f} total")
+
+    if total_cost > balance and not args.ignore_balance_check:
+        print(
+            f"\nInsufficient funds! ${balance:.02f} balance, ${total_cost:.02f} required. Add"
+            f" ${total_cost - balance:.02f} to your account. Exiting."
+        )
+        sys.exit(1)
+
+    print(f"Acct Balance: ${balance:.02f} (${balance - total_cost:.02f} after assignment posted)")
 
     qualifications = []
     qualifications_pretty = []
@@ -161,8 +193,11 @@ def main():
         for qualification_pretty in qualifications_pretty:
             print(f" + {qualification_pretty}")
 
-    if args.prod:
-        yesno = input(f"Are you SURE you want to use prod @ ${total_cost:.02f} total cost (y/N)? ")
+    if args.prod and not args.yes:
+        yesno = input(
+            f"{'[Dry run] ' if args.dry_run else ''}Are you SURE you want to use prod @ ${total_cost:.02f} total cost"
+            " (y/N)? "
+        )
         if not yesno.strip().lower().startswith("y"):
             print("Exiting.")
             sys.exit(0)
@@ -172,37 +207,47 @@ def main():
         external_question_url_kwargs["debug"] = "1"
     if args.topic:
         external_question_url_kwargs["force_topic"] = args.topic
+    elif args.no_topic:
+        external_question_url_kwargs["force_topic"] = 'none'
 
     external_question_url = f"{EXTERNAL_QUESTION_URL}?{urlencode(external_question_url_kwargs)}"
     question = EXTERNAL_QUESTION_XML.format(html.escape(external_question_url))
 
-    client = get_client(sandbox=args.sandbox)
+    requester_annotation = f"Radio Calls ({args.show}) @ {datetime.now().replace(microsecond=0)}"
+    if args.annotation:
+        requester_annotation = f"{args.annotation} - {requester_annotation}"
 
     print()
 
-    try:
-        response = client.create_hit(
-            AssignmentDurationInSeconds=duration,
-            AutoApprovalDelayInSeconds=3 * 24 * 60 * 60,  # 3 days
-            LifetimeInSeconds=duration + args.buffer_minutes * 60,
-            MaxAssignments=args.num,
-            Question=question,
-            Reward=f"{args.reward:.02f}",
-            Title=HIT_TITLE,
-            Description=HIT_DESCRIPTION,
-            Keywords=HIT_KEYWORDS,
-            RequesterAnnotation=f"Radio Calls ({args.show}) @ {datetime.now().replace(microsecond=0)}",
-            **({"QualificationRequirements": qualifications} if qualifications else {}),
-        )
-    except ClientError:
-        print("Error creating HIT!")
-        traceback.print_exc()
+    create_hit_kwargs = {
+        "AssignmentDurationInSeconds": duration,
+        "AutoApprovalDelayInSeconds": 3 * 24 * 60 * 60,  # 3 days
+        "LifetimeInSeconds": duration + args.buffer_minutes * 60,
+        "MaxAssignments": args.num,
+        "Question": question,
+        "Reward": f"{args.reward:.02f}",
+        "Title": HIT_TITLE,
+        "Description": HIT_DESCRIPTION,
+        "Keywords": HIT_KEYWORDS,
+        "RequesterAnnotation": requester_annotation,
+        **({"QualificationRequirements": qualifications} if qualifications else {}),
+    }
+
+    if args.dry_run:
+        print(f"Would create HIT in {'sandbox' if args.sandbox else 'prod'}: ", end="")
+        print(json.dumps(create_hit_kwargs, indent=2, sort_keys=True))
     else:
-        if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
-            print("HIT successfully created")
+        try:
+            response = client.create_hit(**create_hit_kwargs)
+        except ClientError:
+            print("Error creating HIT!")
+            traceback.print_exc()
         else:
-            print("Response code not 200!")
-            pprint.pprint(response)
+            if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+                print("HIT successfully created.")
+            else:
+                print("Response code not 200!")
+                pprint.pprint(response)
 
 
 if __name__ == "__main__":
