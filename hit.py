@@ -60,7 +60,7 @@ class FullHelpParser(argparse.ArgumentParser):
 
 def parse_args(argv=None):
     parser = FullHelpParser("Submit HIT to Amazon's MTurk API")
-    parser.add_argument('-v', '--verbose', action='store_true', help="Print verbose output from Amazon's API")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output from Amazon's API")
     environment_group = parser.add_mutually_exclusive_group(required=True)
     environment_group.add_argument("-p", "--prod", action="store_true", help="Submit to production environment")
     environment_group.add_argument("-t", "-S", "--sandbox", action="store_true", help="Submit to sandbox environment")
@@ -175,8 +175,8 @@ def main(argv=None):
             }
         )
     if args.countries:
-        if len(args.countries) == 1 and args.countries[0].upper() == 'ENG':
-            countries = ['US', 'CA', 'GB', 'AU', 'IE', 'NZ']
+        if len(args.countries) == 1 and args.countries[0].upper() == "ENG":
+            countries = ["US", "CA", "GB", "AU", "IE", "NZ"]
         else:
             countries = [country.upper() for country in args.countries]
         qualifications_pretty.append(f"Limited to Countries: {', '.join(countries)}")
