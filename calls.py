@@ -35,7 +35,7 @@ MTURK_ADMIN_PASSWORD = env["MTURK_ADMIN_PASSWORD"]
 
 MTURK_BLOCK_HANGUP_SECONDS = 120
 AUDIO_NUMBERS_TO_VOICEMAIL = {env["TIGWIT_NUMBER"]: "voicemail", env["POOLABS_NUMBER"]: "poolabs-voicemail"}
-AUDIO_HOLD_MUSIC_LIST = ("hold-music-1", "hold-music-2", "hold-music-3")
+AUDIO_HOLD_MUSIC_LIST = tuple(f"hold-music-{n}" for n in range(1, 5))
 AUDIO_COMPLETED_MUSIC = "completed-music"
 AUDIO_NOT_IN_SERVICE = "not-in-service"
 AUDIO_BEEP = "beep"

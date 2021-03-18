@@ -26,12 +26,9 @@ EXTERNAL_QUESTION_XML = """\
     <FrameHeight>0</FrameHeight>
 </ExternalQuestion>
 """
-HIT_TITLE = "Call a Live Radio Show & Talk"
-HIT_DESCRIPTION = (
-    "Call a live radio show in your browser and have a funny conversation with the hosts. You will talk about either"
-    " your most recent poop or your favourite way to swim - the topic is assigned randomly at the start of the"
-    " assignment."
-)
+HIT_TITLE = "Call a Live Radio Show"
+## TODO change for --no-topic
+HIT_DESCRIPTION = "Call a live radio show in your browser and have a funny conversation with the hosts."
 HIT_KEYWORDS = "telephone, call, talking, radio show, radio, funny, joke, swimming, poop, inappropriate"
 SHOW_CHOICES = ("poolabs", "tigwit")
 TOPICS = ("pool", "poop")
@@ -63,6 +60,7 @@ class FullHelpParser(argparse.ArgumentParser):
 
 def parse_args(argv=None):
     parser = FullHelpParser("Submit HIT to Amazon's MTurk API")
+    parser.add_argument('-v', '--verbose', action='store_true', help="Print verbose output from Amazon's API")
     environment_group = parser.add_mutually_exclusive_group(required=True)
     environment_group.add_argument("-p", "--prod", action="store_true", help="Submit to production environment")
     environment_group.add_argument("-t", "-S", "--sandbox", action="store_true", help="Submit to sandbox environment")
@@ -107,7 +105,7 @@ def parse_args(argv=None):
         dest="countries",
         metavar="XX",
         action="append",
-        help="Limit to country code, can used more than once",
+        help="Limit to country code, can used more than once (ENG for all english speaking)",
     )
 
     return parser.parse_args(args=argv)
@@ -133,6 +131,7 @@ def main(argv=None):
     balance = float(client.get_account_balance()["AvailableBalance"])
 
     print(f" Environment: {('sandbox' if args.sandbox else 'production')}")
+    print(f"Acct Balance: ${balance:.02f} (${balance - total_cost:.02f} after assignment posted)")
     print(f"    Duration: {timedelta(seconds=duration)} (+{timedelta(minutes=args.buffer_minutes)} buffer)")
     print(
         f"   Unit Cost: ${args.reward:.02f} reward + ${unit_fees:.02f} fees = ${unit_cost:.02f} each"
@@ -146,8 +145,6 @@ def main(argv=None):
             f" ${total_cost - balance:.02f} to your account. Exiting."
         )
         sys.exit(1)
-
-    print(f"Acct Balance: ${balance:.02f} (${balance - total_cost:.02f} after assignment posted)")
 
     qualifications = []
     qualifications_pretty = []
@@ -178,7 +175,10 @@ def main(argv=None):
             }
         )
     if args.countries:
-        countries = [country.upper() for country in args.countries]
+        if len(args.countries) == 1 and args.countries[0].upper() == 'ENG':
+            countries = ['US', 'CA', 'GB', 'AU', 'IE', 'NZ']
+        else:
+            countries = [country.upper() for country in args.countries]
         qualifications_pretty.append(f"Limited to Countries: {', '.join(countries)}")
         qualifications.append(
             {
@@ -244,7 +244,10 @@ def main(argv=None):
             traceback.print_exc()
         else:
             if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
-                print("HIT successfully created.")
+                if args.verbose:
+                    pprint.pprint(response)
+                else:
+                    print("HIT successfully created.")
             else:
                 print("Response code not 200!")
                 pprint.pprint(response)
