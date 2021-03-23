@@ -83,6 +83,7 @@ def parse_args(argv=None):
     topic = parser.add_mutually_exclusive_group()
     topic.add_argument("-T", "--topic", choices=TOPICS, help="Force a topic")
     topic.add_argument("--no-topic", action="store_true", help="Hide topic choosing UI")
+    topic.add_argument('-c', '--custom-topic', help="Specify a custom topic, as an action, eg. \"pretend you're a fan of ice cream\"")
     parser.add_argument(
         "-A",
         "--annotation",
@@ -209,6 +210,8 @@ def main(argv=None):
         external_question_url_kwargs["force_topic"] = args.topic
     elif args.no_topic:
         external_question_url_kwargs["force_topic"] = "none"
+    elif args.custom_topic:
+        external_question_url_kwargs["custom_topic"] = args.custom_topic
 
     external_question_url = f"{EXTERNAL_QUESTION_URL}?{urlencode(external_question_url_kwargs)}"
     question = EXTERNAL_QUESTION_XML.format(html.escape(external_question_url))

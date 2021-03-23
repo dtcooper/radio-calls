@@ -147,6 +147,7 @@
     var debug = {{ debug|tojson }}
     var show = {{ show|tojson }}
     var topic = {{ topic|tojson }}
+    var customTopic = {{ custom_topic|tojson }}
     var assignmentId = {{ assignment_id|tojson }}
     var workerId = {{ worker_id|tojson }}
     var hitId = {{ hit_id|tojson }}
@@ -281,7 +282,15 @@
 
               try {
                 var url = `/amazon/update-sid/${topic ? topic.code : 'none'}/${this.choice || 0}/${show}/${countryCode}/${workerId}/${callSid}`
-                var response = await fetch(url, {method: 'POST'})
+                var body = {}
+                if (customTopic) {
+                  body.custom_topic = customTopic
+                }
+                var response = await fetch(url, {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify(body),
+                })
                 var data = await response.json()
               } catch (err) {
                 this.pinVerifying = false
@@ -321,9 +330,9 @@
   {% endif %}
 
   <h1 class="text-center">
-    <span class="hide-sm hide-xs">&#x{% if preview or not topic %}1F389{% else %}{{ topic['emoji'] }}{% endif %}&#x1F399;️&#xFE0F;&#x1F4FB;</span>
-    <u class="italic">Call a Radio Show{% if not preview and topic %} and Talk About {{ topic['name']|title }}{% endif %}</u>
-    &#x1F4FB;&#x1F399;️&#xFE0F;&#x{% if preview or not topic %}1F389{% else %}{{ topic['emoji'] }}{% endif %}
+    <span class="hide-sm hide-xs">&#x{% if (preview and not topic_was_forced) or not topic %}1F389{% else %}{{ topic['emoji'] }}{% endif %}&#x1F399;️&#xFE0F;&#x1F4FB;</span>
+    <u class="italic">Call a Radio Show{% if (not preview or topic_was_forced) and topic %} and Talk About {{ topic['name']|title }}{% endif %}</u>
+    &#x1F4FB;&#x1F399;️&#xFE0F;&#x{% if (preview and not topic_was_forced) or not topic %}1F389{% else %}{{ topic['emoji'] }}{% endif %}
   </h1>
 
   <div class="container" x-data="{show: true}" x-init="show = {{ force_no_browser_support|tojson }}" x-show="show">
@@ -371,12 +380,20 @@
       </p>
 
       <p>
-        You will talk to the hosts of the radio show{% if topic %}
+        You will talk to the hosts of the radio show
+        {%- if topic %}
           about
-          {% if preview %}the topic in the assignment.{% else %}
+          {% if preview and not topic_was_forced %}
+            the topic in the assignment.
+          {% else %}
             <strong>your {{ topic['description'] }}</strong>.
-            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% endif %}
-          {% else %}.{% endif %}
+            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};
+          {% endif %}
+        {% elif custom_topic %}
+          and <strong class="underline">{{ custom_topic }}</strong>.
+        {% else -%}
+          .
+        {% endif %}
       </p>
 
       <p>
@@ -460,12 +477,26 @@
             <span class="text-error">You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk.</span>
           {% endcall %}
           {% call render_term_row() %}
-            You can have any conversation you would like{% if topic %}, but <strong>mention your {{ topic['description'] }}.</strong>
-            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% else %}.{% endif %}
+            You can have any conversation you would like
+            {%- if topic -%}
+              , but <strong>mention your {{ topic['description'] }}.</strong>
+              &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};
+            {%- elif custom_topic -%}
+              , but <strong class="underline">you must {{ custom_topic }}.</strong>
+            {%- else -%}
+              .
+            {% endif %}
           {% endcall %}
           {% call render_term_row() %}
-            If no one answers, please leave a voicemail{% if topic %} message talking about {{ topic['name'] }}.
-            &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};{% else %}.{% endif %}
+            If no one answers, please leave a voicemail
+              {%- if topic %}
+                message talking about {{ topic['name'] }}.
+                &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};
+              {% elif custom_topic %}
+                message and <strong class="underline">{{ custom_topic }}.</strong>
+              {% else -%}
+                .
+              {% endif %}
           {% endcall %}
           {% call render_term_row() %}
             You must have a <strong>good</strong> sense of <strong>humour</strong>. &#x1F602;&#x1F602;&#x1F602;<br>
@@ -629,17 +660,24 @@
 
     <div x-show="step >= 5 || debug">
       <hr>
-      <h2 id="step5"><em><u>Step {{ 5 - step_offset }}</u>: Talk About {{ topic['name']|title }}</em> &#x1F4AC;&#x1F4AC;&#x1F4AC;</h2>
+      <h2 id="step5"><em><u>Step {{ 5 - step_offset }}</u>: Talk{% if topic %} About {{ topic['name']|title }}{% endif %}</em> &#x1F4AC;&#x1F4AC;&#x1F4AC;</h2>
 
       <blockquote>
         <ul>
+          <li>You are being connected to a <em>live</em> radio show.</li>
+          {% if topic %}
+            <li><strong>Please mention <em>your {{ topic['description'] }}.</em></strong></li>
+          {% elif custom_topic %}
+            <li><strong>Please <em>{{ custom_topic }}.</em></strong></li>
+          {% endif %}
           <li>
-            You are being connected to a <em>live</em> radio show.
-            {% if topic %}
-              <strong>Please mention <em>your {{ topic['description'] }}.</em></strong>
-            {% endif %}
+            If the call is not answered, please leave a voicemail message
+            {%- if topic %}
+              about {{ topic['name'] }}
+            {%- elif custom_topic %}
+              and {{ custom_topic }}
+            {%- endif -%}.
           </li>
-          <li>If the call is not answered, please leave a voicemail message{% if topic %} about {{ topic['name'] }}{% endif %}.</li>
           <li>You <em>may</em> be placed on a brief hold.</em></li>
           <li>
             You will have to stay on the call for <em>at least {{ block_hangup_seconds_pretty }}

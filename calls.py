@@ -347,22 +347,29 @@ def amazon_admin():
 @app.route("/amazon/hit")
 def amazon_hit():
     force_topic = request.args.get("force_topic")
+    custom_topic = request.args.get("custom_topic")
     assignment_id = request.args.get("assignmentId")
     show = request.args.get("show")
     if show not in SIP_ADDRESSES:
         show = "tigwit"
 
+    topic_was_forced = True
+
     if force_topic == "none":
         topic = None
     elif force_topic in HIT_TOPICS:
         topic = HIT_TOPICS[force_topic]
+    elif custom_topic:
+        topic = None
     else:
+        topic_was_forced = False
         topic = random.choice(list(HIT_TOPICS.values()))
 
     return render_template(
         "hit.html",
         assignment_id=assignment_id,
         block_hangup_seconds=MTURK_BLOCK_HANGUP_SECONDS,
+        custom_topic=custom_topic,
         debug=bool(request.args.get("debug")),
         development_mode=app.env == "development",
         force_no_browser_support=bool(request.args.get("force_no_browser_support")),
@@ -372,6 +379,7 @@ def amazon_hit():
         show=show,
         submit_to=request.args.get("turkSubmitTo"),
         topic=topic,
+        topic_was_forced=topic_was_forced,
         worker_id=request.args.get("workerId") or "NO_WORKER_ID",
     )
 
@@ -409,8 +417,11 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
 
     response = VoiceResponse()
     response.say(f"Step {'4' if topic == 'none' else '5'}! You are being connected to the radio show.")
+    custom_topic = request.json and request.json.get('custom_topic')
     if topic != "none":
         response.say(f"Your {HIT_TOPICS[topic]['description']} is {HIT_TOPICS[topic]['choices'][choice]['name']}.")
+    elif custom_topic:
+        response.say(f'Please {custom_topic}.')
     response.say("Enjoy your call!")
 
     worker_alias, from_number = get_caller_identity(country_code, worker_id)
