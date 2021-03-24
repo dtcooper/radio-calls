@@ -347,7 +347,7 @@ def amazon_admin():
 @app.route("/amazon/hit")
 def amazon_hit():
     force_topic = request.args.get("force_topic")
-    custom_topic = request.args.get("custom_topic")
+    custom_topic = request.args.getlist("custom_topic") or None
     assignment_id = request.args.get("assignmentId")
     show = request.args.get("show")
     if show not in SIP_ADDRESSES:
@@ -361,6 +361,7 @@ def amazon_hit():
         topic = HIT_TOPICS[force_topic]
     elif custom_topic:
         topic = None
+        custom_topic = random.choice(custom_topic)
     else:
         topic_was_forced = False
         topic = random.choice(list(HIT_TOPICS.values()))
@@ -417,11 +418,11 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
 
     response = VoiceResponse()
     response.say(f"Step {'4' if topic == 'none' else '5'}! You are being connected to the radio show.")
-    custom_topic = request.json and request.json.get('custom_topic')
+    custom_topic = request.json and request.json.get("custom_topic")
     if topic != "none":
         response.say(f"Your {HIT_TOPICS[topic]['description']} is {HIT_TOPICS[topic]['choices'][choice]['name']}.")
     elif custom_topic:
-        response.say(f'Please {custom_topic}.')
+        response.say(f"Please {custom_topic}.")
     response.say("Enjoy your call!")
 
     worker_alias, from_number = get_caller_identity(country_code, worker_id)

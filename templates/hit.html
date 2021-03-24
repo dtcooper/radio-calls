@@ -381,14 +381,11 @@
 
       <p>
         You will talk to the hosts of the radio show
-        {%- if topic %}
-          about
-          {% if preview and not topic_was_forced %}
-            the topic in the assignment.
-          {% else %}
-            <strong>your {{ topic['description'] }}</strong>.
+        {%- if preview and (custom_topic or not topic_was_forced) %}
+          about the topic in the assignment
+        {% elif topic %}
+          about <strong>your {{ topic['description'] }}</strong>.
             &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};
-          {% endif %}
         {% elif custom_topic %}
           and <strong class="underline">{{ custom_topic }}</strong>.
         {% else -%}
@@ -479,10 +476,10 @@
           {% call render_term_row() %}
             You can have any conversation you would like
             {%- if topic -%}
-              , but <strong>mention your {{ topic['description'] }}.</strong>
+              , but <strong>mention your {{ topic['description'] }}</strong>.
               &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};
             {%- elif custom_topic -%}
-              , but <strong class="underline">you must {{ custom_topic }}.</strong>
+              , but <strong class="underline">you must {{ custom_topic }}</strong>.
             {%- else -%}
               .
             {% endif %}
@@ -493,7 +490,7 @@
                 message talking about {{ topic['name'] }}.
                 &#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};&#x{{ topic['emoji'] }};
               {% elif custom_topic %}
-                message and <strong class="underline">{{ custom_topic }}.</strong>
+                message and <strong class="underline">{{ custom_topic }}</strong>.
               {% else -%}
                 .
               {% endif %}
@@ -519,7 +516,7 @@
 
       <h3 id="accept-terms-scroll" class="text-success" x-show="term >= {{ render_term_ns.num }}">
         <em>All right! Are you ready to have some fun?!</em>
-        &#x1F973;&#x1F92A;&#x{{ topic['emoji']}};&#x1F4DE;&#x1F4FB;&#x1F602;
+        &#x1F973;&#x1F92A;{% if topic %}&#x{{ topic['emoji']}};{% endif %}&#x1F4DE;&#x1F4FB;&#x1F602;
       </h3>
 
       <p class="text-center">
