@@ -6,7 +6,7 @@
 
   <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/assets/chota-0.8.0.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/chota-0.8.0.min.css') }}">
   <style>
     :root {
       --font-family-sans: "Space Mono", BlinkMacSystemFont, -apple-system, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
@@ -138,9 +138,9 @@
     }
   </style>
 
-  <script src="/static/assets/twilio-1.14.0.min.js"></script>
-  <script src="/static/assets/alpine-2.8.0.min.js" defer></script>
-  <script src="/static/assets/alpine-magic-helpers-1.0.0.min.js"></script>
+  <script src="{{ url_for('static', filename='assets/twilio-1.14.0.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='assets/alpine-2.8.2.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='assets/alpine-magic-helpers-1.1.0.min.js') }}"></script>
   <script>
     var countryCode = {{ geoip['country_code']|tojson }}
     var blockHangupSeconds = {% if debug %}10{% else %}{{ block_hangup_seconds }}{% endif %}
