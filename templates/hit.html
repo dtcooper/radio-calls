@@ -148,6 +148,7 @@
     var show = {{ show|tojson }}
     var topic = {{ topic|tojson }}
     var customTopic = {{ custom_topic|tojson }}
+    var prompts = {{ prompts|tojson }}
     var assignmentId = {{ assignment_id|tojson }}
     var workerId = {{ worker_id|tojson }}
     var hitId = {{ hit_id|tojson }}
@@ -285,6 +286,9 @@
                 var body = {}
                 if (customTopic) {
                   body.custom_topic = customTopic
+                }
+                if (prompts) {
+                  body.prompts = prompts
                 }
                 var response = await fetch(url, {
                   method: 'POST',
@@ -484,6 +488,13 @@
               .
             {% endif %}
           {% endcall %}
+          {% if prompts %}
+            {% for prompt in prompts %}
+              {% call render_term_row() %}
+                <strong>{{ prompt|capfirst }}.</strong>
+              {% endcall %}
+            {% endfor %}
+          {% endif %}
           {% call render_term_row() %}
             If no one answers, please leave a voicemail
               {%- if topic %}
@@ -667,6 +678,11 @@
           {% elif custom_topic %}
             <li><strong>Please <em>{{ custom_topic }}.</em></strong></li>
           {% endif %}
+          {% if prompts %}
+            {% for prompt in prompts %}
+              <li class="bold">{{ prompt|capfirst }}.</li>
+            {% endfor %}
+          {% endif %}
           <li>
             If the call is not answered, please leave a voicemail message
             {%- if topic %}
@@ -801,6 +817,7 @@ countryCode: <span x-text="JSON.stringify(countryCode)"></span>
 blockHangupSeconds: <span x-text="JSON.stringify(blockHangupSeconds)"></span>
 show: <span x-text="JSON.stringify(show)"></span>
 topic: {% if topic %}<span x-text="`${JSON.stringify(topic['code'])} ...`"></span>{% else %}null{% endif %}
+prompts: <span x-text="JSON.stringify(prompts)"></span>
 assignmentId: <span x-text="JSON.stringify(assignmentId)"></span>
 workerId: <span x-text="JSON.stringify(workerId)"></span>
 hitId: <span x-text="JSON.stringify(hitId)"></span>

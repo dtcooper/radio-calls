@@ -29,7 +29,7 @@ EXTERNAL_QUESTION_XML = """\
 HIT_TITLE = "Call a Live Radio Show"
 ## TODO change for --no-topic
 HIT_DESCRIPTION = "Call a live radio show in your browser and have a funny conversation with the hosts."
-HIT_KEYWORDS = "telephone, call, talking, radio show, radio, funny, joke, swimming, poop, inappropriate"
+HIT_KEYWORDS = "telephone, call, talking, radio show, radio, funny, joke, inappropriate"
 SHOW_CHOICES = ("poolabs", "tigwit")
 TOPICS = ("pool", "poop")
 
@@ -88,6 +88,12 @@ def parse_args(argv=None):
         "--custom-topic",
         action="append",
         help='Specify a custom topic, as an action, eg. "pretend you\'re a fan of ice cream"',
+    )
+    parser.add_argument(
+        "-P",
+        "--prompt",
+        action="append",
+        help='Specify an additional prompt to be show as both a Term & Condition and call prompt, eg. "tell the call screener you want to talk to David"',
     )
     parser.add_argument(
         "-A",
@@ -217,6 +223,9 @@ def main(argv=None):
         external_question_url_kwargs.append(("force_topic", "none"))
     elif args.custom_topic:
         external_question_url_kwargs.extend(("custom_topic", c) for c in args.custom_topic)
+
+    if args.prompt:
+        external_question_url_kwargs.extend(("prompt", p) for p in args.prompt)
 
     external_question_url = f"{EXTERNAL_QUESTION_URL}?{urlencode(external_question_url_kwargs)}"
     question = EXTERNAL_QUESTION_XML.format(html.escape(external_question_url))

@@ -208,6 +208,11 @@ def geoip_lookup():
     return lookup
 
 
+@app.template_filter('capfirst')
+def capfirst(s):
+    return f'{s[0].upper()}{s[1:]}'
+
+
 @app.route("/")
 def index():
     return Response("There are forty people in the world and five of them are hamburgers.", content_type="text/plain")
@@ -349,6 +354,7 @@ def amazon_hit():
     force_topic = request.args.get("force_topic")
     custom_topic = request.args.getlist("custom_topic") or None
     assignment_id = request.args.get("assignmentId")
+    prompts = request.args.getlist('prompt') or None
     show = request.args.get("show")
     if show not in SIP_ADDRESSES:
         show = "tigwit"
@@ -377,6 +383,7 @@ def amazon_hit():
         geoip=geoip_lookup(),
         hit_id=request.args.get("hitId"),
         preview=bool(assignment_id == "ASSIGNMENT_ID_NOT_AVAILABLE"),
+        prompts=prompts,
         show=show,
         submit_to=request.args.get("turkSubmitTo"),
         topic=topic,
@@ -419,10 +426,14 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
     response = VoiceResponse()
     response.say(f"Step {'4' if topic == 'none' else '5'}! You are being connected to the radio show.")
     custom_topic = request.json and request.json.get("custom_topic")
+    prompts = request.json and request.json.get("prompts")
     if topic != "none":
         response.say(f"Your {HIT_TOPICS[topic]['description']} is {HIT_TOPICS[topic]['choices'][choice]['name']}.")
     elif custom_topic:
         response.say(f"Please {custom_topic}.")
+    if prompts:
+        for prompt in prompts:
+            response.say(f'{capfirst(prompt)}.')
     response.say("Enjoy your call!")
 
     worker_alias, from_number = get_caller_identity(country_code, worker_id)
