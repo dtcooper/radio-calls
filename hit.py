@@ -40,6 +40,29 @@ PERCENT_APPROVED_QUAL_ID = "000000000000000000L0"
 NUM_APPROVED_QUAL_ID = "00000000000000000040"
 COUNTRY_QUAL_ID = "00000000000000000071"
 
+ENGLISH_SPEAKING_COUNTRIES = [
+  'AG',  # Antigua and Barbuda
+  'AU',  # Australia
+  'BS',  # The Bahamas
+  'BB',  # Barbados
+  'BZ',  # Belize
+  'CA',  # Canada*
+  'DM',  # Dominica
+  'GD',  # Grenada
+  'GY',  # Guyana
+  'IE',  # Ireland
+  'JM',  # Jamaica
+  'MT',  # Malta
+  'NZ',  # New Zealand
+  'KN',  # St Kitts and Nevis
+  'LC',  # St Lucia
+  'VC',  # St Vincent and the Grenadines
+  'ZA',  # South Africa
+  'TT',  # Trinidad and Tobago
+  'GB',  # United Kingdom
+  'US',  # United States of America
+]
+
 
 def get_client(sandbox=True):
     return boto3.client(
@@ -188,7 +211,7 @@ def main(argv=None):
         )
     if args.countries:
         if len(args.countries) == 1 and args.countries[0].upper() == "ENG":
-            countries = ["US", "CA", "GB", "AU", "IE", "NZ"]
+            countries = ENGLISH_SPEAKING_COUNTRIES
         else:
             countries = [country.upper() for country in args.countries]
         qualifications_pretty.append(f"Limited to Countries: {', '.join(countries)}")
