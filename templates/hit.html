@@ -131,6 +131,10 @@
       box-shadow: 0 0 0 0 var(--color-pulseStart);
     }
 
+    .is-left-padded {
+      padding-left: 5px;
+    }
+
     @keyframes pulse {
       to {
         box-shadow: 0 0 0 35px var(--color-pulseEnd);
@@ -438,8 +442,7 @@
       <table id="terms-table" class="tight">
         <tbody>
           <tr>
-            <td class="bold underline text-center is-marginless is-paddingless">I agree</th>
-            <td class="is-marginless is-paddingless">&nbsp;</th>
+            <td class="text-left is-marginless is-paddingless" colspan="2"><span class="bold underline">I agree</span> <em>(click each to accept)</em></th>
           </tr>
 
           {% set render_term_ns = namespace(num=0, total=-1) %}
@@ -453,7 +456,7 @@
               <td class="text-center">
                 <input type="checkbox" x-bind:readonly="term > {{ num }}" x-bind:checked="term > {{ num }}" x-bind:disabled="term < {{ num }}">
               </td>
-              <td>
+              <td class="is-left-padded">
                 {{ caller() }}
               </td>
             </tr>

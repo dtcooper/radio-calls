@@ -101,7 +101,7 @@ def parse_args(argv=None):
         metavar="str",
         help="Prepend text to requester annotation (for organization purposes)",
     )
-    parser.add_argument("--ignore-balance-check", action="store_true", help="Ignore account balance check")
+    parser.add_argument("--ignore-balance-check", action="store_true", help="Ignore account balance check (prod only)")
     parser.add_argument("-y", "--yes", action="store_true", help="Don't prompt for confirmation")
     parser.add_argument("--debug", action="store_true", help="Set debug flag to on in hit HTML")
 
