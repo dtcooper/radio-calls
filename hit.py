@@ -29,7 +29,7 @@ EXTERNAL_QUESTION_XML = """\
 HIT_TITLE = "Call a Live Radio Show"
 ## TODO change for --no-topic
 HIT_DESCRIPTION = "Call a live radio show in your browser and have a funny conversation with the hosts."
-HIT_KEYWORDS = "telephone, call, talking, radio show, radio, funny, joke, inappropriate"
+HIT_KEYWORDS = "call, talking, radio show, radio, funny, joke, inappropriate, telephone"
 SHOW_CHOICES = ("poolabs", "tigwit")
 TOPICS = ("pool", "poop")
 
