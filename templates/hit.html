@@ -401,6 +401,12 @@
         {% endif %}
       </p>
 
+      <p>
+        &#x1F4B0;&#x1F911;&#x1F4B0;
+        <strong class="italic">$ Bonuses will be awarded to longer, stranger, or funnier calls! $</strong>
+        &#x1F4B0;&#x1F911;&#x1F4B0;
+      </p>
+
       <p>Note: the host(s) of the program will be expecting your call.</p>
 
       <p>
@@ -518,6 +524,10 @@
             <strong class="text-error">
               If you are a sensitive person please <u>DO NOT</u> continue with this assignment!
             </strong>
+          {% endcall %}
+          {% call render_term_row() %}
+            <strong class="italic">$ Bonuses will be awarded to longer, stranger, or funnier calls! $</strong>
+            &#x1F4B0;&#x1F911;&#x1F4B0;
           {% endcall %}
           {% call render_term_row(last=True) %}
             <em>
@@ -701,6 +711,11 @@
             You will have to stay on the call for <em>at least {{ block_hangup_seconds_pretty }}
               minute{% if block_hangup_seconds_pretty|float != 1.0 %}s{% endif %}, but you are welcome
               to talk longer if you're having fun!</em>
+          </li>
+          <li>
+            &#x1F4B0;&#x1F911;&#x1F4B0;
+            <strong class="italic">$ Bonuses will be awarded to longer, stranger, or funnier calls! $</strong>
+            &#x1F4B0;&#x1F911;&#x1F4B0;
           </li>
         </ul>
       </blockquote>
