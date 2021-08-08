@@ -36,6 +36,7 @@ MTURK_ADMIN_PASSWORD = env["MTURK_ADMIN_PASSWORD"]
 MTURK_BLOCK_HANGUP_SECONDS = 120
 AUDIO_NUMBERS_TO_VOICEMAIL = {env["TIGWIT_NUMBER"]: "voicemail", env["POOLABS_NUMBER"]: "poolabs-voicemail"}
 AUDIO_HOLD_MUSIC_LIST = tuple(f"hold-music-{n}" for n in range(1, 5))
+AUDIO_HOLD_MUSIC_AMAZON = 'hold-music-4'
 AUDIO_COMPLETED_MUSIC = "completed-music"
 AUDIO_NOT_IN_SERVICE = "not-in-service"
 AUDIO_BEEP = "beep"
@@ -279,7 +280,11 @@ def voice_incoming_done():
         else:
             response.play(audio_url(AUDIO_COMPLETED_MUSIC))
     elif status == "busy" and sip_code == "486":  # 486 = Busy Here
-        response.play(audio_url(random.choice(AUDIO_HOLD_MUSIC_LIST)))
+        if skip_song:  # From Amazon
+            hold_music = AUDIO_HOLD_MUSIC_AMAZON
+        else:
+            hold_music = random.choice(AUDIO_HOLD_MUSIC_LIST)
+        response.play(audio_url(hold_music))
         response.redirect(url_for("voice_incoming", sip_addr=sip_addr, from_number=from_number, skip_song=skip_song))
     else:
         audio = AUDIO_NUMBERS_TO_VOICEMAIL.get(to_number)
