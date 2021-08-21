@@ -41,26 +41,26 @@ NUM_APPROVED_QUAL_ID = "00000000000000000040"
 COUNTRY_QUAL_ID = "00000000000000000071"
 
 ENGLISH_SPEAKING_COUNTRIES = [
-  'AG',  # Antigua and Barbuda
-  'AU',  # Australia
-  'BS',  # The Bahamas
-  'BB',  # Barbados
-  'BZ',  # Belize
-  'CA',  # Canada*
-  'DM',  # Dominica
-  'GD',  # Grenada
-  'GY',  # Guyana
-  'IE',  # Ireland
-  'JM',  # Jamaica
-  'MT',  # Malta
-  'NZ',  # New Zealand
-  'KN',  # St Kitts and Nevis
-  'LC',  # St Lucia
-  'VC',  # St Vincent and the Grenadines
-  'ZA',  # South Africa
-  'TT',  # Trinidad and Tobago
-  'GB',  # United Kingdom
-  'US',  # United States of America
+    "AG",  # Antigua and Barbuda
+    "AU",  # Australia
+    "BS",  # The Bahamas
+    "BB",  # Barbados
+    "BZ",  # Belize
+    "CA",  # Canada*
+    "DM",  # Dominica
+    "GD",  # Grenada
+    "GY",  # Guyana
+    "IE",  # Ireland
+    "JM",  # Jamaica
+    "MT",  # Malta
+    "NZ",  # New Zealand
+    "KN",  # St Kitts and Nevis
+    "LC",  # St Lucia
+    "VC",  # St Vincent and the Grenadines
+    "ZA",  # South Africa
+    "TT",  # Trinidad and Tobago
+    "GB",  # United Kingdom
+    "US",  # United States of America
 ]
 
 
@@ -116,7 +116,10 @@ def parse_args(argv=None):
         "-P",
         "--prompt",
         action="append",
-        help='Specify an additional prompt to be show as both a Term & Condition and call prompt, eg. "tell the call screener you want to talk to David"',
+        help=(
+            'Specify an additional prompt to be show as both a Term & Condition and call prompt, eg. "tell the call'
+            ' screener you want to talk to David"'
+        ),
     )
     parser.add_argument(
         "-A",

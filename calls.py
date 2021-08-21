@@ -36,7 +36,7 @@ MTURK_ADMIN_PASSWORD = env["MTURK_ADMIN_PASSWORD"]
 MTURK_BLOCK_HANGUP_SECONDS = 120
 AUDIO_NUMBERS_TO_VOICEMAIL = {env["TIGWIT_NUMBER"]: "voicemail", env["POOLABS_NUMBER"]: "poolabs-voicemail"}
 AUDIO_HOLD_MUSIC_LIST = tuple(f"hold-music-{n}" for n in range(1, 5))
-AUDIO_HOLD_MUSIC_AMAZON = 'hold-music-4'
+AUDIO_HOLD_MUSIC_AMAZON = "hold-music-4"
 AUDIO_COMPLETED_MUSIC = "completed-music"
 AUDIO_NOT_IN_SERVICE = "not-in-service"
 AUDIO_BEEP = "beep"
@@ -209,9 +209,9 @@ def geoip_lookup():
     return lookup
 
 
-@app.template_filter('capfirst')
+@app.template_filter("capfirst")
 def capfirst(s):
-    return f'{s[0].upper()}{s[1:]}'
+    return f"{s[0].upper()}{s[1:]}"
 
 
 @app.route("/")
@@ -359,7 +359,7 @@ def amazon_hit():
     force_topic = request.args.get("force_topic")
     custom_topic = request.args.getlist("custom_topic") or None
     assignment_id = request.args.get("assignmentId")
-    prompts = request.args.getlist('prompt') or None
+    prompts = request.args.getlist("prompt") or None
     show = request.args.get("show")
     if show not in SIP_ADDRESSES:
         show = "tigwit"
@@ -438,7 +438,7 @@ def amazon_update_sid(topic, choice, sip_addr, country_code, worker_id, call_sid
         response.say(f"Please {custom_topic}.")
     if prompts:
         for prompt in prompts:
-            response.say(f'{capfirst(prompt)}.')
+            response.say(f"{capfirst(prompt)}.")
     response.say("Enjoy your call!")
 
     worker_alias, from_number = get_caller_identity(country_code, worker_id)
