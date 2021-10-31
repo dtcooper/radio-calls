@@ -418,7 +418,7 @@ def amazon_token(country_code, worker_id):
     grant = VoiceGrant(outgoing_application_sid=AMAZON_TWIML_APP_SID)
     token.add_grant(grant)
 
-    return jsonify({"token": token.to_jwt().decode()})
+    return jsonify({"token": token.to_jwt()})
 
 
 @app.route(
