@@ -7,6 +7,7 @@ module.exports = {
     ecmaVersion: 2020,
     extraFileExtensions: [".svelte"]
   },
+  ignorePatterns: ["build/**"],
   env: {
     browser: true,
     es2017: true,

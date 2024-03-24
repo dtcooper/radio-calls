@@ -7,6 +7,8 @@ services:
       - 8000:8000
   frontend:
     restart: "no"
+    depends_on:
+      - backend
     ports:
       - 5173:5173
   nginx:

@@ -1,1 +1,3 @@
-<h1 class="text-3xl">Frontend for calls</h1>
+<script>
+  window.location.href = "/cmsadmin"
+</script>

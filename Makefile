@@ -15,3 +15,7 @@ build:
 shell: CONTAINER:=backend
 shell:
 	$(COMPOSE) run --service-ports --use-aliases --rm $(CONTAINER) /bin/ash || true
+
+.PHONY: frontend
+frontend:
+	@make shell CONTAINER=frontend
