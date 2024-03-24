@@ -1,0 +1,45 @@
+services:
+  backend:
+    restart: always
+    image: ghcr.io/dtcooper/radio-calls-backend:latest
+    build:
+      context: backend
+      args:
+        DEV_MODE: "${DEV_MODE:-0}"
+    env_file: .env
+    depends_on:
+      - db
+
+  frontend:
+    restart: on-failure
+    image: node:21.7-alpine
+    env_file: .env
+    entrypoint: /app/entrypoint.sh
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+
+  nginx:
+    restart: always
+    image: jonasal/nginx-certbot:5.0-alpine
+    env_file: .env
+    depends_on:
+      - backend
+    volumes:
+      - ./nginx.conf:/etc/nginx/templates/site.conf.template
+      - nginx_secrets:/etc/letsencrypt
+    ports:
+      - 80
+      - 443
+
+  db:
+    restart: always
+    image: postgres:16.2-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_PASSWORD: postgres
+
+volumes:
+  nginx_secrets:
+  postgres_data:

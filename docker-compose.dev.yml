@@ -1,0 +1,13 @@
+services:
+  backend:
+    restart: "no"
+    volumes:
+      - ./backend:/app
+  frontend:
+    restart: "no"
+  nginx:
+    restart: "no"
+    profiles:
+      - prod
+  db:
+    restart: "no"
