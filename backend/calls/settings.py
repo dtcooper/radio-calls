@@ -2,6 +2,7 @@ from pathlib import Path
 
 import environ
 
+
 env = environ.Env()
 
 
@@ -24,9 +25,7 @@ INSTALLED_APPS = [
 ]
 if DEBUG:
     INSTALLED_APPS.append("django_extensions")
-INSTALLED_APPS.extend([
-
-])
+INSTALLED_APPS.append("calls")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

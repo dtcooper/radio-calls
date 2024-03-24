@@ -11,7 +11,7 @@ services:
       - 5173:5173
   nginx:
     restart: "no"
-    profiles:
-      - prod
   db:
     restart: "no"
+    ports:
+      - 127.0.0.1:5432:5432
