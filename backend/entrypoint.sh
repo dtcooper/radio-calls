@@ -23,10 +23,10 @@ fi
 
 if [ "$#" = 0 ]; then
     if [ "$DEV_MODE" ]; then
-        ./manage.py runserver
+        exec ./manage.py runserver
     else
         ./manage.py collectstatic --noinput
-        echo "TODO"
+        echo "TODO: gunicorn"
     fi
 else
     echo "Executing: $*"

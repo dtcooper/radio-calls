@@ -25,7 +25,10 @@ INSTALLED_APPS = [
 ]
 if DEBUG:
     INSTALLED_APPS.append("django_extensions")
-INSTALLED_APPS.append("calls")
+INSTALLED_APPS.extend([
+    "api",
+    "twilio_rest",
+])
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
