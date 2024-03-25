@@ -14,7 +14,7 @@ services:
     restart: on-failure
     image: node:21.7-alpine
     env_file: .env
-    entrypoint: /app/entrypoint.sh
+    command: sh -c "npm install && npm run build"
     working_dir: /app
     volumes:
       - ./frontend:/app

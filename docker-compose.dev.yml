@@ -4,13 +4,11 @@ services:
     volumes:
       - ./backend:/app
     ports:
-      - 8000:8000
+      - 127.0.0.1:8000:8000
   frontend:
     restart: "no"
-    depends_on:
-      - backend
-    ports:
-      - 5173:5173
+    profiles:
+      - prod
   nginx:
     restart: "no"
   db:

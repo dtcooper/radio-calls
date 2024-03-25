@@ -27,5 +27,5 @@
   class:border-error={enabled}
   class:border-base-100={!enabled}
 >
-  <slot />
+  <slot /> (TODO: make clickable)
 </div>
