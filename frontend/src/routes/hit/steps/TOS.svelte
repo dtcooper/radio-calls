@@ -1,9 +1,9 @@
 <script>
   import TOSTerm from "./components/TOSTerm.svelte"
+  import { state, isDebug } from "../hit"
 
-  export let isDebug
+  /** @type {() => void} */
   export let next
-  export let topic
   let term = 0
   let numTerms = 0
 
@@ -53,7 +53,7 @@
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
     Have any conversation you'd like, but the call should be placed to discuss the topic: <em class="text-secondary"
-      >{topic}</em
+      >{$state.topic}</em
     >
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>

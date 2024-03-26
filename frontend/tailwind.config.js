@@ -14,7 +14,7 @@ export default {
   },
   daisyui: {
     logs: false,
-    themes: ["light"]
+    themes: ["emerald"]
   },
   plugins: [daisyui]
 }

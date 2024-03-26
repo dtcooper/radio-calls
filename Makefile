@@ -12,6 +12,5 @@ build:
 	$(COMPOSE) build --pull $(CONTAINERS)
 
 .PHONY: shell
-shell: CONTAINER:=backend
 shell:
-	$(COMPOSE) run --service-ports --use-aliases --rm $(CONTAINER) /bin/ash || true
+	$(COMPOSE) run --service-ports --use-aliases --rm backend /bin/bash

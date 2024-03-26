@@ -26,7 +26,6 @@ if DEBUG:
     INSTALLED_APPS.append("django_extensions")
 INSTALLED_APPS.extend([
     "api",
-    "twilio_rest",
 ])
 
 MIDDLEWARE = [

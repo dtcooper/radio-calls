@@ -1,8 +1,6 @@
 <script>
-  import { uniqueId } from "$lib/utils"
-
-  export let term
-  export let index
+  export let term = 0
+  export let index = 0
 
   $: accepted = term > index
   $: enabled = term === index
@@ -22,10 +20,18 @@
     bind:checked={accepted}
   />
 </div>
+<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
   class="rounded-xl border-2 px-2 py-1 sm:px-3 sm:text-base md:text-lg"
+  class:cursor-pointer={enabled}
   class:border-error={enabled}
   class:border-base-100={!enabled}
+  on:click={() => {
+    if (!accepted) {
+      term += 1
+    }
+  }}
 >
-  <slot /> (TODO: make clickable)
+  <slot />
 </div>

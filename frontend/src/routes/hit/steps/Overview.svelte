@@ -1,6 +1,7 @@
 <script>
-  export let topic
-  export let isPreview = false
+  import { state, isPreview } from "../hit"
+
+  /** @type {() => void} */
   export let next
 </script>
 
@@ -11,7 +12,9 @@
 
 <p>You will talk to the host(s) of the radio show about the following topic....</p>
 
-<blockquote class="ml-5 border-l-2 border-base-300 pl-2 font-mono font-bold italic text-secondary">{topic}</blockquote>
+<blockquote class="ml-5 border-l-2 border-base-300 pl-2 font-mono font-bold italic text-secondary">
+  {$state.topic}
+</blockquote>
 
 <p>
   💰🤑💰
@@ -35,9 +38,9 @@
 <p class="text-center">
   <button class="btn btn-success btn-xs sm:btn-sm md:btn-lg" disabled={isPreview} on:click={next}>
     {#if isPreview}
-      You are currently <em class="underline">previewing</em> this assignment. Press Accept to start.
+      You are currently <em class="underline">previewing</em> this assignment. Press ACCEPT to start.
     {:else}
-      Continue with Assignment
+      Continue with assignment
     {/if}
   </button>
 </p>
