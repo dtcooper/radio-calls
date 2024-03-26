@@ -1,7 +1,7 @@
 from django.templatetags.static import static
 import random
 import string
-
+import re
 
 from .constants import PIN_AUDIO_SPRITE_OFFSETS, WORDS_TO_PRONOUNCE, NUM_WORDS_FOR_PROUNCER
 
@@ -45,7 +45,7 @@ class __decode_speech_file:
 
             self.model = whisper.load_model(self.WHISPER_MODEL)
         result = self.model.transcribe(path)
-        return result["text"]
+        return re.sub(r'[^a-z\s]', '', result["text"].lower()).strip().split()
 
 
 decode_speech_file = __decode_speech_file()

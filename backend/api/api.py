@@ -97,7 +97,10 @@ def hit_audio(request, audio: UploadedFile = File(...)):
     with tempfile.NamedTemporaryFile() as file:
         file.write(audio.read())
         file.flush()
-        text = decode_speech_file(file.name)
-        print(text)
+        actual = "/".join(decode_speech_file(file.name))
+        expected = "/".join(request.session["words"])
+        print("  actual:", actual)
+        print("expected:", expected)
+        print(expected in actual)
 
     return {"success": True}

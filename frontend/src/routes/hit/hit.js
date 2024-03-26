@@ -98,7 +98,7 @@ const createState = () => {
           post("hit/audio", formData)
         }
         recorder.ondataavailable = (e) => { chunks.push(e.data) }
-        timeout = setTimeout(() => { recorder.stop() }, 10000)
+        timeout = setTimeout(() => { recorder.stop() }, 5000)
         recorder.start()
       }
     }
