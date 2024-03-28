@@ -19,6 +19,10 @@ if [ "$DEV_MODE" ]; then
     if [ "$(./manage.py shell -c 'from django.contrib.auth.models import User; print("" if User.objects.exists() else "1")')" = 1 ]; then
         DJANGO_SUPERUSER_PASSWORD=calls ./manage.py createsuperuser --noinput --username calls --email ''
     fi
+
+    export PGHOST=db
+    export PGUSER=postgres
+    export PGPASSWORD=postgres
 fi
 
 if [ "$#" = 0 ]; then

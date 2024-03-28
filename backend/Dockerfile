@@ -5,20 +5,39 @@ ENV DJANGO_SETTINGS_MODULE=calls.settings \
     PYTHONUNBUFFERED=1 \
     POETRY_VIRTUALENVS_CREATE=false
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ffmpeg \
-     && rm -rf /var/lib/apt/lists/*
-
 ARG POETRY_VERSION=1.8.2
 RUN wget -qO - https://install.python-poetry.org | python -
 ENV PATH="/root/.local/bin:${PATH}"
 
+ARG DEV_MODE=0
+RUN if [ "$DEV_MODE" -a "$DEV_MODE" != '0' ]; then \
+        echo "alias ls='ls --color=auto'" >> /root/.bashrc \
+        && echo "alias rs='./manage.py runserver'" >> /root/.bashrc \
+        && echo "alias sp='./manage.py shell_plus'" >> /root/.bashrc \
+        && echo '. /etc/bash_completion' >> /root/.bashrc \
+        && apt-get update \
+        && apt-get upgrade -y \
+        && apt-get install --no-install-recommends -y \
+            bash-completion \
+            ffmpeg \
+            iputils-ping \
+            less \
+            nano \
+            netcat-openbsd \
+            postgresql-client \
+    ; fi
+
 COPY pyproject.toml poetry.lock /app/
 WORKDIR /app
-ARG DEV_MODE=0
+ARG WHISPER_MODEL=tiny.en
+ENV WHISPER_MODEL="${WHISPER_MODEL}"
 RUN poetry install $([ -z "$DEV_MODE" -o "$DEV_MODE" = '0' ] && echo '--without=dev') \
-    && python -c 'from whisper import _download as d, _MODELS as m; d(m["tiny.en"], "/root/.cache/whisper/", False)'
+    && if [ "$DEV_MODE" -a "$DEV_MODE" != 0 ]; then \
+        # Download relevant verion's bash completion (in dev only)
+        wget -qO /etc/bash_completion.d/django_bash_completion \
+            "https://raw.githubusercontent.com/django/django/$(python -c 'import django; print(".".join(map(str, django.VERSION[:2])))')/extras/django_bash_completion" \
+    ; fi \
+    && python -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL}', device='cpu', compute_type='int8')"
 
 COPY . /app/
 

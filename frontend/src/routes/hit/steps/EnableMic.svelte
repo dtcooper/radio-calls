@@ -1,7 +1,6 @@
 <script>
   import { state } from "../hit"
 
-  /** @type {() => void} */
   export let next
   let btnDisabled = false
   let badgeClass = "badge-info"
@@ -9,13 +8,12 @@
 
   const enableMic = async () => {
     btnDisabled = true
-    const { success, message } = await state.enableMic()
+    const { success, message } = await state.initializeAudio()
     badgeText = message
     if (success) {
       badgeClass = "badge-success"
     } else {
       badgeClass = "badge-warning"
-      btnDisabled = false
     }
   }
 </script>
@@ -28,12 +26,16 @@
     Status: <div class="badge badge-lg {badgeClass}">{badgeText}</div>
   </div>
   <p class="text-center">
-    <button class="btn btn-primary btn-xs sm:btn-sm md:btn-lg" on:click={enableMic} disabled={btnDisabled}>
+    <button
+      class="btn btn-primary btn-xs sm:btn-sm md:btn-lg"
+      on:click={enableMic}
+      disabled={btnDisabled || $state.audioInitialized}
+    >
       🎙 Click here to enable microphone 🎙
     </button>
   </p>
   <p class="text-center">
-    <button class="btn btn-success btn-xs sm:btn-sm md:btn-lg" on:click={next} disabled={!$state.stream}>
+    <button class="btn btn-success btn-xs sm:btn-sm md:btn-lg" on:click={next} disabled={!$state.audioInitialized}>
       Continue with assignment
     </button>
   </p>

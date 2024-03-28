@@ -1,20 +1,22 @@
-from django.templatetags.static import static
 import random
-import string
 import re
+import string
 
-from .constants import PIN_AUDIO_SPRITE_OFFSETS, WORDS_TO_PRONOUNCE, NUM_WORDS_FOR_PROUNCER
+from django.conf import settings
+from django.templatetags.static import static
+
+from .constants import NUM_WORDS_FOR_PROUNCER, PIN_AUDIO_SPRITE_OFFSETS, PIN_LENGTH, WORDS_TO_PRONOUNCE
 
 
 def max_length_for_choices(choices):
     return max(len(v) for v in choices.values)
 
 
-def get_random_pronouncer_words():
+def generate_pronouncer():
     return random.sample(WORDS_TO_PRONOUNCE, NUM_WORDS_FOR_PROUNCER)
 
 
-def generate_encoded_pin(pin):
+def encode_pin(pin):
     encoded_digits = set()
     while len(encoded_digits) < 10:
         encoded_digits.add("".join(random.choice(string.ascii_letters) for _ in range(12)))
@@ -33,19 +35,36 @@ def generate_encoded_pin(pin):
     }
 
 
-class __decode_speech_file:
-    WHISPER_MODEL = "tiny.en"
+def generate_pin():
+    return "".join(random.choice(string.digits) for _ in range(PIN_LENGTH))
 
+
+def is_subsequence(x, y):
+    y_iter = iter(y)
+    return all(any(x_item == y_item for y_item in y_iter) for x_item in x)
+
+
+class __match_pronouncer_from_audio_file:
     def __init__(self):
         self.model = None
 
-    def __call__(self, path):
-        if self.model is None:
-            import whisper  # Expensive import. Only use it on demand.
+    def __call__(self, path, pronouncer):
+        if self.model is None:  # Saves memory on load
+            from faster_whisper import WhisperModel
 
-            self.model = whisper.load_model(self.WHISPER_MODEL)
-        result = self.model.transcribe(path)
-        return re.sub(r'[^a-z\s]', '', result["text"].lower()).strip().split()
+            self.model = WhisperModel(settings.WHISPER_MODEL, device="cpu", compute_type="int8")
+
+        segments, _ = self.model.transcribe(path)
+        heard_words = []
+        for segment in segments:
+            heard_words.extend(re.sub(r"[^a-z\s]", " ", segment.text.strip().lower()).strip().split())
+
+        match = is_subsequence(pronouncer, heard_words)
+
+        print(f"expected words: {pronouncer}")
+        print(f"   heard words: {heard_words}")
+        print(f"         match: {match}")
+        return match
 
 
-decode_speech_file = __decode_speech_file()
+match_pronouncer_from_audio_file = __match_pronouncer_from_audio_file()

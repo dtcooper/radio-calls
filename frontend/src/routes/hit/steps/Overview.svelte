@@ -1,7 +1,6 @@
 <script>
   import { state, isPreview } from "../hit"
 
-  /** @type {() => void} */
   export let next
 </script>
 

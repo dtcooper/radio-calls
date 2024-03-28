@@ -2,7 +2,6 @@
   import TOSTerm from "./components/TOSTerm.svelte"
   import { state, isDebug } from "../hit"
 
-  /** @type {() => void} */
   export let next
   let term = 0
   let numTerms = 0

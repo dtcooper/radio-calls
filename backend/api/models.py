@@ -22,7 +22,6 @@ class HIT(models.Model):
     # approval_token = uuid
 
     class Meta:
-        db_table = "hits"
         verbose_name = "HIT"
         ordering = ("-created_at", "id")
         get_latest_by = "created_at"

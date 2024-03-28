@@ -1,6 +1,8 @@
 <script>
   import { tick } from "svelte"
 
+  import { state } from "./hit"
+  import Call from "./steps/Call.svelte"
   import EnableMic from "./steps/EnableMic.svelte"
   import Overview from "./steps/Overview.svelte"
   import Submit from "./steps/Submit.svelte"
@@ -10,7 +12,7 @@
   import { isPreview } from "./hit"
 
   let stepNumber = 2
-  /** @type {HTMLElement} */
+
   let main
   const steps = [{ title: "Overview", component: Overview, emoji: "🔎" }]
   if (!isPreview) {
@@ -18,6 +20,7 @@
       { title: "Terms of Service", component: TOS, emoji: "📜" },
       { title: "Enable Microphone", component: EnableMic, emoji: "🎙" },
       { title: "Test Speaking", component: TestSpeaking, emoji: "?" },
+      { title: "Call", component: Call, emoji: "📞" },
       { title: "Submit", component: Submit, emoji: "💫" }
     )
   }
@@ -52,9 +55,24 @@
 
     <hr class="mx-3 my-2 h-px bg-base-300" />
 
+    {#if $state.audioInitialized}
+      <div class="grid grid-cols-[auto_1fr_auto_1fr] items-center gap-3 px-2 text-base sm:px-6 sm:text-lg">
+        <div><span class="hidden sm:inline">Microphone</span> 🎙</div>
+        <div class="mr-4 sm:mr-8 md:mr-12">
+          <progress class="progress progress-error sm:h-3" value={$state.micLevel} max="100"></progress>
+        </div>
+        <div class="ml-4 sm:ml-8 md:ml-12"><span class="hidden sm:inline">Speaker</span> 🔊</div>
+        <div>
+          <progress class="progress progress-success rotate-180 sm:h-3" value={$state.speakerLevel} max="100"
+          ></progress>
+        </div>
+      </div>
+      <hr class="mx-3 my-2 h-px bg-base-300" />
+    {/if}
+
     <main
       bind:this={main}
-      class="flex flex-1 flex-col gap-5 overflow-y-auto px-1 pb-0.5 pt-2 text-sm sm:px-2 sm:pt-3 sm:text-base md:text-lg lg:text-xl"
+      class="flex flex-1 flex-col gap-5 overflow-y-auto px-2 pb-0.5 pt-2 text-sm sm:px-3 sm:pt-3 sm:text-base md:text-lg lg:text-xl"
     >
       <svelte:component this={step.component} {next} />
     </main>

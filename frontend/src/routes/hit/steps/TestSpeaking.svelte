@@ -1,10 +1,8 @@
 <script>
   import { state, isDebug } from "../hit"
 
-  /** @type {(() => void) | null | undefined} */
   let stop
 
-  /** @type {() => void} */
   export let next
 
   let playBtnDisabled = false
@@ -42,9 +40,9 @@
 </p>
 
 {#if pinSuccess || isDebug}
+  <p class="capitalize">{$state.pronouncer.join(", ")}</p>
+
   <p>
     <button class="btn btn-neutral" on:click={record} disabled={recordDisabled}>Record</button>
   </p>
 {/if}
-
-{pin}

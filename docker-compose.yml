@@ -7,6 +7,7 @@ services:
       args:
         DEV_MODE: "${DEV_MODE:-0}"
     env_file: .env
+    mem_limit: 2048m
     depends_on:
       - db
 
@@ -39,6 +40,12 @@ services:
       - postgres_data:/var/lib/postgresql/data/
     environment:
       POSTGRES_PASSWORD: postgres
+
+  peerjs:
+    restart: always
+    image: peerjs/peerjs-server
+    ports:
+      - 127.0.0.1:9000:9000
 
 volumes:
   nginx_secrets:

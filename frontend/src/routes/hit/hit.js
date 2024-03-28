@@ -1,28 +1,35 @@
-import { post } from "$lib/api"
-import { Howl } from "howler"
-import { get, writable } from "svelte/store"
+import { post, runVolumeAnalyser } from "$lib/utils"
+import { noop } from "svelte/internal"
+import { get as _get, writable } from "svelte/store"
 
 const params = new URLSearchParams(window.location.search)
-const assignment_id = params.get("assignmentId")
-const hit_id = params.get("hitId")
-const worker_id = params.get("workerId")
-export const isPreview = assignment_id === "ASSIGNMENT_ID_NOT_AVAILABLE"
+const assignmentId = params.get("assignmentId")
+const hitId = params.get("hitId")
+const workerId = params.get("workerId")
+export const isPreview = assignmentId === "ASSIGNMENT_ID_NOT_AVAILABLE"
 export const isDebug = !!+(params.get("debug") || 0)
 
 const createState = () => {
-  const { subscribe, set, update } = writable({
-    ready: false,
+  const {
+    subscribe,
+    set,
+    update: _update
+  } = writable({
+    audioInitialized: false,
     browserNotSupported: false,
-    /** @type null | MediaStream */
-    stream: null,
     failure: "",
-    topic: "",
-    /** Number[] */
-    pin: { code: [], pin_audio_url: "", offsets: {} }
+    micLevel: 0,
+    pin: { code: [], audioUrl: "", offsets: {} },
+    pronouncer: [],
+    ready: false,
+    speakerLevel: 0,
+    topic: ""
   })
 
-  /** @type Howl */
-  let pinAudio
+  let audioCtx, audioOut, micStream
+
+  const update = (data) => _update(($state) => ({ ...$state, ...data }))
+  const get = () => _get({ subscribe })
 
   update(($state) => ({ ...$state, browserNotSupported: false }))
   // TODO if browser not supported: update($state => ({...$state, ready: true, browserNotSupported: true}))
@@ -30,75 +37,105 @@ const createState = () => {
   return {
     subscribe,
     async initialize() {
-      if (!get({ subscribe }).ready) {
-        const { success, data } = await post("hit/handshake", { assignment_id, hit_id, worker_id })
+      if (!get().ready) {
+        const { success, ...data } = await post("handshake", { assignmentId, hitId, workerId })
         if (!success) {
-          update(($state) => ({ ...$state, failure: `Couldn't initialize! ${data.error}` }))
+          update({ failure: `Couldn't initialize! ${data.error}` })
           return
         }
-        const { topic, pin } = data
-        pinAudio = new Howl({
-          src: [pin.pin_audio_url],
-          sprite: pin.offsets
-        })
+        const { topic, pin, pronouncer } = data
 
-        update(($state) => ({ ...$state, ready: true, topic, pin }))
+        audioOut = new Audio(pin.audioUrl)
+
+        update({ ready: true, topic, pin, pronouncer })
       }
     },
-    async enableMic() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, autoGainControl: true, noiseSuppression: true },
-          video: false
-        })
-        update(($state) => ({ ...$state, stream }))
-        return { success: true, message: "Microphone enabled! " }
-      } catch (e) {
-        console.error("Error enabling media stream")
-        return { success: false, message: "Error enabling microphone. Try again!" }
+    async initializeAudio() {
+      if (get().audioInitialized) {
+        return { success: true, message: "Audio already initialized!" }
+      } else {
+        try {
+          audioCtx = new AudioContext()
+
+          micStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, autoGainControl: true, noiseSuppression: true },
+            video: false
+          })
+
+          for (const action of ["play", "pause", "seekbackward", "seekforward", "previoustrack", "nexttrack"]) {
+            navigator.mediaSession.setActionHandler(action, noop)
+          }
+
+          const outStream = audioCtx.createMediaElementSource(audioOut)
+          outStream.connect(audioCtx.destination)
+
+          runVolumeAnalyser(audioCtx.createMediaStreamSource(micStream), (volume) => update({ micLevel: volume }))
+          runVolumeAnalyser(outStream, (volume) => update({ speakerLevel: volume }))
+          update({ audioInitialized: true })
+
+          return { success: true, message: "Microphone enabled! " }
+        } catch (e) {
+          console.error("Error enabling media stream")
+          return { success: false, message: "Error enabling microphone. Try again!" }
+        }
       }
     },
     playPin() {
       return new Promise((resolve) => {
+        // Bad looking code on purpose!
         const {
           pin: { code, offsets }
-        } = get({ subscribe })
-        pinAudio.play(code[0])
-        /** @type Number */
-        let waitTime = offsets[code[0]][1]
-        for (let i = 1; i < code.length; i++) {
-          waitTime = waitTime + 175
-          setTimeout(() => {
-            pinAudio.play(code[i])
-          }, waitTime)
-          waitTime = waitTime + offsets[code[i]][1]
+        } = get()
+        let a = audioOut,
+          n = 0,
+          i,
+          t
+        const p = () => {
+          const [s, l] = offsets[code[n++]]
+          a.currentTime = s / 1000
+          a.play()
+          i = setInterval(() => {
+            if (audioOut.currentTime > (s + l) / 1000) {
+              audioOut.pause()
+              clearInterval(i)
+              if (n >= code.length) {
+                clearTimeout(t)
+                resolve()
+              } else {
+                setTimeout(() => p(), 150)
+              }
+            }
+          }, 10)
         }
-        setTimeout(resolve, waitTime)
+        // Maybe something wonky happened?
+        t = setTimeout(() => {
+          clearInterval(i)
+          resolve()
+        }, 8000)
+        p()
       })
     },
-    /** @param {String} pin */
     async verifyPin(pin) {
-      const { success, data } = await post("hit/pin", { pin: pin })
-      return success && data.success
+      const { success, accepted } = await post("verify/pin", { pin: pin })
+      return success && accepted
     },
     async recordWords() {
-      const { stream } = get({ subscribe })
-      console.log(stream)
-      if (stream) {
-        /** @type {any} */
+      if (micStream) {
         let timeout
-        /** @type {BlobPart[]} */
         const chunks = []
-        const recorder = new MediaRecorder(stream)
+        const recorder = new MediaRecorder(micStream)
         recorder.onstop = () => {
-          const blob = new Blob(chunks, { 'type' : recorder.mimeType });
+          clearTimeout(timeout)
+          const blob = new Blob(chunks, { type: recorder.mimeType })
           const formData = new FormData()
           console.log("posting")
-          formData.append('audio', blob)
-          post("hit/audio", formData)
+          formData.append("audio", blob)
+          post("verify/pronouncer", formData)
         }
-        recorder.ondataavailable = (e) => { chunks.push(e.data) }
-        timeout = setTimeout(() => { recorder.stop() }, 5000)
+        recorder.ondataavailable = (e) => chunks.push(e.data)
+        timeout = setTimeout(() => {
+          recorder.stop()
+        }, 3500)
         recorder.start()
       }
     }

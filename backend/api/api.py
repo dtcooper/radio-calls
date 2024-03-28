@@ -1,24 +1,36 @@
-from ninja import Router, Schema, File
-from ninja.errors import HttpError
-from ninja.files import UploadedFile
-import string
-import random
 import tempfile
 
+from pydantic.alias_generators import to_camel
+
+from django.templatetags.static import static
+
+from ninja import File, Router, Schema as _Schema
+from ninja.errors import HttpError
+from ninja.files import UploadedFile
+
 from .models import HIT
-from .utils import generate_encoded_pin, get_random_pronouncer_words, decode_speech_file
-from .constants import PIN_LENGTH
+from .utils import encode_pin, generate_pin, generate_pronouncer, match_pronouncer_from_audio_file
 
 
 def assignment_required(request):
     if "hit_id" not in request.session:
         return False
 
-    request.hit = HIT.objects.get(id=request.session["hit_id"])
+    request.hit = HIT.objects.get(id=request.session["hit_id"], enabled=True)
     return True
 
 
 router = Router(auth=assignment_required)
+
+
+class Schema(_Schema):
+    class Config(_Schema.Config):
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+class BaseOut(Schema):
+    success: bool = True
 
 
 class HandshakeIn(Schema):
@@ -26,26 +38,32 @@ class HandshakeIn(Schema):
     hit_id: None | str
     worker_id: None | str
 
+
 class EncodedPin(Schema):
     code: list[str]
     offsets: dict[str, list[int]]
-    pin_audio_url: str
+    audio_url: str
 
-class HandshakeOut(Schema):
+
+class HandshakeOut(BaseOut):
     topic: str
     pin: EncodedPin
+    pronouncer: list[str]
+
 
 class PinIn(Schema):
     pin: str
 
-class SuccessOut(Schema):
-    success: bool
+
+class AcceptedOut(BaseOut):
+    accepted: bool
+
 
 class Error(Schema):
     error: str
 
 
-@router.post("hit/handshake", response=HandshakeOut, auth=None)
+@router.post("hit/handshake", response=HandshakeOut, auth=None, by_alias=True)
 def hit_handshake(request, handshake: HandshakeIn):
     hit = worker_id = None
 
@@ -68,39 +86,44 @@ def hit_handshake(request, handshake: HandshakeIn):
         worker_id = f"django:{request.user.id}"
 
     if worker_id is None:
-        raise HttpError(400, "Worker ID unspecified")
+        raise HttpError(400, "Worker ID invalid")
 
-    pin = "".join(random.choice(string.digits) for _ in range(PIN_LENGTH))
+    pin = generate_pin()
+    pronouncer = generate_pronouncer()
 
     request.session.update({
         "hit_id": hit.id,
         "worker_id": worker_id,
-        "words": get_random_pronouncer_words(),
+        "pronouncer": pronouncer,
+        "pronouncer_verified": False,
         "pin": pin,
         "pin_verified": False,
     })
 
-    return {"topic": hit.topic, "pin": generate_encoded_pin(pin)}
+    return {
+        "topic": hit.topic,
+        "pin": {**encode_pin(pin), "audio_url": static("api/hit/numbers.mp3")},
+        "pronouncer": pronouncer,
+    }
 
-@router.post("hit/pin", response=SuccessOut)
+
+@router.post("hit/verify/pin", response=AcceptedOut, by_alias=True)
 def hit_pin(request, pin: PinIn):
     success = pin.pin.strip() == request.session["pin"]
     if success:
         request.session["pin_verified"] = True
-    return {"success": success}
+    print(dict(request.session))
+    return {"accepted": success}
 
 
-
-
-@router.post("hit/audio", response=SuccessOut)
-def hit_audio(request, audio: UploadedFile = File(...)):
-    with tempfile.NamedTemporaryFile() as file:
+@router.post("hit/verify/pronouncer", response=AcceptedOut, by_alias=True)
+def hit_pronouncer(request, audio: UploadedFile = File(...)):
+    with tempfile.NamedTemporaryFile(delete_on_close=False) as file:
         file.write(audio.read())
-        file.flush()
-        actual = "/".join(decode_speech_file(file.name))
-        expected = "/".join(request.session["words"])
-        print("  actual:", actual)
-        print("expected:", expected)
-        print(expected in actual)
+        file.close()
+        success = match_pronouncer_from_audio_file(file.name, request.session["pronouncer"])
 
-    return {"success": True}
+    if success:
+        request.session["pronouncer_verified"] = True
+
+    return {"accepted": success}

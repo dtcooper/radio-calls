@@ -13,22 +13,18 @@ PIN_AUDIO_SPRITE_OFFSETS = [
 ]
 
 
-NUM_WORDS_FOR_PROUNCER = 4
+NUM_WORDS_FOR_PROUNCER = 3
 WORDS_TO_PRONOUNCE = [
     "apple",
     "banana",
-    "orange",
-    "mango",
-    "pineapple",
-    "grape",
-    "peach",
-    "strawberry",
-    "watermelon",
     "cherry",
+    "grape",
+    "lemon",
+    "lime",
+    "mango",
+    "orange",
+    "peach",
+    "pineapple",
+    "plum",
+    "watermelon",
 ]
-
-MALE_NAMES = []
-
-FEMALE_NAMES = []
-
-GENDER_NEUTRAL_NAMES = []
