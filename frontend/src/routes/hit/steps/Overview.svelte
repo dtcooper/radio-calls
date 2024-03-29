@@ -5,7 +5,7 @@
 </script>
 
 <p>
-  This is will be a <strong>funny</strong> and <strong>enjoyable</strong> Assignment 😂😂😂 where you'll use your web
+  This is will be a <strong>funny</strong> and <strong>enjoyable</strong> assignment 😂😂😂 where you'll use your web
   browser to call 📞 people on a <em>live</em> radio show. 📻
 </p>
 
@@ -37,7 +37,8 @@
 <p class="text-center">
   <button class="btn btn-success btn-xs sm:btn-sm md:btn-lg" disabled={isPreview} on:click={next}>
     {#if isPreview}
-      You are currently <em class="underline">previewing</em> this assignment. Press ACCEPT to start.
+      You are currently <em class="contents">previewing</em> this assignment.
+      <span class="hidden sm:contents">Press ACCEPT to start.</span>
     {:else}
       Continue with assignment
     {/if}

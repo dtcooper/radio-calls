@@ -19,3 +19,7 @@ build:
 .PHONY: shell
 shell:
 	$(COMPOSE) run --service-ports --use-aliases --rm backend /bin/bash
+
+.PHONY: shell-nodeps
+shell-nodeps:
+	$(COMPOSE) run --no-deps --rm --entrypoint /bin/bash backend

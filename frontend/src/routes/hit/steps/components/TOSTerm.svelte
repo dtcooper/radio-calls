@@ -4,19 +4,23 @@
 
   $: accepted = term > index
   $: enabled = term === index
+
+  const accept = () => {
+    if (!accepted) {
+      term += 1
+    }
+  }
 </script>
 
 <div class="flex items-center justify-center">
   <input
     type="checkbox"
-    class="checkbox-error checkbox checkbox-sm sm:checkbox-md md:checkbox-lg"
+    class="checkbox checkbox-sm sm:checkbox-md md:checkbox-lg"
     class:pointer-events-none={accepted}
+    class:checkbox-error={enabled}
+    class:checkbox-info={accepted}
     disabled={!enabled && !accepted}
-    on:click={() => {
-      if (!accepted) {
-        term += 1
-      }
-    }}
+    on:click={accept}
     bind:checked={accepted}
   />
 </div>
@@ -27,11 +31,7 @@
   class:cursor-pointer={enabled}
   class:border-error={enabled}
   class:border-base-100={!enabled}
-  on:click={() => {
-    if (!accepted) {
-      term += 1
-    }
-  }}
+  on:click={accept}
 >
   <slot />
 </div>

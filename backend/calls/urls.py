@@ -14,7 +14,8 @@ logger = logging.getLogger("django")
 
 
 api = NinjaAPI()
-api.add_router("/", "api.api.router")
+api.add_router("hit", "api.routers.hit_router")
+api.add_router("admin", "api.routers.admin_router")
 
 
 def register_exec_handler(exception, code, message):

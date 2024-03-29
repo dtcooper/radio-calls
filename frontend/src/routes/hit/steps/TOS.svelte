@@ -1,6 +1,6 @@
 <script>
   import TOSTerm from "./components/TOSTerm.svelte"
-  import { state, isDebug } from "../hit"
+  import { state, debugMode } from "../hit"
 
   export let next
   let term = 0
@@ -29,8 +29,8 @@
 
 <div class="grid grid-cols-[max-content_auto] items-center gap-x-3 gap-y-2">
   <div class="flex flex-col items-center font-mono italic">
-    <span class="text-xs font-bold underline sm:text-sm">I agree!</span>
-    <em class="hidden text-xs sm:inline">(click to accept)</em>
+    <div class="text-xs font-bold underline sm:text-sm">I agree!</div>
+    <div class="hidden text-xs italic sm:inline">(click to accept)</div>
   </div>
   <div class="text-center font-mono font-bold italic underline">Term</div>
 
@@ -72,7 +72,14 @@
 </div>
 
 <p class="text-center">
-  <button class="btn btn-warning btn-xs sm:btn-sm md:btn-lg" on:click={next} disabled={numTerms !== term && !isDebug}>
-    I have carefully read, understand &amp; agree to the above terms.
+  <button
+    class="btn btn-warning btn-xs sm:btn-sm md:btn-lg"
+    on:click={next}
+    disabled={numTerms !== term && !$debugMode}
+  >
+    I have
+    <span class="contents sm:hidden">read</span>
+    <span class="hidden sm:contents">carefully read, understand,</span>
+    &amp; agree to the above terms.
   </button>
 </p>

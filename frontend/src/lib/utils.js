@@ -8,12 +8,13 @@ export const post = async (endpoint, data) => {
       options.headers["Content-Type"] = "application/json"
     }
 
-    const response = await fetch(`/api/hit/${endpoint}`, options)
+    const response = await fetch(`/api/${endpoint}`, options)
 
     const { success, ...rest } = await response.json()
     if (!success) {
-      console.warning(`Error from API (status code ${response.status}): ${response.error}`)
+      console.warn(`Error from API (status code ${response.status}): ${rest.error}`)
     }
+    console.log(endpoint, { success, ...rest })
     return { success, ...rest }
   } catch (e) {
     console.error(`Error with fetch to ${endpoint}:`, e)
@@ -28,7 +29,7 @@ const average = (values) => {
 export const runVolumeAnalyser = (source, callback) => {
   const analyser = source.context.createAnalyser()
   analyser.fftSize = 32
-  analyser.smoothingTimeConstant = 0.3
+  analyser.smoothingTimeConstant = 0.85
   const bufferLength = analyser.frequencyBinCount
   const buffer = new Uint8Array(bufferLength)
 
@@ -36,7 +37,7 @@ export const runVolumeAnalyser = (source, callback) => {
 
   const listen = () => {
     analyser.getByteFrequencyData(buffer)
-    callback((average(buffer) / 255) * 100)
+    callback(Math.min((average(buffer) / 255) * 125, 100)) // Fudge it a bit
     requestAnimationFrame(listen)
   }
   requestAnimationFrame(listen)
