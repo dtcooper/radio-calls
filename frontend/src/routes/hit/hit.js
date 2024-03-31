@@ -1,9 +1,6 @@
-import { post, runVolumeAnalyser } from "$lib/utils"
-
-import { noop } from "svelte/internal"
-import { get as _get, writable } from "svelte/store"
-
+import { createVolumeAnalyser, getMicAndInitAudio, initializePeer, post } from "$lib/utils"
 import { persisted } from "svelte-persisted-store"
+import { get as _get, writable } from "svelte/store"
 
 const params = new URLSearchParams(window.location.search)
 const assignmentId = params.get("assignmentId")
@@ -11,6 +8,7 @@ const hitId = params.get("hitId")
 const workerId = params.get("workerId")
 export const isPreview = assignmentId === "ASSIGNMENT_ID_NOT_AVAILABLE"
 export const debugMode = persisted("debug-mode", false)
+const isDebug = () => _get(debugMode)
 
 let canLeave = false
 
@@ -25,18 +23,35 @@ const createState = () => {
   const { subscribe, update: _update } = writable({
     audioInitialized: false,
     failure: "",
+    isStaff: false,
     micLevel: 0,
-    ready: false,
-    speakerLevel: 0,
     pronouncer: [],
-    topic: "",
-    isStaff: false
+    ready: false,
+    remotePeerId: "",
+    speakerLevel: 0,
+    topic: ""
   })
 
-  let audioCtx, audioOut, micMediaStream, peerId, pronouncerWordList
+  let audioCtx,
+    pronouncerAudio,
+    audioOut,
+    audioOutNode = null,
+    micMediaStream,
+    pronouncerWordList,
+    peer,
+    remotePeerId,
+    call,
+    outputAnalyser
 
   const update = (data) => _update(($state) => ({ ...$state, ...data }))
   const get = () => _get({ subscribe })
+  const fatalError = (msg, e) => {
+    if (e && isDebug()) {
+      msg += ` [Error: ${e}]`
+    }
+    update({ failure: msg })
+    canLeave = true
+  }
 
   // TODO if browser not supported: update($state => ({...$state, ready: true, browserNotSupported: true})
 
@@ -44,24 +59,42 @@ const createState = () => {
     subscribe,
     async initialize() {
       if (!get().ready) {
-        const url = isPreview ? "hit/handshake/topic" : "hit/handshake"
-        const { success, ...data } = await post(url, { assignmentId, hitId, workerId })
-        if (!success) {
-          update({ failure: `Couldn't initialize! ${data.error}` })
-          canLeave = true
-          return
-        }
+        try {
+          const url = isPreview ? "hit/handshake/topic" : "hit/handshake"
+          const { success, ...data } = await post(url, { assignmentId, hitId, workerId })
+          if (!success) {
+            fatalError(`Couldn't initialize! ${data.error}`)
+            return
+          }
 
-        const { topic, pronouncer, isStaff } = data
+          const { topic, pronouncer, isStaff, peerId, peerjsKey } = data
 
-        if (isPreview) {
-          update({ ready: true, topic, isStaff })
-        } else {
-          pronouncerWordList = pronouncer.wordList
-          peerId = data.peerI
-          audioOut = new Audio(pronouncer.audioUrl)
+          if (!isStaff) {
+            debugMode.set(false)
+          }
 
-          update({ ready: true, topic, isStaff, pronouncer: pronouncer.words })
+          if (isPreview) {
+            update({ ready: true, topic, isStaff })
+          } else {
+            pronouncerWordList = pronouncer.wordList
+
+            try {
+              peer = await initializePeer(peerId, peerjsKey)
+            } catch (e) {
+              fatalError("Couldn't connect to server. Please try again.", e)
+              return
+            }
+
+            pronouncerAudio = document.createElement("audio")
+            pronouncerAudio.src = pronouncer.audioUrl
+
+            audioOut = document.createElement("audio")
+            audioOut.autoplay = true
+
+            update({ ready: true, topic, isStaff, pronouncer: pronouncer.words })
+          }
+        } catch (e) {
+          fatalError("An unexpected error occurred and we couldn't initialize!", e)
         }
       }
     },
@@ -71,24 +104,18 @@ const createState = () => {
       } else {
         try {
           audioCtx = new AudioContext()
-
-          micMediaStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, autoGainControl: true },
-            video: false
-          })
-
-          for (const action of ["play", "pause", "seekbackward", "seekforward", "previoustrack", "nexttrack"]) {
-            navigator.mediaSession.setActionHandler(action, noop)
-          }
-
-          const outNode = audioCtx.createMediaElementSource(audioOut)
-          outNode.connect(audioCtx.destination) // So we can hear it
+          micMediaStream = await getMicAndInitAudio()
 
           const micNode = audioCtx.createMediaStreamSource(micMediaStream)
 
-          runVolumeAnalyser(micNode, (volume) => update({ micLevel: volume }))
-          runVolumeAnalyser(outNode, (volume) => update({ speakerLevel: volume }))
+          const micAnalyser = createVolumeAnalyser(audioCtx, (volume) => update({ micLevel: volume }))
+          micNode.connect(micAnalyser)
           update({ audioInitialized: true })
+
+          const pronouncerNode = audioCtx.createMediaElementSource(pronouncerAudio)
+          outputAnalyser = createVolumeAnalyser(audioCtx, (volume) => update({ speakerLevel: volume }))
+          pronouncerNode.connect(outputAnalyser)
+          outputAnalyser.connect(audioCtx.destination)
 
           return { success: true, message: "Microphone enabled!" }
         } catch (e) {
@@ -107,12 +134,12 @@ const createState = () => {
         const play = () => {
           const word = pronouncer[wordIndex++]
           const { start, end } = pronouncerWordList[word]
-          audioOut.currentTime = start
-          audioOut.play()
+          pronouncerAudio.currentTime = start
+          pronouncerAudio.play()
 
           nextInterval = setInterval(() => {
-            if (audioOut.currentTime >= end) {
-              audioOut.pause()
+            if (pronouncerAudio.currentTime >= end) {
+              pronouncerAudio.pause()
               clearInterval(nextInterval)
               if (wordIndex >= pronouncer.length) {
                 clearTimeout(resetTimeout)
@@ -135,7 +162,7 @@ const createState = () => {
         play()
       })
     },
-    recordWords() {
+    recordVerifySubmit() {
       const abort = new AbortController()
       const { pronouncer } = get()
       const promise = new Promise((resolve) => {
@@ -145,7 +172,8 @@ const createState = () => {
           const blob = new Blob(chunks, { type: recorder.mimeType })
           const formData = new FormData()
           formData.append("audio", blob)
-          const { success, verified, heardWords, remotePeerId } = await post("hit/verify", formData)
+          const { success, verified, heardWords, remotePeerId: _remotePeerId } = await post("hit/verify", formData)
+          remotePeerId = _remotePeerId
           resolve({ success: success && verified, heardWords: heardWords || [] })
         }
         recorder.ondataavailable = (e) => chunks.push(e.data)
@@ -154,6 +182,37 @@ const createState = () => {
         recorder.start()
       })
       return { abort, promise }
+    },
+    async cheatVerifySubmit() {
+      const { success, verified, remotePeerId: _remotePeerId } = await post("hit/verify/cheat")
+      remotePeerId = _remotePeerId
+      return success && verified
+    },
+    call() {
+      outputAnalyser.disconnect()
+
+      return new Promise((accept, reject) => {
+        call = peer.call(remotePeerId, micMediaStream, { metadata: { hi: "mom" } })
+        console.log("Placing call to ", remotePeerId)
+        call.on("stream", (stream) => {
+          if (audioOutNode) {
+            audioOutNode.disconnect()
+          }
+          audioOut.autoplay = true
+          audioOut.srcObject = stream
+
+          audioOutNode = audioCtx.createMediaStreamSource(stream)
+          audioOutNode.connect(outputAnalyser)
+
+          accept()
+        })
+        call.on("close", (e) => {
+          console.warn("CALL CLOSED", e)
+        })
+        call.on("error", (e) => {
+          console.warn("CALL ERROR", e)
+        })
+      })
     }
   }
 }

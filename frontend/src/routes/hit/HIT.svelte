@@ -18,7 +18,6 @@
   $: document.documentElement.setAttribute("data-theme", $darkTheme ? "dark" : "light")
   let currentStep = 0
 
-  let main
   const steps = [{ title: "Overview", component: Overview, emoji: "🔎" }]
   if (!isPreview) {
     if ($debugMode) {

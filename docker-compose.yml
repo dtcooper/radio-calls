@@ -43,9 +43,8 @@ services:
 
   peerjs:
     restart: always
-    image: peerjs/peerjs-server
-    ports:
-      - 127.0.0.1:9000:9000
+    image: peerjs/peerjs-server:1.0.2
+    command: --key "${PEERJS_KEY:-peerjs}"
 
 volumes:
   nginx_secrets:

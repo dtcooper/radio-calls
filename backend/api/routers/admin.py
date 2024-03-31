@@ -1,10 +1,12 @@
 import datetime
 import uuid
 
+from django.conf import settings
+
 from ninja import Router
 
 from ..models import HIT
-from .common import Schema
+from .common import BaseOut, Schema
 
 
 def staff_only(request):
@@ -22,8 +24,9 @@ class HITOut(Schema):
     created_at: datetime.datetime
 
 
-class HandshakeOut(Schema):
+class HandshakeOut(BaseOut):
     success: bool = True
+    peerjs_key: str = settings.PEERJS_KEY
     hits: list[HITOut]
 
 

@@ -15,3 +15,7 @@ services:
     restart: "no"
     ports:
       - 127.0.0.1:5432:5432
+  peerjs:
+    restart: "no"
+    ports:
+      - 9000:9000

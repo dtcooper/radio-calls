@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.templatetags.static import static
 
 from ninja import File, Router
@@ -8,7 +9,7 @@ from ninja.files import UploadedFile
 
 from ..constants import PRONOUNCER_WORDS
 from ..models import HIT, Assignment, Worker
-from .common import Schema
+from .common import BaseOut, Schema
 
 
 def assignment_required_in_session(request):
@@ -21,10 +22,6 @@ def assignment_required_in_session(request):
 
 
 router = Router(auth=assignment_required_in_session)
-
-
-class BaseOut(Schema):
-    success: bool = True
 
 
 class TopicOnlyHandshakeIn(Schema):
@@ -49,6 +46,7 @@ class TopicOnlyHandshakeOut(BaseOut):
 
 class HandshakeOut(TopicOnlyHandshakeOut):
     peer_id: uuid.UUID
+    peerjs_key: str = settings.PEERJS_KEY
     pronouncer: Pronouncer
 
 
@@ -115,7 +113,7 @@ def handshake(request, handshake: HandshakeIn):
 
 
 @router.post("verify", response=PronouncerOut, by_alias=True)
-def pronouncer(request, audio: UploadedFile = File(...)):
+def verify(request, audio: UploadedFile = File(...)):
     assignment: Assignment = request.assignment
     success, heard_words = assignment.match_pronouncer_from_audio_file(audio.file.name)
 
@@ -126,3 +124,13 @@ def pronouncer(request, audio: UploadedFile = File(...)):
         peer_id = assignment.hit.peer_id
 
     return {"verified": success, "remote_peer_id": peer_id, "heard_words": heard_words}
+
+
+@router.post("verify/cheat", response=PronouncerOut, by_alias=True)
+def verify_cheat(request):
+    if not request.user.is_staff:
+        raise HttpError(400, "Can't cheat unless you're staff!")
+    assignment: Assignment = request.assignment
+    assignment.stage = max(Assignment.Stage.VERIFIED, assignment.stage)
+    assignment.save()
+    return {"verified": True, "remote_peer_id": assignment.hit.peer_id, "heard_words": assignment.pronouncer}

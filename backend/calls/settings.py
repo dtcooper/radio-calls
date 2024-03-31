@@ -12,6 +12,7 @@ SECRET_KEY = env("SECRET_KEY")
 
 DEBUG = env.bool("DEV_MODE", False)
 WHISPER_MODEL = env("WHISPER_MODEL", default="tiny.en")
+PEERJS_KEY = env("PEERJS_KEY", default="peerjs")
 
 ALLOWED_HOSTS = []
 

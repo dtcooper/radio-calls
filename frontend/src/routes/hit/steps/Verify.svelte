@@ -20,7 +20,7 @@
   const record = async () => {
     failedHeardWords = null
     recording = true
-    const { abort: _abort, promise } = state.recordWords()
+    const { abort: _abort, promise } = state.recordVerifySubmit()
     abort = _abort
 
     const { success: _success, heardWords } = await promise
@@ -41,8 +41,17 @@
     }
   }
 
-  $: playDisabled = playing || recording
-  $: recordDisabled = (!playedOnce && !$debugMode) || playing || recording
+  const cheat = async () => {
+    recording = true
+    success = await state.cheatVerifySubmit()
+    recording = false
+    if (success) {
+      next()
+    }
+  }
+
+  $: playDisabled = playing || recording || success
+  $: recordDisabled = (!playedOnce && !$debugMode) || playing || recording || success
   $: submitDisabled = !abort
 </script>
 
@@ -79,6 +88,11 @@
   Press the button below and start recording yourself saying the {$state.pronouncer.length} phrase &mdash;
   <em>remember: they're all fruits!</em><br />
   When you are done, press submit.
+  {#if $debugMode}
+    <br /><code class="badge badge-error gap-2 font-mono capitalize"
+      ><strong>DEBUG:</strong> {$state.pronouncer.join(", ")}</code
+    >
+  {/if}
 </p>
 
 {#if failedHeardWords}
@@ -110,11 +124,16 @@
         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
       /></svg
     >
-    <span> You repeated the </span>
+    <span>You repeated the phrase correctly. Proceed to the next step!</span>
   </div>
 {/if}
 
 <p class="mb-3 flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
+  {#if $debugMode}
+    <button class="btn btn-info btn-xs sm:btn-sm md:btn-lg" on:click={cheat} disabled={recordDisabled}>
+      Cheat!!!
+    </button>
+  {/if}
   <button class="btn btn-error btn-xs sm:btn-sm md:btn-lg" on:click={record} disabled={recordDisabled}>
     🗣 Click here to record phrase 🗣
   </button>
@@ -122,18 +141,15 @@
     Submit phrase
   </button>
 </p>
-<p></p>
-<p>
-  {#if $debugMode}
-    <code class="badge badge-error gap-2 font-mono capitalize"
-      ><strong>DEBUG:</strong> {$state.pronouncer.join(", ")}</code
-    >
-  {/if}
-</p>
 
 <p>
+  <span class="text-3xl font-bold text-error underline">TODO TODO TODO TODO</span><br />
   Troubleshooting: - If you're having trouble, check your microphone levels above. - If you the server has having a hard
   time recognizing your words, this may not be the HIT for you.
 </p>
 
-<p><button class="btn btn-success" on:click={next} disabled={!success}>Next</button></p>
+<p class="text-center">
+  <button class="btn btn-success btn-xs sm:btn-sm md:btn-lg" on:click={next} disabled={!success}>
+    Continue with assignment
+  </button>
+</p>
