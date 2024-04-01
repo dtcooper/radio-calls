@@ -9,10 +9,7 @@ env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = env("SECRET_KEY")
-
 DEBUG = env.bool("DEV_MODE", False)
-WHISPER_MODEL = env("WHISPER_MODEL", default="tiny.en")
-PEERJS_KEY = env("PEERJS_KEY", default="peerjs")
 
 ALLOWED_HOSTS = []
 
@@ -70,10 +67,6 @@ DATABASES = {
         "PORT": 5432,
     }
 }
-
-# Don't upload to memory
-FILE_UPLOAD_HANDLERS = ["django.core.files.uploadhandler.TemporaryFileUploadHandler"]
-FILE_UPLOAD_MAX_MEMORY_SIZE = 0
 
 
 # Password validation

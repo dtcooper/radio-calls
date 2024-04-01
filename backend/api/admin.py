@@ -13,8 +13,8 @@ class WorkerAdmin(admin.ModelAdmin):
 
 
 class AssignmentAdmin(admin.ModelAdmin):
-    list_display = ("id", "hit", "worker", "stage", "pronouncer")
-    readonly_fields = ("id", "pronouncer")
+    list_display = ("id", "hit", "worker", "stage")
+    readonly_fields = ("id",)
 
 
 admin.site.register(HIT, HITAdmin)

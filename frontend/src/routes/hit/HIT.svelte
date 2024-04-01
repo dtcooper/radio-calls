@@ -6,11 +6,10 @@
 
   import { state, debugMode } from "./hit"
   import Call from "./steps/Call.svelte"
-  import InitializeAudio from "./steps/InitializeAudio.svelte"
+  import ChooseName from "./steps/ChooseName.svelte"
   import Overview from "./steps/Overview.svelte"
   import Submit from "./steps/Submit.svelte"
   import TOS from "./steps/TOS.svelte"
-  import Verify from "./steps/Verify.svelte"
 
   import { isPreview } from "./hit"
 
@@ -25,8 +24,7 @@
     }
     steps.push(
       { title: "Terms of Service", component: TOS, emoji: "📜" },
-      { title: "Microphone", component: InitializeAudio, emoji: "🎙" },
-      { title: "Verifications", component: Verify, emoji: "⚖️" },
+      { title: "Choose a Name", component: ChooseName, emoji: "👫" },
       { title: "Call", component: Call, emoji: "📞" },
       { title: "Submit", component: Submit, emoji: "💫" }
     )

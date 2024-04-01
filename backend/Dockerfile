@@ -19,7 +19,6 @@ RUN if [ "$DEV_MODE" -a "$DEV_MODE" != '0' ]; then \
         && apt-get upgrade -y \
         && apt-get install --no-install-recommends -y \
             bash-completion \
-            ffmpeg \
             iputils-ping \
             less \
             nano \
@@ -29,15 +28,13 @@ RUN if [ "$DEV_MODE" -a "$DEV_MODE" != '0' ]; then \
 
 COPY pyproject.toml poetry.lock /app/
 WORKDIR /app
-ARG WHISPER_MODEL=tiny.en
-ENV WHISPER_MODEL="${WHISPER_MODEL}"
+
 RUN poetry install $([ -z "$DEV_MODE" -o "$DEV_MODE" = '0' ] && echo '--without=dev') \
     && if [ "$DEV_MODE" -a "$DEV_MODE" != 0 ]; then \
         # Download relevant verion's bash completion (in dev only)
         wget -qO /etc/bash_completion.d/django_bash_completion \
             "https://raw.githubusercontent.com/django/django/$(python -c 'import django; print(".".join(map(str, django.VERSION[:2])))')/extras/django_bash_completion" \
-    ; fi \
-    && python -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL}', device='cpu', compute_type='int8')"
+    ; fi
 
 COPY . /app/
 

@@ -41,11 +41,6 @@ services:
     environment:
       POSTGRES_PASSWORD: postgres
 
-  peerjs:
-    restart: always
-    image: peerjs/peerjs-server:1.0.2
-    command: --key "${PEERJS_KEY:-peerjs}"
-
 volumes:
   nginx_secrets:
   postgres_data:

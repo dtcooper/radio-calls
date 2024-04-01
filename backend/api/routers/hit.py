@@ -1,62 +1,52 @@
-import uuid
+from pydantic.alias_generators import to_camel
 
-from django.conf import settings
-from django.templatetags.static import static
-
-from ninja import File, Router
+from ninja import Router, Schema as BaseSchema
 from ninja.errors import HttpError
-from ninja.files import UploadedFile
 
-from ..constants import PRONOUNCER_WORDS
-from ..models import HIT, Assignment, Worker
-from .common import BaseOut, Schema
+from ..models import HIT, NAME_MAX_LENGTH, Assignment, Worker
 
 
-def assignment_required_in_session(request):
-    assignment_id = request.session.get("assignment_id")
-    if assignment_id is None:
-        return False
-
-    request.assignment = Assignment.objects.filter(hit__enabled=True).get(id=assignment_id)
-    return True
+router = Router()
 
 
-router = Router(auth=assignment_required_in_session)
+class Schema(BaseSchema):
+    class Config(BaseSchema.Config):
+        alias_generator = to_camel
+        populate_by_name = True
 
 
-class TopicOnlyHandshakeIn(Schema):
-    hit_id: None | str
+class BaseOut(Schema):
+    success: bool = True
 
 
-class HandshakeIn(TopicOnlyHandshakeIn):
+class HandshakeIn(Schema):
     assignment_id: None | str
     worker_id: None | str
+    hit_id: None | str
+    is_preview: bool
 
 
-class Pronouncer(Schema):
-    words: list[str]
-    word_list: dict[str, dict[str, float]] = PRONOUNCER_WORDS
-    audio_url: str = static("api/hit/pronouncer.mp3")
-
-
-class TopicOnlyHandshakeOut(BaseOut):
+class HandshakeOut(BaseOut):
     topic: str
-    is_staff: bool
+    name: str
+    name_max_length: int = NAME_MAX_LENGTH
+    gender: str | None = None
+    is_staff: bool | None = None
 
 
-class HandshakeOut(TopicOnlyHandshakeOut):
-    peer_id: uuid.UUID
-    peerjs_key: str = settings.PEERJS_KEY
-    pronouncer: Pronouncer
+class NameIn(Schema):
+    name: str
+    gender: str
 
 
-class PronouncerOut(BaseOut):
-    verified: bool
-    remote_peer_id: None | uuid.UUID
-    heard_words: list[str]
+def get_assignment(id):
+    return Assignment.objects.get(hit__enabled=True, id=id)
 
 
-def get_hit(request, handshake: TopicOnlyHandshakeIn | HandshakeIn):
+@router.post("handshake", response=HandshakeOut, by_alias=True)
+def handshake(request, handshake: HandshakeIn):
+    is_staff = request.user.is_staff
+
     hit = None
     try:
         hit_qs = HIT.objects.filter(enabled=True)
@@ -70,18 +60,8 @@ def get_hit(request, handshake: TopicOnlyHandshakeIn | HandshakeIn):
     if hit is None:
         raise HttpError(400, "HIT not found!")
 
-    return hit
-
-
-@router.post("handshake/topic", response=TopicOnlyHandshakeOut, auth=None, by_alias=True)
-def handshake_topic(request, handshake: TopicOnlyHandshakeIn):
-    return {"topic": get_hit(request, handshake).topic, "is_staff": request.user.is_staff}
-
-
-@router.post("handshake", response=HandshakeOut, auth=None, by_alias=True)
-def handshake(request, handshake: HandshakeIn):
-    hit = get_hit(request, handshake)
-    is_staff = request.user.is_staff
+    if handshake.is_preview:
+        return {"topic": hit.topic, "is_staff": is_staff}
 
     worker_id = None
     if handshake.worker_id is not None and len(handshake.worker_id) > 10:
@@ -106,31 +86,20 @@ def handshake(request, handshake: HandshakeIn):
 
     return {
         "topic": hit.topic,
-        "pronouncer": {"words": assignment.pronouncer},
         "is_staff": is_staff,
-        "peer_id": worker.peer_id,
+        "name": worker.name,
+        "gender": worker.gender,
     }
 
 
-@router.post("verify", response=PronouncerOut, by_alias=True)
-def verify(request, audio: UploadedFile = File(...)):
-    assignment: Assignment = request.assignment
-    success, heard_words = assignment.match_pronouncer_from_audio_file(audio.file.name)
+@router.post("name", response=BaseOut, by_alias=True)
+def name(request, handshake: NameIn):
+    if handshake.gender not in Worker.Gender.values:
+        raise HttpError(400, f"Invalid gender {handshake.gender}")
 
-    peer_id = None
-    if success:
-        assignment.stage = max(Assignment.Stage.VERIFIED, assignment.stage)
-        assignment.save()
-        peer_id = assignment.hit.peer_id
-
-    return {"verified": success, "remote_peer_id": peer_id, "heard_words": heard_words}
-
-
-@router.post("verify/cheat", response=PronouncerOut, by_alias=True)
-def verify_cheat(request):
-    if not request.user.is_staff:
-        raise HttpError(400, "Can't cheat unless you're staff!")
-    assignment: Assignment = request.assignment
-    assignment.stage = max(Assignment.Stage.VERIFIED, assignment.stage)
-    assignment.save()
-    return {"verified": True, "remote_peer_id": assignment.hit.peer_id, "heard_words": assignment.pronouncer}
+    assignment = get_assignment(request.session["assignment_id"])
+    worker = assignment.worker
+    worker.name = handshake.name[:NAME_MAX_LENGTH]
+    worker.gender = handshake.gender
+    worker.save()
+    return {"success": True}
