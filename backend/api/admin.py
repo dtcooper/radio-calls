@@ -4,17 +4,18 @@ from .models import HIT, Assignment, Worker
 
 
 class HITAdmin(admin.ModelAdmin):
-    list_display = ("id", "enabled", "created_at", "topic", "location")
+    list_display = fields = ("name", "id", "topic", "created_at", "enabled", "location")
+    readonly_fields = ("created_at",)
 
 
 class WorkerAdmin(admin.ModelAdmin):
-    list_display = ("id", "name")
-    readonly_fields = ("id",)
+    list_display = fields = ("id", "created_at", "name", "gender")
+    readonly_fields = ("created_at",)
 
 
 class AssignmentAdmin(admin.ModelAdmin):
-    list_display = ("id", "hit", "worker", "stage")
-    readonly_fields = ("id",)
+    list_display = fields = ("id", "created_at", "hit", "worker", "stage", "call_started_at", "words_to_pronounce")
+    readonly_fields = ("created_at",)
 
 
 admin.site.register(HIT, HITAdmin)

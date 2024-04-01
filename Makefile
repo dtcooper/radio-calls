@@ -23,3 +23,7 @@ shell:
 .PHONY: shell-nodeps
 shell-nodeps:
 	$(COMPOSE) run --no-deps --rm --entrypoint /bin/bash backend
+
+.PHONY: nginx-nodeps
+nginx-nodeps:
+	$(COMPOSE) run --no-deps --rm --service-ports nginx

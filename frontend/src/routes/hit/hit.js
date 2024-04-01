@@ -1,11 +1,12 @@
-import { post } from "$lib/utils"
+import { post as _post } from "$lib/utils"
+import { Device } from "@twilio/voice-sdk"
 import { persisted } from "svelte-persisted-store"
 import { get as _get, writable } from "svelte/store"
 
 const params = new URLSearchParams(window.location.search)
-const assignmentId = params.get("assignmentId")
-const hitId = params.get("hitId")
-const workerId = params.get("workerId")
+let assignmentId = params.get("assignmentId")
+let hitId = params.get("hitId")
+let workerId = params.get("workerId")
 export const isPreview = assignmentId === "ASSIGNMENT_ID_NOT_AVAILABLE"
 export const debugMode = persisted("debug-mode", false)
 const isDebug = () => _get(debugMode)
@@ -19,6 +20,8 @@ export const reload = () => {
   window.location.reload()
 }
 
+const post = (endpoint, data) => _post(endpoint, data, isDebug())
+
 const createState = () => {
   const { subscribe, update: _update } = writable({
     failure: "",
@@ -29,7 +32,8 @@ const createState = () => {
     nameMaxLength: 0,
     ready: false,
     speakerLevel: 0,
-    topic: ""
+    topic: "",
+    callInProgress: false
   })
 
   const update = (data) => _update(($state) => ({ ...$state, ...data }))
@@ -42,31 +46,73 @@ const createState = () => {
     canLeave = true
   }
 
-  // TODO if browser not supported: update($state => ({...$state, ready: true, browserNotSupported: true})
+  /** @type {Device} */
+  let device
 
   return {
     subscribe,
     async initialize() {
       if (!get().ready) {
-        const { success, ...data } = await post("hit/handshake", { assignmentId, hitId, workerId, isPreview })
+        let url = "handshake"
+        if (isPreview) {
+          url += "/preview"
+        }
+        const { success, ...data } = await post(url, { assignmentId, hitId, workerId, isPreview })
         if (!success) {
           fatalError(`Couldn't initialize! ${data.error}`)
           return
         }
 
-        const { isStaff, ...rest } = data
+        const { isStaff, token, ...rest } = data
 
-        if (!isStaff) {
+        if (isStaff) {
+          // In case we're staff, these may have been sent back by server if unspecified
+          ;({ assignmentId, hitId, workerId } = data)
+        } else {
           debugMode.set(false)
+        }
+
+        if (!isPreview) {
+          this.createDevice(token)
         }
 
         update({ ready: true, isStaff, ...rest })
       }
     },
+    async refreshToken() {
+      const { success, token } = await post("token")
+      if (success) {
+        device.updateToken(token)
+      }
+    },
+    createDevice(token) {
+      device = new Device(token)
+      device.on("tokenWillExpire", () => this.refreshToken())
+      device.on("error", (e) => {
+        console.warn("An twilio error has occurred: ", e)
+        update({ failure: e.message })
+      })
+    },
+    async call(cheat = false) {
+      const call = await device.connect({ params: { assignmentId, cheat: cheat && get().isStaff, Caller: "spoofed" } })
+      call.on("volume", (inputVolume, outputVolume) => {
+        const micLevel = Math.min(inputVolume * 100 * 1.25, 100)
+        const speakerLevel = Math.min(outputVolume * 100 * 1.25, 100)
+        update({ micLevel, speakerLevel })
+      })
+      call.on("disconnect", () => {
+        update({ micLevel: 0, speakerLevel: 0 })
+      })
+      call.on("messageReceived", (message) => {
+        console.log("GOT MESSAGE", message)
+      })
+    },
     async updateName(name, gender) {
-      const { success } = await post("hit/name", { name, gender })
-      if (!success) {
-        console.warn("Error updating name")
+      const { success } = await post("name", { name, gender })
+      if (success) {
+        update({ name, gender })
+      } else {
+        console.warn("Error updating name!")
       }
     }
   }

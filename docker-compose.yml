@@ -23,12 +23,14 @@ services:
   nginx:
     restart: always
     image: jonasal/nginx-certbot:5.0-alpine
-    env_file: .env
     depends_on:
       - backend
     volumes:
       - ./nginx.conf:/etc/nginx/templates/site.conf.template
       - nginx_secrets:/etc/letsencrypt
+    environment:
+      DOMAIN_NAME: "${DOMAIN_NAME}"
+      CERTBOT_EMAIL: "${CERTBOT_EMAIL}"
     ports:
       - 80:80
       - 443:443

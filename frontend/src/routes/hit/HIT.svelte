@@ -10,6 +10,7 @@
   import Overview from "./steps/Overview.svelte"
   import Submit from "./steps/Submit.svelte"
   import TOS from "./steps/TOS.svelte"
+  import AudioMeter from "./steps/components/AudioMeter.svelte"
 
   import { isPreview } from "./hit"
 
@@ -17,16 +18,16 @@
   $: document.documentElement.setAttribute("data-theme", $darkTheme ? "dark" : "light")
   let currentStep = 0
 
-  const steps = [{ title: "Overview", component: Overview, emoji: "🔎" }]
+  const steps = [{ title: "Overview", component: Overview, emoji: "🔎", staffCanSkipTo: true }]
   if (!isPreview) {
     if ($debugMode) {
-      currentStep = 2 // Microphone
+      currentStep = 3 // Call
     }
     steps.push(
-      { title: "Terms of Service", component: TOS, emoji: "📜" },
-      { title: "Choose a Name", component: ChooseName, emoji: "👫" },
-      { title: "Call", component: Call, emoji: "📞" },
-      { title: "Submit", component: Submit, emoji: "💫" }
+      { title: "Terms of Service", component: TOS, emoji: "📜", staffCanSkipTo: true },
+      { title: "Choose a Name", component: ChooseName, emoji: "👫", staffCanSkipTo: true },
+      { title: "Call", component: Call, emoji: "📞", staffCanSkipTo: true },
+      { title: "Submit", component: Submit, emoji: "💫", staffCanSkipTo: false }
     )
   }
 
@@ -69,17 +70,28 @@
   <!-- Main content -->
   <div class="mx-auto flex min-h-screen max-w-screen-lg flex-col rounded-b-2xl bg-base-100">
     <header class="mb-2 px-1 pt-2 text-center text-2xl font-bold sm:px-2 sm:pt-3 sm:text-3xl md:text-4xl">
-      <span class="hidden sm:contents">🎉🎙️️📻</span>
+      <span class="hidden sm:contents">☎️🎉🎙️️📻</span>
       <span class="font-mono italic underline">Call a Radio Show</span>
-      📻🎙️️🎉
+      📻🎙️️🎉☎️
     </header>
 
     {#if steps.length > 1}
       <div class="sticky top-0 z-10 bg-base-100">
         <ul class="steps hidden px-1 pb-0.5 pt-2 sm:px-2 md:grid">
-          {#each steps as { title, emoji }, num}
+          {#each steps as { title, emoji, staffCanSkipTo }, num}
+            {@const canSkip = $debugMode && staffCanSkipTo}
             <li data-content={emoji} class="step" class:step-info={num <= currentStep}>
-              <span class="md:text-sm lg:text-base {num === currentStep ? 'font-bold text-info' : ''}">{title}</span>
+              <!-- svelte-ignore a11y-no-static-element-interactions -->
+              <svelte:element
+                this={canSkip ? "button" : "span"}
+                class="md:text-sm lg:text-base {num === currentStep ? 'font-bold text-info' : ''}"
+                class:hover:text-primary={canSkip}
+                on:click={() => {
+                  if (canSkip) {
+                    currentStep = num
+                  }
+                }}>{title}</svelte:element
+              >
             </li>
           {/each}
         </ul>
@@ -89,21 +101,11 @@
 
         <hr class="mx-3 mt-1 h-px border-neutral" />
 
-        {#if $state.audioInitialized}
-          <div
-            class="mt-2 grid grid-cols-[auto_1fr_auto_1fr] items-center gap-3 px-2 text-base sm:px-6 sm:text-lg"
-            transition:slide
-          >
-            <div><span class="hidden sm:contents">Microphone</span> 🎙</div>
-            <div class="mr-4 sm:mr-8 md:mr-12">
-              <progress class="progress progress-error sm:h-3" value={$state.micLevel} max="100"></progress>
-            </div>
-            <div class="ml-4 sm:ml-8 md:ml-12"><span class="hidden sm:contents">Speaker</span> 🔊</div>
-            <div>
-              <progress class="progress progress-success sm:h-3" value={$state.speakerLevel} max="100"></progress>
-            </div>
+        {#if step.component === Call}
+          <div class="mt-2" transition:slide>
+            <AudioMeter />
+            <hr class="mx-3 mt-2 h-px border-neutral" />
           </div>
-          <hr class="mx-3 mt-2 h-px border-neutral" />
         {/if}
       </div>
     {/if}

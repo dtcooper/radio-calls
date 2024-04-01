@@ -1,21 +1,24 @@
-export const post = async (endpoint, data) => {
+export const post = async (endpoint, data, debug = false) => {
   try {
-    const options = { method: "POST", headers: { Accept: "application/json" } }
-    if (data instanceof FormData) {
-      options.body = data
-    } else {
-      options.body = JSON.stringify(data)
-      options.headers["Content-Type"] = "application/json"
+    endpoint = `/api/hit/${endpoint}`
+    if (debug) {
+      console.log(`${endpoint}: call`, data)
     }
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    })
+    const responseJson = await response.json()
 
-    const response = await fetch(`/api/${endpoint}`, options)
-
-    const { success, ...rest } = await response.json()
+    const { success, error } = responseJson
     if (!success) {
-      console.warn(`Error from API (status code ${response.status}): ${rest.error}`)
+      console.warn(`Error from API (status code ${response.status}): ${error}`)
     }
-    console.log({ success, ...rest })
-    return { success, ...rest }
+    if (debug) {
+      console.log(`${endpoint} response:`, responseJson)
+    }
+    return responseJson
   } catch (e) {
     console.error(`Error with fetch to ${endpoint}:`, e)
     return { success: false, error: "Server sent malformed response" }
