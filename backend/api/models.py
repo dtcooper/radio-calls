@@ -10,6 +10,7 @@ import uuid
 from faker import Faker
 
 from django.conf import settings
+from django.contrib.admin.decorators import display
 from django.contrib.auth.models import User
 from django.core import validators
 from django.db import models
@@ -39,7 +40,13 @@ logger = logging.getLogger("django")
 
 
 class BaseModel(models.Model):
-    amazon_id = models.CharField("Amazon ID", max_length=MTURK_ID_LENGTH, unique=True, null=True)
+    amazon_id = models.CharField(
+        "Amazon ID",
+        max_length=MTURK_ID_LENGTH,
+        unique=True,
+        null=True,
+        help_text="Identifier as used by the Amazon MTurk API",
+    )
     created_at = models.DateTimeField("created at", auto_now_add=True, db_index=True)
 
     class Meta:
@@ -55,34 +62,52 @@ duration_validators = min_max(datetime.timedelta(seconds=30), datetime.timedelta
 
 class HIT(BaseModel):
     class Status(models.TextChoices):
-        SANDBOX = "sandbox", "Sandbox"
-        PRODUCTION = "prod", "Production"
-        LOCAL = "local", "Local (not submitted)"
+        SANDBOX = "sandbox", "Sandbox (published)"
+        PRODUCTION = "prod", "Production (published)"
+        LOCAL = "local", "Local (unpublished)"
 
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    name = models.CharField("code name", max_length=100, help_text="Not sent to MTurk.")
-    enabled = models.BooleanField(default=True)
-    topic = models.CharField("topic", max_length=1024)
+    name = models.CharField("name", max_length=100, help_text="Not sent to workers. For internal cataloging.")
+    topic = models.CharField("topic", max_length=1024, help_text="Question or topic that users get prompted for.")
+    host_names = models.CharField(
+        "host name(s)", max_length=255, help_text="The name of the host(s) to be presenter to the workers to call."
+    )
     status = ChoicesCharField("status", choices=Status, default=Status.LOCAL)
-    title = models.CharField("title (on MTurk)", max_length=1024)
-    description = models.TextField("description (on MTurk)")
-    keywords = models.TextField("keywords (on MTurk)")
-    unique_request_token = models.UUIDField(default=uuid.uuid4)
-    submitted_at = models.DateTimeField(null=True, default=None)
-    duration = models.DurationField("duration of HIT", validators=duration_validators)
-    approval_code = models.UUIDField(default=uuid.uuid4)
+    title = models.CharField("title", max_length=1024, help_text="Title as it displays on MTurk.")
+    description = models.CharField("description", max_length=1024, help_text="Description as it displays on MTurk.")
+    keywords = models.CharField("keywords", max_length=1024, help_text="Keywords as they display on MTurk.")
+    unique_request_token = models.UUIDField(
+        default=uuid.uuid4, help_text="Token to prevent double submission to MTurk."
+    )
+    submitted_at = models.DateTimeField(null=True, default=None, help_text="Submission time of this HIT to MTurk.")
+    duration = models.DurationField(
+        "HIT duration",
+        validators=duration_validators,
+        help_text=(
+            "Duration of HITs validity. NOTE: workers who accept the HIT at the last minute, can hold it for up to"
+            " the assignment's duration after expiry."
+        ),
+    )
+    approval_code = models.UUIDField(
+        default=uuid.uuid4, help_text="Approval code needed by workers to submit assignment."
+    )
     approval_delay = models.DurationField(
-        default=datetime.timedelta(days=3),
+        default=datetime.timedelta(days=2),
         validators=duration_validators,
         help_text="After this time, an approved assignment will be automatically approved.",
     )
-    assignment_duration = models.DurationField("duration of individual assignment", validators=duration_validators)
+    assignment_duration = models.DurationField(
+        "assignment duration",
+        validators=duration_validators,
+        help_text="Amount of time worker has to complete an individual assignment.",
+    )
     assignment_number = models.PositiveIntegerField("maximum number of assignments", validators=min_max(1, 500))
     assignment_reward = models.DecimalField(
-        "individual reward for assignment",
+        "assignment reward",
         max_digits=4,
         decimal_places=2,
         validators=min_max(Decimal("0.01"), Decimal("99.99")),
+        help_text="In dollars, before fees. (See cost estimate before submitting.)",
     )
     qualification_masters = models.BooleanField(
         "masters qualification",
@@ -121,7 +146,7 @@ class HIT(BaseModel):
     def __str__(self):
         return self.name
 
-    def cost(self):
+    def cost_estimate(self):
         fees = Decimal("0.20")
         if self.assignment_number >= 10:
             fees += Decimal("0.20")
@@ -130,6 +155,12 @@ class HIT(BaseModel):
         unit_cost = self.assignment_reward * (1 + fees)
         return (unit_cost * self.assignment_number).quantize(Decimal("0.01"))
 
+    @display(description="is running?", boolean=True)
+    def is_running(self):
+        if self.submitted_at:
+            return self.submitted_at + self.duration + self.assignment_duration >= timezone.now()
+        return False
+
     def delete(self, *args, **kwargs):
         if self.amazon_id and self.status in (HIT.Status.SANDBOX, HIT.Status.PRODUCTION):
             client = get_mturk_client(production=self.status == HIT.Status.PRODUCTION)
@@ -137,6 +168,8 @@ class HIT(BaseModel):
                 client.delete_hit(HITId=self.amazon_id)
             except Exception:
                 logger.exception(f"Got an error deleting HIT {self.amazon_id} from MTurk")
+            else:
+                logger.info(f"HIT {self.amazon_id} successfully deleted from mechanical turk")
         super().delete(*args, **kwargs)
 
     def publish_to_mturk(self, production=False):

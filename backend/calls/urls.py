@@ -26,6 +26,10 @@ def mturk_manage(request):
     return HttpResponseForbidden()
 
 
+admin.site.site_title = admin.site.site_header = "Radio Calls"
+admin.site.index_title = "Administration"
+
+
 urlpatterns = [
     path("", index),
     path("api/hit/", hit_api.urls),

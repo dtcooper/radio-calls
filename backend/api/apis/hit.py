@@ -84,20 +84,19 @@ class TokenOut(BaseOut):
 
 
 def get_assignment_from_session(request):
-    return Assignment.objects.get(hit__enabled=True, id=request.session["assignment_id"])
+    return Assignment.objects.get(id=request.session["assignment_id"])
 
 
 def get_hit_from_handshake(request, handshake):
     hit = None
     try:
-        hit_qs = HIT.objects.filter(enabled=True)
         if handshake.hit_id is not None:
-            hit = hit_qs.get(amazon_id=handshake.hit_id)
+            hit = HIT.objects.get(amazon_id=handshake.hit_id)
         elif request.user.is_staff:
             if handshake.db_id is not None:
-                hit = hit_qs.get(id=handshake.db_id)
+                hit = HIT.objects.get(id=handshake.db_id)
             else:
-                hit = hit_qs.latest()
+                hit = HIT.objects.latest()
     except HIT.DoesNotExist:
         pass
 

@@ -46,7 +46,7 @@ def twilio_auth(request):
 
 
 def get_assignment(amazon_id):
-    return Assignment.objects.get(hit__enabled=True, amazon_id=amazon_id)
+    return Assignment.objects.get(amazon_id=amazon_id)
 
 
 def url(name, assignment=None, **params):

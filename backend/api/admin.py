@@ -10,19 +10,12 @@ from .models import HIT, Assignment, Worker
 
 
 class BaseModelAdmin(admin.ModelAdmin):
-    add_fields = None
     list_max_show_all = 2500
     list_per_page = 200
     show_facets = admin.ShowFacets.ALWAYS
     save_on_top = True
-    save_as = True
 
     formfield_overrides = {models.DurationField: {"widget": TimeDurationWidget}}
-
-    def get_fields(self, request, obj=None):
-        if obj is None and self.add_fields is not None:
-            return self.add_fields
-        return super().get_fields(request, obj)
 
 
 def has_publish_permission(request, hit, **kwargs):
@@ -30,9 +23,130 @@ def has_publish_permission(request, hit, **kwargs):
 
 
 class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
-    readonly_fields = ("amazon_id", "created_by")
+    FIELDSET_HIT_SETTINGS = ("HIT Settings", {"fields": ("title", "description", "keywords", "duration")})
+    FIELDSET_QUALIFICATIONS = (
+        "Qualifications",
+        {
+            "fields": (
+                "qualification_masters",
+                "qualification_num_previously_approved",
+                "qualification_approval_rate",
+                "qualification_countries",
+                "qualification_adult",
+            )
+        },
+    )
+    FIELDSET_ASSIGNMENT_SETTINGS = (
+        "Assignment Settings",
+        {"fields": ("assignment_number", "assignment_reward", "assignment_duration")},
+    )
+    add_fieldsets = (
+        (None, {"fields": ("name", "topic", "host_names")}),
+        FIELDSET_HIT_SETTINGS,
+        FIELDSET_ASSIGNMENT_SETTINGS,
+        FIELDSET_QUALIFICATIONS,
+        ("Miscellaneous", {"classes": ("collapse",), "fields": ("approval_delay",)}),
+    )
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "topic",
+                    "host_names",
+                    "cost_estimate",
+                    "status",
+                    "submitted_at",
+                    "is_running",
+                    "amazon_id",
+                )
+            },
+        ),
+        FIELDSET_HIT_SETTINGS,
+        FIELDSET_ASSIGNMENT_SETTINGS,
+        FIELDSET_QUALIFICATIONS,
+        (
+            "Miscellaneous",
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    "created_at",
+                    "created_by",
+                    "approval_delay",
+                    "unique_request_token",
+                    "approval_code",
+                    "publish_api_exception",
+                ),
+            },
+        ),
+    )
+    list_display = ("name", "created_at", "topic", "status", "submitted_at", "is_running")
+    readonly_fields = (
+        "amazon_id",
+        "approval_code",
+        "created_at",
+        "created_by",
+        "cost_estimate",
+        "is_running",
+        "publish_api_exception",
+        "status",
+        "submitted_at",
+        "unique_request_token",
+    )
+    submitted_readonly_fields = (
+        "name",
+        "title",
+        "description",
+        "keywords",
+        "duration",
+        "assignment_number",
+        "assignment_reward",
+        "assignment_duration",
+        "qualification_masters",
+        "qualification_num_previously_approved",
+        "qualification_approval_rate",
+        "qualification_countries",
+        "qualification_adult",
+        "approval_delay",
+    )
+    changeform_prepopulate_from_last_fields = (
+        "host_names",
+        "title",
+        "description",
+        "keywords",
+        "duration",
+        "qualification_masters",
+        "qualification_num_previously_approved",
+        "qualification_approval_rate",
+        "qualification_adult",
+        "assignment_number",
+        "assignment_reward",
+        "assignment_duration",
+    )
 
-    # Call get_changeform_initial_data with latest values (Production only) if available
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        try:
+            hit = HIT.objects.latest()
+        except HIT.DoesNotExist:
+            pass
+        else:
+            for field in self.changeform_prepopulate_from_last_fields:
+                initial[field] = getattr(hit, field)
+
+        return initial
+
+    def get_fieldsets(self, request, obj=None):
+        if obj is None:
+            return self.add_fieldsets
+        return super().get_fieldsets(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = super().get_readonly_fields(request, obj)
+        if obj is not None and obj.status != HIT.Status.LOCAL:
+            return readonly_fields + self.submitted_readonly_fields
+        return readonly_fields
 
     @button(
         html_attrs={"style": "background-color: oklch(0.8471 0.199 83.87); color: #000000"},
@@ -60,7 +174,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
             self,
             request,
             publish_to_production,
-            description="TODO COST SUMMARY GOES HERE",
+            description=f"HIT has an estimated cost of ${hit.cost_estimate()}.",
             message=format_html('Are you sure you want to publish HIT <em>"{}"</em> to Production?', hit.name),
             pk=pk,
             success_message=f"Published {hit.name} to Production! It should appear shortly.",
