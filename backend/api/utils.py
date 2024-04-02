@@ -1,10 +1,13 @@
+from functools import cache
 import json
 import logging
 import re
 
+import boto3
 from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
+from django.db import models
 
 from ninja.parser import Parser
 from ninja.renderers import BaseRenderer
@@ -53,3 +56,28 @@ def is_subsequence(x, y):
 
 def normalize_words(s):
     return depunctuate_words_re.sub(" ", s.lower()).split()
+
+
+def ChoicesCharField(*args, choices, **kwargs):
+    return models.CharField(*args, choices=choices, max_length=max(len(v) for v in choices.values), **kwargs)
+
+
+@cache
+def get_mturk_client(production=False):
+    if production:
+        raise Exception("XXX production disabled for now!")
+
+    kwargs = {}
+    if not production:
+        kwargs["endpoint_url"] = "https://mturk-requester-sandbox.us-east-1.amazonaws.com"
+    return boto3.client(
+        "mturk",
+        region_name="us-east-1",
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        **kwargs,
+    )
+
+
+def get_mturk_available_balance(production=False):
+    return get_mturk_client(production).get_account_balance()["AvailableBalance"]

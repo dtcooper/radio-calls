@@ -12,7 +12,7 @@ from django.urls import reverse
 
 from ninja import Form, NinjaAPI
 
-from ..models import WORDS_TO_PRONOUNCE, Assignment
+from ..models import Assignment
 from ..utils import TwilioParser, TwiMLRenderer, is_subsequence, normalize_words, send_twilio_message
 
 
@@ -40,14 +40,13 @@ def twilio_auth(request):
             raise Exception("Request not signed properly from Twilio")
 
     if settings.DEBUG:
-
         logger.info(f"Got request to {request.path}...\n{pprint.pformat(dict(request.POST))}")
 
     return True
 
 
-def get_assignment(id):
-    return Assignment.objects.get(hit__enabled=True, id=id)
+def get_assignment(amazon_id):
+    return Assignment.objects.get(hit__enabled=True, amazon_id=amazon_id)
 
 
 def url(name, assignment=None, **params):
@@ -73,7 +72,7 @@ def sip_incoming(request):
 
 @api.post("hit/outgoing")
 def hit_outgoing(request, assignment_id: Form[str], cheat: Form[bool] = False):
-    assignment = Assignment.objects.get(id=assignment_id)
+    assignment = Assignment.objects.get(amazon_id=assignment_id)
     response = VoiceResponse()
 
     if cheat and settings.DEBUG:
@@ -121,7 +120,7 @@ def hit_outgoing_verify(request, assignment_id, speech_result: Form[str | None] 
     gather = response.gather(
         action_on_empty_result=True,
         action=url("hit_outgoing_gather", assignment),
-        hints=", ".join(WORDS_TO_PRONOUNCE),
+        hints=", ".join(assignment.words_to_pronounce),
         input="speech",
         enhanced=True,
         speech_model="phone_call",

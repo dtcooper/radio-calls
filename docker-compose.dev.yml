@@ -11,6 +11,8 @@ services:
       - prod-only
   nginx:
     restart: "no"
+    environment:
+      __NGINX_STATIC_FILES_CONF: "# Static files disabled via override in docker-compose.dev.yml"
   db:
     restart: "no"
     ports:

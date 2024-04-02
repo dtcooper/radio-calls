@@ -7,6 +7,7 @@ const params = new URLSearchParams(window.location.search)
 let assignmentId = params.get("assignmentId")
 let hitId = params.get("hitId")
 let workerId = params.get("workerId")
+let dbId = params.get("dbId")
 export const isPreview = assignmentId === "ASSIGNMENT_ID_NOT_AVAILABLE"
 export const debugMode = persisted("debug-mode", false)
 const isDebug = () => _get(debugMode)
@@ -57,7 +58,7 @@ const createState = () => {
         if (isPreview) {
           url += "/preview"
         }
-        const { success, ...data } = await post(url, { assignmentId, hitId, workerId, isPreview })
+        const { success, ...data } = await post(url, { assignmentId, hitId, workerId, dbId, isPreview })
         if (!success) {
           fatalError(`Couldn't initialize! ${data.error}`)
           return
@@ -68,6 +69,9 @@ const createState = () => {
         if (isStaff) {
           // In case we're staff, these may have been sent back by server if unspecified
           ;({ assignmentId, hitId, workerId } = data)
+          if (!hitId) {
+            console.warn("hitId was returned as null. This assignment doesn't appear to be hosted by Amazon.")
+          }
         } else {
           debugMode.set(false)
         }

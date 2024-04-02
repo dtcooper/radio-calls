@@ -6,6 +6,8 @@ services:
       context: backend
       args:
         DEV_MODE: "${DEV_MODE:-0}"
+    volumes:
+      - ./backend/static:/static
     env_file: .env
     mem_limit: 2048m
     depends_on:
@@ -27,10 +29,17 @@ services:
       - backend
     volumes:
       - ./nginx.conf:/etc/nginx/templates/site.conf.template
+      - ./frontend:/frontend
+      - ./backend/static:/backend-static
       - nginx_secrets:/etc/letsencrypt
     environment:
       DOMAIN_NAME: "${DOMAIN_NAME}"
       CERTBOT_EMAIL: "${CERTBOT_EMAIL}"
+      __NGINX_STATIC_FILES_CONF: |
+        # Static files enabled via docker-compose.yml
+        location /backend-static/ {
+            alias /backend-static/;
+        }
     ports:
       - 80:80
       - 443:443

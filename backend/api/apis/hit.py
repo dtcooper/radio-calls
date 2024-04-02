@@ -53,6 +53,7 @@ class BaseOut(Schema):
 
 class HandshakeIn(Schema):
     assignment_id: str | None = None
+    db_id: int | None = None
     worker_id: str | None = None
     hit_id: str | None = None
     is_preview: bool = False
@@ -66,7 +67,7 @@ class HandshakePreviewOut(BaseOut):
 class HandshakeOut(HandshakePreviewOut):
     assignment_id: str
     gender: str
-    hit_id: str
+    hit_id: str | None
     name_max_length: int = NAME_MAX_LENGTH
     name: str
     token: str
@@ -91,9 +92,12 @@ def get_hit_from_handshake(request, handshake):
     try:
         hit_qs = HIT.objects.filter(enabled=True)
         if handshake.hit_id is not None:
-            hit = hit_qs.get(id=id)
+            hit = hit_qs.get(amazon_id=handshake.hit_id)
         elif request.user.is_staff:
-            hit = hit_qs.latest()
+            if handshake.db_id is not None:
+                hit = hit_qs.get(id=handshake.db_id)
+            else:
+                hit = hit_qs.latest()
     except HIT.DoesNotExist:
         pass
 
@@ -148,14 +152,14 @@ def handshake(request, handshake: HandshakeIn):
     request.session.update({"assignment_id": assignment.id})
 
     return {
-        "assignment_id": assignment.id,
+        "assignment_id": assignment.amazon_id,
         "gender": worker.gender,
-        "hit_id": hit.id,
+        "hit_id": hit.amazon_id,
         "is_staff": is_staff,
         "name": worker.name,
         "token": get_token(worker),
         "topic": hit.topic,
-        "worker_id": worker.id,
+        "worker_id": worker.amazon_id,
     }
 
 

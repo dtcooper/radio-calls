@@ -20,6 +20,9 @@ TWILIO_TWIML_APP_SID = env("TWILIO_TWIML_APP_SID")
 TWILIO_API_KEY = env("TWILIO_API_KEY")
 TWILIO_API_SECRET = env("TWILIO_API_SECRET")
 
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
+
 ALLOWED_HOSTS = [DOMAIN_NAME]
 if DEBUG:
     ALLOWED_HOSTS.append("localhost")
@@ -27,16 +30,23 @@ if DEBUG:
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 INSTALLED_APPS = [
+    # Django
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Third Party
+    "admin_extra_buttons",
+    "django_countries",
+    "django_jsonform",
+    "durationwidget",
 ]
 if DEBUG:
     INSTALLED_APPS.append("django_extensions")
 INSTALLED_APPS.extend([
+    # Local
     "api",
 ])
 
@@ -55,7 +65,7 @@ ROOT_URLCONF = "calls.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "api" / "templates"],  # To make base_site.html work
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -81,10 +91,6 @@ DATABASES = {
     }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -106,7 +112,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = env("TIMEZONE", default="UTC")
 
 USE_I18N = True
 

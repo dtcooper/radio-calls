@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib import admin
-from django.http import HttpResponse
-from django.shortcuts import redirect
+from django.http import HttpResponse, HttpResponseForbidden
+from django.shortcuts import redirect, render
 from django.urls import path
 
 from api.apis import hit_api, twilio_api
@@ -10,13 +10,26 @@ from api.apis import hit_api, twilio_api
 def index(request):
     if settings.DEBUG or request.user.is_staff:
         return redirect("admin:index")
-    else:
-        return HttpResponse("Nothing to see here.", content_type="text/plain")
+    return HttpResponse("Nothing to see here.", content_type="text/plain")
+
+
+def mturk_manage(request):
+    if request.user.is_superuser:
+        return render(
+            request,
+            "api/mturk_manage.html",
+            {
+                "AWS_ACCESS_KEY_ID": settings.AWS_ACCESS_KEY_ID,
+                "AWS_SECRET_ACCESS_KEY": settings.AWS_SECRET_ACCESS_KEY,
+            },
+        )
+    return HttpResponseForbidden()
 
 
 urlpatterns = [
     path("", index),
-    path("cmsadmin/", admin.site.urls),
     path("api/hit/", hit_api.urls),
     path("api/twilio/", twilio_api.urls),
+    path("cmsadmin/mturk-manage/", mturk_manage, name="mturk_manage"),
+    path("cmsadmin/", admin.site.urls),
 ]
