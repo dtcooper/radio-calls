@@ -41,7 +41,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         {"fields": ("assignment_number", "assignment_reward", "assignment_duration")},
     )
     add_fieldsets = (
-        (None, {"fields": ("name", "topic", "host_names")}),
+        (None, {"fields": ("name", "topic", "show_host")}),
         FIELDSET_HIT_SETTINGS,
         FIELDSET_ASSIGNMENT_SETTINGS,
         FIELDSET_QUALIFICATIONS,
@@ -54,7 +54,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
                 "fields": (
                     "name",
                     "topic",
-                    "host_names",
+                    "show_host",
                     "cost_estimate",
                     "status",
                     "submitted_at",
@@ -95,34 +95,34 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         "unique_request_token",
     )
     submitted_readonly_fields = (
-        "name",
-        "title",
-        "description",
-        "keywords",
-        "duration",
+        "approval_delay",
+        "assignment_duration",
         "assignment_number",
         "assignment_reward",
-        "assignment_duration",
-        "qualification_masters",
-        "qualification_num_previously_approved",
+        "description",
+        "duration",
+        "keywords",
+        "name",
+        "qualification_adult",
         "qualification_approval_rate",
         "qualification_countries",
-        "qualification_adult",
-        "approval_delay",
-    )
-    changeform_prepopulate_from_last_fields = (
-        "host_names",
-        "title",
-        "description",
-        "keywords",
-        "duration",
         "qualification_masters",
         "qualification_num_previously_approved",
-        "qualification_approval_rate",
-        "qualification_adult",
+        "title",
+    )
+    changeform_prepopulate_from_last_fields = (
+        "assignment_duration",
         "assignment_number",
         "assignment_reward",
-        "assignment_duration",
+        "description",
+        "duration",
+        "keywords",
+        "qualification_adult",
+        "qualification_approval_rate",
+        "qualification_masters",
+        "qualification_num_previously_approved",
+        "show_host",
+        "title",
     )
 
     def get_changeform_initial_data(self, request):

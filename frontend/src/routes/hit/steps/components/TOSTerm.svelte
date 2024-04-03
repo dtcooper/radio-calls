@@ -16,7 +16,7 @@
   <input
     type="checkbox"
     class="checkbox checkbox-sm sm:checkbox-md md:checkbox-lg"
-    class:pointer-events-none={accepted}
+    class:pointer-events-none={!enabled}
     class:checkbox-error={enabled}
     class:checkbox-info={accepted}
     disabled={!enabled && !accepted}
@@ -31,6 +31,7 @@
   class:cursor-pointer={enabled}
   class:border-error={enabled}
   class:border-base-100={!enabled}
+  class:pointer-events-none={!enabled}
   on:click={accept}
 >
   <slot />

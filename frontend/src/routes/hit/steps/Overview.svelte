@@ -6,14 +6,17 @@
 
 <p>
   This is will be a <strong>funny</strong> and <strong>enjoyable</strong> assignment 😂😂😂 where you'll use your web
-  browser to call 📞 people on a <em>live</em> radio show. 📻
+  browser to call 📞 people on a <em>live</em> radio show / podcast. 📻
 </p>
 
-<p>You will talk to the host(s) of the radio show about the following topic....</p>
+<p>The goal is to have a conversation and talk to the host(s) of the radio show.</p>
 
-<blockquote class="ml-5 border-l-2 border-base-300 pl-2 font-mono font-bold italic text-secondary">
-  {$state.topic}
-</blockquote>
+<div class="ml-4 grid grid-cols-[max-content_1fr] gap-2 border-l-4 border-base-300 pl-2">
+  <div class="text-right">Conversation topic:</div>
+  <div class="font-bold text-primary">{$state.topic}</div>
+  <blockquote class="text-right">Show Host(s):</blockquote>
+  <div class="font-bold text-primary">{$state.showHost}</div>
+</div>
 
 <p>
   💰🤑💰
@@ -27,17 +30,21 @@
 
 <p>Note: the host(s) of the program will be expecting your call.</p>
 
-<p>This assignment will take approximately 5 to 10 minutes to complete. 🕒🕒🕒</p>
+<p>
+  This assignment will take approximately 5 to 15 minutes to complete. 🕒🕒🕒<br />
+  If after 15 minutes you are still not connected to the host, you'll have the opportunity to
+  <strong>leave a voice mail</strong> 📬 and submit the assignment.
+</p>
 
 <p>
-  You will have to stay on the call for <em>at least 2 minutes</em>, but you are welcome to talk as long as you would
-  like!
+  Once connected, you will have to stay on the call for <em>at least 2 minutes</em>, but you are more than welcome to
+  talk as long as you would like!
 </p>
 
 <p class="text-center">
   <button class="btn btn-success btn-xs sm:btn-sm md:btn-lg" disabled={isPreview} on:click={next}>
     {#if isPreview}
-      You are currently <em class="contents">previewing</em> this assignment.
+      You are currently previewing this assignment.
       <span class="hidden sm:contents">Press ACCEPT to start.</span>
     {:else}
       Continue with assignment

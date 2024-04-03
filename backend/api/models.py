@@ -16,6 +16,7 @@ from django.core import validators
 from django.db import models
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.text import slugify
 
 from django_countries.fields import CountryField
 from django_jsonform.models.fields import JSONField
@@ -69,7 +70,7 @@ class HIT(BaseModel):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     name = models.CharField("name", max_length=100, help_text="Not sent to workers. For internal cataloging.")
     topic = models.CharField("topic", max_length=1024, help_text="Question or topic that users get prompted for.")
-    host_names = models.CharField(
+    show_host = models.CharField(
         "host name(s)", max_length=255, help_text="The name of the host(s) to be presenter to the workers to call."
     )
     status = ChoicesCharField("status", choices=Status, default=Status.LOCAL)
@@ -267,6 +268,10 @@ class Worker(BaseModel):
     def __str__(self):
         return f"{self.name} ({self.get_gender_display()})"
 
+    @property
+    def caller_id(self):
+        return f"{self.gender[:1].upper()}.{slugify(self.name)}"
+
     @classmethod
     def from_api(cls, amazon_id):
         faker = Faker()
@@ -284,10 +289,10 @@ class Assignment(BaseModel):
     class Stage(models.TextChoices):
         INITIAL = "initial", "Handshake completed"
         VERIFIED = "verified", "Verified"
-        CALL_INITIATED = "call-initiated", "Call initiated"
-        CALL_CONNECTED = "call-connected", "Call connected"
-        LEFT_VOICEMAIL = "left-voicemail", "Left voicemail"
-        CALL_COMPLETED = "call-completed", "Call completed"
+        HOLD = "hold", "Hold loop"
+        CALL_IN_PROGRESS = "in-progress", "Call in progress"
+        CALL_COMPLETED = "completed", "Call completed"
+        VOICEMAIL = "voicemail", "Left voicemail"
         DONE = "done", "HIT Complete"
 
     hit = models.ForeignKey(HIT, on_delete=models.CASCADE)

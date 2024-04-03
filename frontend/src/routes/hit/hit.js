@@ -12,15 +12,6 @@ export const isPreview = assignmentId === "ASSIGNMENT_ID_NOT_AVAILABLE"
 export const debugMode = persisted("debug-mode", false)
 const isDebug = () => _get(debugMode)
 
-let canLeave = false
-
-window.onbeforeunload = () =>
-  canLeave || _get(debugMode) ? undefined : "Are you sure you want to leave this assignment?"
-export const reload = () => {
-  canLeave = true
-  window.location.reload()
-}
-
 const post = (endpoint, data) => _post(endpoint, data, isDebug())
 
 const createState = () => {
@@ -34,7 +25,9 @@ const createState = () => {
     ready: false,
     speakerLevel: 0,
     topic: "",
-    callInProgress: false
+    showHost: "",
+    callInProgress: false,
+    disconnect: null
   })
 
   const update = (data) => _update(($state) => ({ ...$state, ...data }))
@@ -44,11 +37,13 @@ const createState = () => {
       msg += ` [Error: ${e}]`
     }
     update({ failure: msg })
-    canLeave = true
   }
 
   /** @type {Device} */
   let device
+
+  /** @type {import("@twilio/voice-sdk").Call}} */
+  let call = null
 
   return {
     subscribe,
@@ -94,22 +89,44 @@ const createState = () => {
       device.on("tokenWillExpire", () => this.refreshToken())
       device.on("error", (e) => {
         console.warn("An twilio error has occurred: ", e)
+        // TODO: Use a toast
         update({ failure: e.message })
       })
     },
+    hangup() {
+      if (call) {
+        call.disconnect()
+      } else {
+        console.warn("Call NOT in progress, can't hangup()")
+      }
+    },
     async call(cheat = false) {
-      const call = await device.connect({ params: { assignmentId, cheat: cheat && get().isStaff, Caller: "spoofed" } })
-      call.on("volume", (inputVolume, outputVolume) => {
-        const micLevel = Math.min(inputVolume * 100 * 1.25, 100)
-        const speakerLevel = Math.min(outputVolume * 100 * 1.25, 100)
-        update({ micLevel, speakerLevel })
-      })
-      call.on("disconnect", () => {
-        update({ micLevel: 0, speakerLevel: 0 })
-      })
-      call.on("messageReceived", (message) => {
-        console.log("GOT MESSAGE", message)
-      })
+      if (!call) {
+        try {
+          call = await device.connect({ params: { assignmentId, cheat: cheat } })
+        } catch (e) {
+          console.error("Error placing call", e)
+          return
+        }
+
+        update({ callInProgress: true })
+
+        call.on("volume", (inputVolume, outputVolume) => {
+          const micLevel = Math.min(inputVolume * 100 * 1.25, 100)
+          const speakerLevel = Math.min(outputVolume * 100 * 1.25, 100)
+          update({ micLevel, speakerLevel })
+        })
+        call.on("disconnect", () => {
+          update({ micLevel: 0, speakerLevel: 0, callInProgress: false })
+          call = null
+        })
+        call.on("messageReceived", (message) => {
+          console.log("GOT MESSAGE", message)
+        })
+        // TODO: Use a toast on error
+      } else {
+        console.warn("Call already in progress! Can't call()")
+      }
     },
     async updateName(name, gender) {
       const { success } = await post("name", { name, gender })

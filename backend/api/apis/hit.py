@@ -61,6 +61,7 @@ class HandshakeIn(Schema):
 
 class HandshakePreviewOut(BaseOut):
     topic: str
+    show_host: str
     is_staff: bool
 
 
@@ -118,16 +119,13 @@ def get_token(worker):
 @api.post("handshake/preview", response=HandshakePreviewOut, by_alias=True)
 def handshake_preview(request, handshake: HandshakeIn):
     hit = get_hit_from_handshake(request, handshake)
-    return {"topic": hit.topic, "is_staff": request.user.is_staff}
+    return {"topic": hit.topic, "is_staff": request.user.is_staff, "show_host": hit.show_host}
 
 
 @api.post("handshake", response=HandshakeOut, by_alias=True)
 def handshake(request, handshake: HandshakeIn):
     hit = get_hit_from_handshake(request, handshake)
-
     is_staff = request.user.is_staff
-    if handshake.is_preview:
-        return {"topic": hit.topic, "is_staff": is_staff}
 
     worker_id = None
     if handshake.worker_id is not None:
@@ -157,6 +155,7 @@ def handshake(request, handshake: HandshakeIn):
         "is_staff": is_staff,
         "name": worker.name,
         "token": get_token(worker),
+        "show_host": hit.show_host,
         "topic": hit.topic,
         "worker_id": worker.amazon_id,
     }
