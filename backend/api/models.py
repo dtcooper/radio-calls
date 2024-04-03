@@ -59,9 +59,30 @@ def min_max(min_value, max_value):
 
 
 duration_validators = min_max(datetime.timedelta(seconds=30), datetime.timedelta(days=365))
+call_duration_validators = min_max(datetime.timedelta(seconds=30), datetime.timedelta(minutes=60))
 
 
 class HIT(BaseModel):
+    CLONE_FIELDS = (
+        "approval_delay",
+        "assignment_duration",
+        "assignment_number",
+        "assignment_reward",
+        "description",
+        "duration",
+        "keywords",
+        "leave_voicemail_after_duration",
+        "min_call_duration",
+        "qualification_adult",
+        "qualification_approval_rate",
+        "qualification_countries",
+        "qualification_masters",
+        "qualification_num_previously_approved",
+        "show_host",
+        "title",
+        "topic",
+    )
+
     class Status(models.TextChoices):
         SANDBOX = "sandbox", "Sandbox (published)"
         PRODUCTION = "prod", "Production (published)"
@@ -88,6 +109,18 @@ class HIT(BaseModel):
             "Duration of HITs validity. NOTE: workers who accept the HIT at the last minute, can hold it for up to"
             " the assignment's duration after expiry."
         ),
+    )
+    min_call_duration = models.DurationField(
+        "minimum call duration",
+        default=datetime.timedelta(minutes=2),
+        validators=call_duration_validators,
+        help_text="After this amount of call time, a worker can submit an assignment.",
+    )
+    leave_voicemail_after_duration = models.DurationField(
+        "duration to leave a voicemail after",
+        default=datetime.timedelta(minutes=15),
+        validators=call_duration_validators,
+        help_text='After this amount of time of being on "hold" the worker can submit the assignment with a voicemail.',
     )
     approval_code = models.UUIDField(
         default=uuid.uuid4, help_text="Approval code needed by workers to submit assignment."
@@ -129,7 +162,7 @@ class HIT(BaseModel):
         multiple=True,
         default=ENGLISH_SPEAKING_COUNTRIES,
         blank=True,
-        help_text="Worker qualification. Limit workers to these countries. Leave blank to disable.",
+        help_text="Worker qualification. Limit workers to these countries. Leave blank to allow any and all countries.",
     )
     qualification_adult = models.BooleanField(
         "adult qualification", default=False, help_text="Worker qualification. Enable to require workers over 18"
@@ -141,11 +174,25 @@ class HIT(BaseModel):
         help_text="The last contains of the last error (if any) that occurred while publishing this HIT to MTurk",
     )
 
+    class Meta:
+        verbose_name = "HIT"
+        ordering = ("-created_at", "id")
+        get_latest_by = "created_at"
+
     def get_absolute_url(self):
         return f"/hit/?{urlencode({'dbId': self.id})}"
 
     def __str__(self):
         return self.name
+
+    def clone(self):
+        hit = HIT()
+        for field in self.CLONE_FIELDS:
+            value = getattr(self, field)
+            setattr(hit, field, value)
+        hit.save()
+        hit.refresh_from_db()
+        return hit
 
     def cost_estimate(self):
         fees = Decimal("0.20")
@@ -249,11 +296,6 @@ class HIT(BaseModel):
             self.publish_api_exception = ""
             self.save()
             return True
-
-    class Meta:
-        verbose_name = "HIT"
-        ordering = ("-created_at", "id")
-        get_latest_by = "created_at"
 
 
 class Worker(BaseModel):

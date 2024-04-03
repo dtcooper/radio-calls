@@ -32,3 +32,6 @@ ENGLISH_SPEAKING_COUNTRIES = (
     "GB",  # United Kingdom
     "US",  # United States of America
 )
+
+CORE_ENGLISH_SPEAKING_COUNTRIES = {"AU", "CA", "IE", "US", "GB"}
+CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES = ("Australia", "Canada", "Ireland", "United Kingdom", "United States of America")
