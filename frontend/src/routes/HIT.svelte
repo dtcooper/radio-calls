@@ -117,10 +117,12 @@
     </main>
   </div>
 
-  <footer class="mt-1 bg-base-200 text-center italic">
-    Question? Comments? Concerns? Email
-    <a href="mailto:david@jew.pizza" target="_blank" class="link-hover link link-accent">david@jew.pizza</a>.
-  </footer>
+  {#if !$state.isPreview}
+    <footer class="mt-1 bg-base-200 text-center italic">
+      Question? Comments? Concerns? Email
+      <a href="mailto:david@jew.pizza" target="_blank" class="link-hover link link-accent">david@jew.pizza</a>.
+    </footer>
+  {/if}
 
   {#if $debugMode}
     <pre class="text-xs">{JSON.stringify($state, null, 2)}</pre>

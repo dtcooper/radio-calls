@@ -16,6 +16,8 @@ const post = (endpoint, data) => _post(endpoint, data, isDebug())
 
 const createState = () => {
   const { subscribe, update: _update } = writable({
+    assignmentId: "",
+    callInProgress: false,
     failure: "",
     gender: "",
     isStaff: false,
@@ -23,11 +25,10 @@ const createState = () => {
     name: "",
     nameMaxLength: 0,
     ready: false,
-    speakerLevel: 0,
-    topic: "",
     showHost: "",
-    callInProgress: false,
-    disconnect: null
+    speakerLevel: 0,
+    submitUrl: null,
+    topic: ""
   })
 
   const update = (data) => _update(($state) => ({ ...$state, ...data }))

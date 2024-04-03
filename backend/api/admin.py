@@ -68,7 +68,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
                     "name",
                     "topic",
                     "show_host",
-                    "cost_estimate",
+                    "get_cost_estimate",
                     "status",
                     "submitted_at",
                     "is_running",
@@ -102,7 +102,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         "approval_code",
         "created_at",
         "created_by",
-        "cost_estimate",
+        "get_cost_estimate",
         "is_running",
         "publish_api_exception",
         "status",
@@ -170,7 +170,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
             self,
             request,
             publish_to_production,
-            description=f"HIT has an estimated cost of ${hit.cost_estimate()}.",
+            description=f"HIT has an estimated cost of ${hit.get_cost_estimate()}.",
             message=format_html('Are you sure you want to publish HIT <em>"{}"</em> to Production?', hit.name),
             pk=pk,
             success_message=f"Published {hit.name} to Production! It should appear shortly.",
@@ -179,7 +179,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         )
 
     def changeform_view(self, request, object_id, form_url, extra_context):
-        if request.method != "POST":
+        if object_id is not None and request.method != "POST":
             self.run_hit_warning_messages(request, self.model.objects.get(id=object_id))
         return super().changeform_view(request, object_id, form_url, extra_context)
 
@@ -196,6 +196,10 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
 
         def name(field):
             return self.model._meta.get_field(field).verbose_name
+
+        cost_estimate = obj.get_cost_estimate()
+        if cost_estimate >= 250:
+            warn(f"The cost estimate for this HIT is ${cost_estimate} and exceeds $250. Please verify this is correct!")
 
         for check_duration_field in ("min_call_duration", "leave_voicemail_after_duration"):
             if getattr(obj, check_duration_field) > obj.assignment_duration:

@@ -35,11 +35,23 @@ services:
     environment:
       DOMAIN_NAME: "${DOMAIN_NAME}"
       CERTBOT_EMAIL: "${CERTBOT_EMAIL}"
-      __NGINX_STATIC_FILES_CONF: |
-        # Static files enabled via docker-compose.yml
+      __NGINX_BACKEND_STATIC_CONF: |
         location /backend-static/ {
-            alias /backend-static/;
-        }
+                alias /backend-static/;
+            }
+      __NGINX_FRONTEND_CONF: |
+        # Frontend static assets (immutable)
+            location /hit/_app/immutable/ {
+                root /frontend/build;
+                expires max;
+                add_header Cache-Control "public, immutable";
+                access_log off;
+            }
+
+            # Frontend static assets
+            location /hit {
+                alias /frontend/build;
+            }
     ports:
       - 80:80
       - 443:443

@@ -31,6 +31,11 @@
 <p>Note: the host(s) of the program will be expecting your call.</p>
 
 <p>
+  <small
+    >TODO: IMPLEMENT min_call_time AND leave_voicemail_after_time (5 mins should add some constant to min_call_time to
+    account for the verify step)</small
+  ><br />
+
   This assignment will take approximately 5 to 15 minutes to complete. 🕒🕒🕒<br />
   If after 15 minutes you are still not connected to the host, you'll have the opportunity to
   <strong>leave a voice mail</strong> 📬 and submit the assignment.

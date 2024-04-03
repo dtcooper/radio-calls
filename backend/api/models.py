@@ -24,7 +24,6 @@ from django_jsonform.models.fields import JSONField
 from .constants import (
     ENGLISH_SPEAKING_COUNTRIES,
     MTURK_ID_LENGTH,
-    NAME_MAX_LENGTH,
     NUM_WORDS_WORDS_TO_PRONOUNCE,
     QID_ADULT,
     QID_COUNTRY,
@@ -33,6 +32,7 @@ from .constants import (
     QID_NUM_APPROVED,
     QID_PERCENT_APPROVED,
     WORDS_TO_PRONOUNCE,
+    WORKER_NAME_MAX_LENGTH,
 )
 from .utils import ChoicesCharField, get_mturk_client
 
@@ -190,11 +190,12 @@ class HIT(BaseModel):
         for field in self.CLONE_FIELDS:
             value = getattr(self, field)
             setattr(hit, field, value)
+        hit.name = f"Clone of {hit.name}"[: self._meta.get_field("name").max_length]
         hit.save()
         hit.refresh_from_db()
         return hit
 
-    def cost_estimate(self):
+    def get_cost_estimate(self):
         fees = Decimal("0.20")
         if self.assignment_number >= 10:
             fees += Decimal("0.20")
@@ -237,11 +238,12 @@ class HIT(BaseModel):
             "AssignmentReviewPolicy": {
                 "PolicyName": "ScoreMyKnownAnswers/2011-09-01",
                 "Parameters": [
-                    {"Key": "AnswerKey", "MapEntries": [{"Key": "approval-code", "Values": [str(self.approval_code)]}]},
-                    {"Key": "ApproveIfKnownAnswerScoreIsAtLeast", "Values": ["1"]},
+                    {"Key": "AnswerKey", "MapEntries": [{"Key": "approvalCode", "Values": [str(self.approval_code)]}]},
                     {"Key": "RejectIfKnownAnswerScoreIsLessThan", "Values": ["1"]},
-                    {"Key": "RejectReason", "Values": ["Sorry, we could not approve your submission."]},
-                    {"Key": "ExtendIfKnownAnswerScoreIsLessThan", "Values": ["1"]},
+                    {
+                        "Key": "RejectReason",
+                        "Values": ["You submitted the assignment without first properly completing it."],
+                    },
                 ],
             },
         }
@@ -304,7 +306,7 @@ class Worker(BaseModel):
         FEMALE = "female", "Female"
         OTHER = "other", "Other"
 
-    name = models.CharField("name", max_length=NAME_MAX_LENGTH, blank=True)
+    name = models.CharField("name", max_length=WORKER_NAME_MAX_LENGTH, blank=True)
     gender = ChoicesCharField("gender", choices=Gender, default=Gender.MALE)
 
     def __str__(self):

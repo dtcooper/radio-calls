@@ -10,7 +10,7 @@ from django.http import Http404
 from ninja import NinjaAPI, Schema as BaseSchema
 from ninja.errors import AuthenticationError, HttpError, ValidationError
 
-from ..models import HIT, NAME_MAX_LENGTH, Assignment, Worker
+from ..models import HIT, WORKER_NAME_MAX_LENGTH, Assignment, Worker
 
 
 api = NinjaAPI(urls_namespace="hit")
@@ -69,10 +69,11 @@ class HandshakeOut(HandshakePreviewOut):
     assignment_id: str
     gender: str
     hit_id: str | None
-    name_max_length: int = NAME_MAX_LENGTH
+    name_max_length: int = WORKER_NAME_MAX_LENGTH
     name: str
     token: str
     worker_id: str
+    submit_url: str | None
 
 
 class NameIn(Schema):
@@ -148,6 +149,12 @@ def handshake(request, handshake: HandshakeIn):
     assignment = Assignment.from_api(assignment_id, hit=hit, worker=worker)
     request.session.update({"assignment_id": assignment.id})
 
+    submit_url = None
+    if hit.status == HIT.Status.SANDBOX:
+        submit_url = "https://workersandbox.mturk.com/mturk/externalSubmit"
+    elif hit.status == HIT.Status.PRODUCTION:
+        submit_url = "https://www.mturk.com/mturk/externalSubmit"
+
     return {
         "assignment_id": assignment.amazon_id,
         "gender": worker.gender,
@@ -158,6 +165,7 @@ def handshake(request, handshake: HandshakeIn):
         "show_host": hit.show_host,
         "topic": hit.topic,
         "worker_id": worker.amazon_id,
+        "submit_url": submit_url,
     }
 
 
@@ -174,7 +182,7 @@ def name(request, name: NameIn):
 
     assignment = get_assignment_from_session(request)
     worker = assignment.worker
-    worker.name = name.name[:NAME_MAX_LENGTH]
+    worker.name = name.name[:WORKER_NAME_MAX_LENGTH]
     worker.gender = name.gender
     worker.save()
     return {"success": True}
