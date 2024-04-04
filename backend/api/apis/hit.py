@@ -80,6 +80,7 @@ class HandshakeOut(HandshakePreviewOut):
     name: str
     token: str
     worker_id: str
+    location: str
 
 
 class NameIn(Schema):
@@ -179,6 +180,7 @@ def handshake(request, handshake: HandshakeIn):
         "name": worker.name,
         "token": get_token(worker),
         "worker_id": worker.amazon_id,
+        "location": worker.location,
     }
 
 

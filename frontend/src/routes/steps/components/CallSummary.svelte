@@ -1,28 +1,12 @@
 <script>
-  import dayjs from "dayjs"
-  import { onMount, onDestroy } from "svelte"
-  import { state, STAGE_INITIAL, STAGE_VERIFIED, STAGE_CALL, STAGE_VOICEMAIL, STAGE_HOLD, STAGE_DONE } from "../../hit"
+  import { state, STAGE_INITIAL, STAGE_VERIFIED, STAGE_CALL, STAGE_VOICEMAIL, STAGE_HOLD } from "../../hit"
 
   export let overviewOnly = false
 
   let items
 
-  let interval
-  let now = dayjs()
-
   let callStatus = []
   let countdown = []
-
-  onMount(() => {
-    if (!overviewOnly) {
-      interval = setInterval(() => (now = dayjs()), 500)
-    }
-  })
-  onDestroy(() => {
-    if (!overviewOnly) {
-      clearInterval(interval)
-    }
-  })
 
   $: countdownDuration = $state.countdownDuration?.format("mm:ss")
   $: if ($state.done) {

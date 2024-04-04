@@ -34,7 +34,7 @@
 <NextButton class="btn-info" next={() => submit()} disabled={submitting}>Submit</NextButton>
 
 <form bind:this={form} method="post" action={$state.submitUrl} class="hidden">
-  {#each ["assignmentId", "approvalCode", "name", "gender"] as key}
+  {#each ["assignmentId", "approvalCode", "name", "gender", "location"] as key}
     <input type="hidden" name={key} value={$state[key]} />
   {/each}
 </form>
