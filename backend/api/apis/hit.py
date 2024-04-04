@@ -154,7 +154,7 @@ def handshake(request, handshake: HandshakeIn):
     if worker_id is None:
         raise HttpError(400, "Worker ID invalid")
 
-    worker = Worker.from_api(worker_id)
+    worker = Worker.from_api(request, worker_id)
 
     assignment_id = None
     if handshake.assignment_id is not None:

@@ -4,6 +4,7 @@ import logging
 import re
 
 import boto3
+import geoip2.database
 from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
@@ -11,6 +12,8 @@ from django.db import models
 
 from ninja.parser import Parser
 from ninja.renderers import BaseRenderer
+
+from .constants import LOCATION_UNKNOWN
 
 
 underscore_converter_re = re.compile(r"(?<!^)(?=[A-Z])")
@@ -87,3 +90,20 @@ def get_mturk_client(*, production=False):
 
 def get_mturk_available_balance(*, production=False):
     return get_mturk_client(production).get_account_balance()["AvailableBalance"]
+
+
+def get_ip_addr(request):
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    return x_forwarded_for.split(",")[0] if x_forwarded_for else request.META.get("REMOTE_ADDR")
+
+
+def get_location_from_ip_addr(ip_addr):
+    try:
+        with geoip2.database.Reader(settings.GEOIP2_LITE_CITY_DB_PATH) as reader:
+            resp = reader.city(ip_addr)
+        parts = (resp.city.name, resp.subdivisions.most_specific.name, resp.country.name, resp.continent.name)
+        return ", ".join(filter(None, parts)) or LOCATION_UNKNOWN
+    except Exception:
+        pass
+
+    return LOCATION_UNKNOWN

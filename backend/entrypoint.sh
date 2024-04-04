@@ -29,8 +29,16 @@ if [ "$#" = 0 ]; then
     if [ "$DEV_MODE" ]; then
         exec ./manage.py runserver
     else
+        NUM_GUNICORN_WORKERS="$(python -c 'import multiprocessing as m; print(m.cpu_count() * 2 + 1)')"
+
         ./manage.py collectstatic --noinput
-        echo "TODO: gunicorn"
+        exec gunicorn \
+                --forwarded-allow-ips '*' \
+                -b 0.0.0.0:8000 \
+                -w "$NUM_GUNICORN_WORKERS" \
+                --capture-output \
+                --access-logfile - \
+            calls.wsgi
     fi
 else
     echo "Executing: $*"

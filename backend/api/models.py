@@ -23,6 +23,7 @@ from django_jsonform.models.fields import JSONField
 
 from .constants import (
     ENGLISH_SPEAKING_COUNTRIES,
+    LOCATION_UNKNOWN,
     MTURK_ID_LENGTH,
     NUM_WORDS_WORDS_TO_PRONOUNCE,
     QID_ADULT,
@@ -34,7 +35,7 @@ from .constants import (
     WORDS_TO_PRONOUNCE,
     WORKER_NAME_MAX_LENGTH,
 )
-from .utils import ChoicesCharField, get_mturk_client
+from .utils import ChoicesCharField, get_ip_addr, get_location_from_ip_addr, get_mturk_client
 
 
 logger = logging.getLogger("django")
@@ -316,6 +317,13 @@ class Worker(BaseModel):
 
     name = models.CharField("name", max_length=WORKER_NAME_MAX_LENGTH, blank=True)
     gender = ChoicesCharField("gender", choices=Gender, default=Gender.MALE)
+    ip_address = models.GenericIPAddressField("IP address", null=True, default=None, blank=True)
+    location = models.CharField(
+        "location",
+        max_length=384,
+        default=LOCATION_UNKNOWN,
+        help_text="Physical location (ie, city and country) where worker is located based on IP address",
+    )
 
     def __str__(self):
         return f"{self.name} ({self.get_gender_display()})"
@@ -325,11 +333,17 @@ class Worker(BaseModel):
         return f"{self.gender[:1].upper()}.{slugify(self.name)}"
 
     @classmethod
-    def from_api(cls, amazon_id):
+    def from_api(cls, request, amazon_id):
         faker = Faker()
         fake_gender = "male" if faker.boolean() else "female"
         fake_name = getattr(faker, f"first_name_{fake_gender}")()
-        obj, _ = Worker.objects.get_or_create(amazon_id=amazon_id, defaults={"gender": fake_gender, "name": fake_name})
+        ip_addr = get_ip_addr(request)
+        obj, _ = Worker.objects.update_or_create(
+            amazon_id=amazon_id,
+            create_defaults={"gender": fake_gender, "name": fake_name},
+            defaults={"location": get_location_from_ip_addr(ip_addr), "ip_address": ip_addr},
+        )
+
         return obj
 
 

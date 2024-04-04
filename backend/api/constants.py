@@ -12,6 +12,7 @@ QID_ADULT = "00000000000000000060"
 WORKER_NAME_MAX_LENGTH = 40
 NUM_WORDS_WORDS_TO_PRONOUNCE = 3
 WORDS_TO_PRONOUNCE = ("apple", "lemon", "lime", "mango", "orange", "peach", "pineapple", "watermelon")
+LOCATION_UNKNOWN = "Unknown"
 
 ENGLISH_SPEAKING_COUNTRIES = (
     "AG",  # Antigua and Barbuda

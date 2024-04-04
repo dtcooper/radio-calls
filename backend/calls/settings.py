@@ -24,6 +24,8 @@ TWILIO_TWIMLET_VOICEMAIL_EMAIL = env("TWILIO_TWIMLET_VOICEMAIL_EMAIL")
 AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
 
+GEOIP2_LITE_CITY_DB_PATH = env("GEOIP2_LITE_CITY_DB_PATH")
+
 ALLOWED_HOSTS = [DOMAIN_NAME]
 if DEBUG:
     ALLOWED_HOSTS.append("localhost")
@@ -106,6 +108,44 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "require_debug_false": {
+            "()": "django.utils.log.RequireDebugFalse",
+        }
+    },
+    "formatters": {
+        "console": {
+            "format": "[%(asctime)s] %(levelname)s:%(name)s:%(lineno)s:%(funcName)s: %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "console", "level": "INFO"},
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "huey": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # "calls": {  # TODO: local logs?
+        #     "handlers": ["console"],
+        #     "level": "INFO",
+        # },
+    },
+}
 
 
 # Internationalization
