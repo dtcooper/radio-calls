@@ -32,3 +32,27 @@ nginx-nodeps:
 format-lint:
 	@$(COMPOSE) run --no-deps --rm --entrypoint /bin/sh backend -c "black . ; isort . ; flake8 ." || true
 	@cd frontend ; sh -c "npm run format ; npm run lint" || true
+
+.PHONY: verify-prod
+verify-prod:
+	@if [ "$(shell source .env; [ "$$DEV_MODE" -a "$$DEV_MODE" != 0 ] && echo "1")" ]; then \
+		echo "Won't run with DEV_MODE = 1" ; \
+		exit 1 ; \
+	fi
+
+.PHONY: deploy-pull
+deploy-pull: verify-prod
+	git pull --ff-only
+	docker compose pull --quiet
+	docker compose down --remove-orphans
+	docker compose up --quiet-pull --remove-orphans --no-build --detach
+	docker system prune --force --all
+
+.PHONY: deploy-build
+deploy-build: verify-prod
+	git pull --ff-only
+	docker compose pull --quiet --ignore-buildable
+	docker compose build
+	docker compose down --remove-orphans
+	docker compose up --quiet-pull --remove-orphans --no-build --detach
+	docker system prune --force --all

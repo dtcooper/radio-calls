@@ -68,8 +68,4 @@ jobs:
       #     #  6. remove all extraneous docker container data (prune)
       #     script: |
       #       cd radio-calls
-      #       git pull --ff-only
-      #       docker compose pull --quiet
-      #       docker compose down --remove-orphans
-      #       docker compose up --quiet-pull --remove-orphans --no-build --detach
-      #       docker system prune --force --all
+      #       make build-pull
