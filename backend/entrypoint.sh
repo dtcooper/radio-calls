@@ -29,7 +29,7 @@ if [ "$#" = 0 ]; then
     if [ "$DEV_MODE" ]; then
         exec ./manage.py runserver
     else
-        NUM_GUNICORN_WORKERS="$(python -c 'import multiprocessing as m; print(m.cpu_count() * 2 + 1)')"
+        NUM_GUNICORN_WORKERS="$(python -c 'import multiprocessing as m; print(m.cpu_count() * 2)')"
 
         ./manage.py collectstatic --noinput
         exec gunicorn \
