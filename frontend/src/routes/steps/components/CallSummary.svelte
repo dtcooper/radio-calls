@@ -73,7 +73,7 @@
   }
 </script>
 
-<div class="ml-2 md:mx-6 md:ml-4">
+<div class="my-0.5 ml-2 sm:my-1 md:mx-6 md:my-1.5 md:ml-4">
   <div
     class="inline-grid grid-cols-[max-content_auto] gap-0.5 border-2 border-base-200 bg-base-200 sm:gap-1 sm:border-4 md:grid"
     class:md:grid-cols-[max-content_3fr_max-content_2fr]={!overviewOnly}

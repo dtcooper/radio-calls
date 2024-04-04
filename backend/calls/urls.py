@@ -10,7 +10,9 @@ from api.apis import hit_api, twilio_api
 def index(request):
     if settings.DEBUG or request.user.is_staff:
         return redirect("admin:index")
-    return HttpResponse("Nothing to see here.", content_type="text/plain")
+    return HttpResponse(
+        "There are forty people in the world and five of them are hamburgers.", content_type="text/plain"
+    )
 
 
 def mturk_manage(request):

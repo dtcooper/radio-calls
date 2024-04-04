@@ -52,12 +52,16 @@
     >
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    Have any conversation you'd like, but you should discuss the topic: <em class="text-secondary">{$state.topic}</em>
+    <div>
+      <p>You may have any conversation you'd like, but you should discuss the topic:</p>
+      <div class="ml-1 mt-1 border-l-2 border-base-300 pl-3">
+        Topic: <em class="font-bold text-secondary">{$state.topic}</em>
+      </div>
+    </div>
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    You may discuss adult subject matter (sex, drugs, etc...), or even insult the hosts 🤣, but:<br
-      class="hidden lg:inline"
-    />
+    You may discuss adult subject matter (sex, drugs, etc...), or <em>even insult the hosts</em> 🤣, but:
+    <br class="hidden lg:inline" />
     <strong class="underline">Please refrain from swearing or cursing!</strong> 🔞🤬🍆
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
@@ -75,14 +79,19 @@
         if you end up needing to wait for the host to answer your call; and
       </li>
       <li class="ml-5">
-        If the host does not answer your call, you have the option of leaving a voicemail and submitting; <strong
+        If the host does not answer your call, you have the option of leaving a voicemail 📬 and submitting; <strong
           >OR</strong
         > you can always return the HIT &mdash; this won't affect your rating.
       </li>
     </ul>
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    Constant internet connectivity is needed to complete this assignment. 🌎💻🔌
+    <p>You have good internet connectivity, since it will be needed to complete this assignment. 🌎💻🔌</p>
+    <p>
+      <strong class="text-error">Getting disconnected is a sure-fire way to be unable to submit this assignment!</strong
+      >
+      😩😩😩
+    </p>
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
     <span class="hidden text-success lg:contents">💰🤑💰</span>

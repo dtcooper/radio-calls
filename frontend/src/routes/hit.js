@@ -35,7 +35,6 @@ const post = (endpoint, data) => _post(endpoint, data, isDebug())
 const createState = () => {
   const { subscribe, update: _update } = writable({
     approvalCode: "invalid-approval-code",
-    assignmentDuration: null,
     assignmentId: "",
     callInProgress: false,
     countdown: null,
@@ -176,8 +175,8 @@ const createState = () => {
           return
         }
 
-        // XXX shouldn't be able to hangup
-        update({ callInProgress: true })
+        // Fake initial state until we hear otherwise from server
+        update({ callInProgress: true, state: STAGE_INITIAL })
 
         call.on("volume", (inputVolume, outputVolume) => {
           const micLevel = Math.min(inputVolume * 100 * 1.25, 100)
@@ -186,19 +185,23 @@ const createState = () => {
         })
         call.on("disconnect", () => {
           update({ micLevel: 0, speakerLevel: 0, callInProgress: false })
+          // If we're disconnected during the voicemail or call stage, consider the assignment done (backend will too)
+          if ([STAGE_CALL, STAGE_VOICEMAIL].includes(get().stage)) {
+            update({ stage: STAGE_DONE })
+          }
           call = null
         })
         call.on("messageReceived", (data) => {
           const {
-            content: { stage, countdown, approvalCode }
+            content: { stage, countdown }
           } = data
           if (isDebug()) {
             console.log(`Got message from twilio stage=${stage}, countdown=${countdown}`)
           }
           if (stage) {
-            update({ stage, approvalCode, countdown: countdown && dayjs().add(countdown, "second") })
+            update({ stage, countdown: countdown && dayjs().add(countdown, "second") })
           } else {
-            console.warning("Got unknown user message from twilio", data)
+            console.warn("Got unknown user message from twilio", data)
           }
         })
         // TODO: Use a toast on error

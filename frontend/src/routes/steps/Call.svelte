@@ -15,7 +15,10 @@
 
 <p>Now it's time to make your call! 😆😆😆</p>
 
-<p>Press the call button below to start. Make sure you have a working microphone and headset.</p>
+<p>
+  When you're ready, press the call button below to start. Make sure you have a working microphone and headset
+  beforehand. We'll be testing it first.
+</p>
 
 <TopicSummary />
 

@@ -112,7 +112,7 @@ class HIT(BaseModel):
     )
     min_call_duration = models.DurationField(
         "minimum call duration",
-        default=datetime.timedelta(minutes=2),
+        default=datetime.timedelta(minutes=3),
         validators=call_duration_validators,
         help_text="After this amount of call time, a worker can submit an assignment.",
     )

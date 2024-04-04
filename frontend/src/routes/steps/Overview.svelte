@@ -43,8 +43,8 @@
   This assignment will take approximately
   {$state.estimatedBeforeVerifiedDuration.add($state.minCallDuration).humanize()} to
   {$state.leaveVoicemailAfterDuration.humanize()} to complete. 🕒🕒🕒<br />
-  If after {$state.leaveVoicemailAfterDuration.humanize()} you are still not connected to the host, you'll have the opportunity
-  to <strong>leave a voice mail</strong> 📬 and submit the assignment.
+  If after {$state.leaveVoicemailAfterDuration.humanize()} you are still not connected to the host, you'll then have the
+  opportunity to <strong>leave a voice mail</strong> 📬 and submit the assignment.
 </p>
 
 <p>

@@ -60,10 +60,7 @@ def get_assignment(id) -> Assignment:
 def update_assignment_stage(call_sid, assignment: Assignment, stage, countdown=None):
     if stage not in Assignment.Stage.values:
         raise Exception(f"Invalid stage: {stage}")
-    approval_code = None
-    if stage in (Assignment.Stage.VOICEMAIL, Assignment.Stage.DONE):
-        approval_code = str(assignment.hit.approval_code)
-    send_twilio_message(call_sid, stage, countdown, approval_code)
+    send_twilio_message(call_sid, stage, countdown)
     if assignment.stage != Assignment.Stage.VERIFIED and stage == Assignment.Stage.VERIFIED:
         assignment.call_started_at = timezone.now()
     assignment.stage = stage
@@ -97,7 +94,9 @@ def hit_outgoing(request, assignment_id: Form[str], call_sid: Form[str], cheat: 
     cheated = cheat and settings.DEBUG
 
     response = VoiceResponse()
-    response.say("Cheated!" if cheated else "Welcome Mechanical Turk worker! Are you excited to call the radio show?")
+    response.say(
+        "Cheated!" if cheated else f"Welcome, {assignment.worker.name}! Are you excited to call the radio show?"
+    )
     if cheated or assignment.stage != Assignment.Stage.INITIAL:
         response.redirect(url("hit_outgoing_call", assignment))
     else:
@@ -144,8 +143,6 @@ def hit_outgoing_verify(
         input="speech",
         enhanced=True,
         speech_model="phone_call",
-        speech_timeout=3,
-        timeout=5,
     )
     gather.say(
         f"{'After the tone, please r' if first_run else 'R'}epeat the following fruits."
@@ -171,15 +168,20 @@ def hit_outgoing_call(request, assignment_id, call_sid: Form[str]):
     dial.sip(
         f"{settings.TWILIO_SIP_HOST_USERNAME}@{settings.TWILIO_SIP_DOMAIN}",
         status_callback=url("hit_outgoing_callback_answered", assignment),
-        status_callback_event="answered",
+        status_callback_event="answered completed",
     )
     return response
 
 
 @api.post("hit/outgoing/{assignment_id}/callback/answered")
-def hit_outgoing_callback_answered(request, assignment_id, parent_call_sid: Form[str]):
+def hit_outgoing_callback_answered(request, assignment_id, call_status: Form[str], parent_call_sid: Form[str]):
     assignment = get_assignment(assignment_id)
-    update_assignment_stage(parent_call_sid, assignment, Assignment.Stage.CALL, assignment.hit.min_call_duration)
+    if call_status == "in-progress":  # Answered
+        update_assignment_stage(parent_call_sid, assignment, Assignment.Stage.CALL, assignment.hit.min_call_duration)
+    elif call_status == "completed":
+        if assignment.stage in (Assignment.Stage.CALL, Assignment.Stage.VOICEMAIL):
+            assignment.stage = Assignment.Stage.DONE
+            assignment.save()
     return HttpResponse(status=204)
 
 
@@ -218,21 +220,8 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
     return response
 
 
-@api.post("hit/outgoing/{assignment_id}/voicemail")
-def hit_outgoing_voicemail(request, assignment_id, call_sid: Form[str]):
-    assignment = get_assignment(assignment_id)
-    update_assignment_stage(call_sid, assignment, Assignment.Stage.VOICEMAIL)
-
-    response = VoiceResponse()
-    response.say("Af")
-
-
 @api.post("hit/outgoing/{assignment_id}/completed")
 def hit_outgoing_completed(request, assignment_id, call_sid: Form[str]):
-    assignment = get_assignment(assignment_id)
-    update_assignment_stage(call_sid, assignment, Assignment.Stage.DONE)
-    assignment = get_assignment(assignment_id)
-
     response = VoiceResponse()
     response.say("You have successfully completed this assignment. Thanks!")
     response.play(sound_path("fun-music"))

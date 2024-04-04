@@ -68,7 +68,6 @@ class HandshakePreviewOut(BaseOut):
     is_staff: bool
     estimated_before_verified_duration: datetime.timedelta = ESTIMATED_BEFORE_VERIFIED_DURATION
     min_call_duration: datetime.timedelta
-    assignment_duration: datetime.timedelta
     leave_voicemail_after_duration: datetime.timedelta
 
 
@@ -130,7 +129,6 @@ def get_hit_and_common_handshake_out(request, handshake):
         "show_host": hit.show_host,
         "is_staff": request.user.is_staff,
         "min_call_duration": hit.min_call_duration,
-        "assignment_duration": hit.assignment_duration,
         "leave_voicemail_after_duration": hit.leave_voicemail_after_duration,
     }
     return hit, handshake_out
@@ -208,7 +206,14 @@ def name(request, name: NameIn):
 @api.post("finalize", response=FinalizeOut, by_alias=True)
 def finalize(request):
     assignment = get_assignment_from_session(request)
-    if assignment.stage in (Assignment.Stage.VOICEMAIL, Assignment.Stage.DONE):
+
+    # Same as in frontend, if we got here it may be beacuse a call got disconnected abruptly
+    # so a request to finalize should be accepted anyway
+    if assignment.stage in (Assignment.Stage.VOICEMAIL, Assignment.Stage.CALL):
+        assignment.stage = Assignment.Stage.DONE
+        assignment.save()
+
+    if assignment.stage == Assignment.Stage.DONE:
         return {"accepted": True, "approval_code": assignment.hit.approval_code}
     else:
         return {"accepted": False}
