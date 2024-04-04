@@ -52,7 +52,7 @@ deploy-pull: verify-prod
 deploy-build: verify-prod
 	git pull --ff-only
 	docker compose pull --quiet --ignore-buildable
-	docker compose build
+	docker compose build --pull
 	docker compose down --remove-orphans
 	docker compose up --quiet-pull --remove-orphans --no-build --detach
 	docker system prune --force
