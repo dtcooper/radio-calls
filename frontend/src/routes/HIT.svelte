@@ -12,8 +12,6 @@
   import TOS from "./steps/TOS.svelte"
   import AudioMeter from "./steps/components/AudioMeter.svelte"
 
-  import { isPreview } from "./hit"
-
   const darkTheme = persisted("dark-theme", false)
   $: document.documentElement.setAttribute("data-theme", $darkTheme ? "dark" : "light")
   let currentStep = 0
