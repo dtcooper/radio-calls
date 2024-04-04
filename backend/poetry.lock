@@ -1517,13 +1517,13 @@ test = ["argcomplete (>=3.0.3)", "mypy (>=1.7.0)", "pre-commit", "pytest (>=7.0,
 
 [[package]]
 name = "twilio"
-version = "9.0.3"
+version = "9.0.4"
 description = "Twilio API client and TwiML generator"
 optional = false
 python-versions = ">=3.7.0"
 files = [
-    {file = "twilio-9.0.3-py2.py3-none-any.whl", hash = "sha256:c21fd70d8518823831143999a38cc86c40dad45fab5a6b5ecfee85672e9e5cb2"},
-    {file = "twilio-9.0.3.tar.gz", hash = "sha256:c13973415966e93b70651a58733fa76317df64621c74e0e4896613f10a368438"},
+    {file = "twilio-9.0.4-py2.py3-none-any.whl", hash = "sha256:086abae1a575a0ee89a72c0792d814ee349fe55c8df76b563ecfc49463c3c533"},
+    {file = "twilio-9.0.4.tar.gz", hash = "sha256:d493d5bde6361bb713dffec00b9465ff84978b71334dd75002152e79604688ba"},
 ]
 
 [package.dependencies]
@@ -1705,4 +1705,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "3cb2548104dc0d9add003132e1a98afa480c5194406694f238f5328584da1be3"
+content-hash = "2084c67f7f4ee0e7930a2e061356d1e13a1ed5edbd236cecbee33fc12bca572d"
