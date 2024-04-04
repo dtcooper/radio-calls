@@ -191,7 +191,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
     @button(
         html_attrs={"style": "background-color: oklch(0.7176 0.221 22.18); color: #000000"},
         permission=lambda request, hit, **kw: request.user.has_perm("api.publish_production_hit")
-        and hit.status == HIT.Status.PRODUCTION,
+        and hit.status == HIT.Status.LOCAL,
     )
     def publish_to_production(self, request, pk):
         hit = get_object_or_404(HIT, pk=pk)
