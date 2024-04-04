@@ -48,9 +48,10 @@ def twilio_auth(request):
             return True
 
     if settings.DEBUG:
-        raise Exception("Request not signed properly from Twilio")
-    else:
         logger.warning("Request not properly signed from Twilio, but allowing it since DEBUG = True")
+        return True
+
+    return False
 
 
 def get_assignment(id) -> Assignment:
