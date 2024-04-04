@@ -36,7 +36,7 @@ RUN if [ "$DEV_MODE" -a "$DEV_MODE" != '0' ]; then \
 COPY pyproject.toml poetry.lock /app/
 WORKDIR /app
 
-RUN poetry install $([ -z "$DEV_MODE" -o "$DEV_MODE" = '0' ] && echo '--without=dev') \
+RUN poetry install --no-root $([ -z "$DEV_MODE" -o "$DEV_MODE" = '0' ] && echo '--without=dev') \
     && if [ "$DEV_MODE" -a "$DEV_MODE" != 0 ]; then \
         # Download relevant verion's bash completion (in dev only)
         wget -qO /etc/bash_completion.d/django_bash_completion \

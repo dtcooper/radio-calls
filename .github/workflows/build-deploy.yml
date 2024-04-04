@@ -41,13 +41,15 @@ jobs:
           context: ./backend/
           tags: ghcr.io/dtcooper/radio-calls-backend:latest
       -
-        name: Deploy containers
+        name: Deploy
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          # Generate via:
+          #   $ ssh <host> ssh-keygen -l -f /etc/ssh/ssh_host_ecdsa_key.pub | cut -d ' ' -f2
           fingerprint: ${{ secrets.SSH_FINGERPRINT }}
           script_stop: true
           # Steps:
