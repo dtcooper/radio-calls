@@ -40,18 +40,18 @@ def to_pretty_minutes(timedelta):
 
 
 def twilio_auth(request):
-    logger.info(f"Got request to {request.path}...\n{pprint.pformat(dict(request.POST))}")
-
+    authorized = False
     signature = request.headers.get("X-Twilio-Signature")
     if signature:
-        if validator.validate(request.build_absolute_uri(), request.POST, signature):
-            return True
+        authorized = validator.validate(request.build_absolute_uri(), request.POST, signature)
 
     if settings.DEBUG:
-        logger.warning("Request not properly signed from Twilio, but allowing it since DEBUG = True")
-        return True
+        if not authorized:
+            logger.warning("Request not properly signed from Twilio, but allowing it since DEBUG = True")
+            authorized = True
+        logger.info(f"Got request to {request.path}...\n{pprint.pformat(dict(request.POST))}")
 
-    return False
+    return authorized
 
 
 def get_assignment(id) -> Assignment:
