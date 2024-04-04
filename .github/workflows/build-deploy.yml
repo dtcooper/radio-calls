@@ -40,3 +40,27 @@ jobs:
           platforms: linux/amd64
           context: ./backend/
           tags: ghcr.io/dtcooper/radio-calls-backend:latest
+      -
+        name: Deploy containers
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          script_stop: true
+          # Steps:
+          #  1. git pull, fast-forward only
+          #  2. pull containers
+          #  3. bring down all containers
+          #  4. bring up containers in detatched mode
+          #  5. Set redis keys describing deployment (date, URL of workflow)
+          #  6. remove all extraneous docker container data (prune)
+          script: |
+            cd radio-calls
+            git pull --ff-only
+            docker compose pull --quiet
+            docker compose down --remove-orphans
+            docker compose up --quiet-pull --remove-orphans --no-build --detach
+            docker system prune --force --all
