@@ -222,6 +222,9 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
 
 @api.post("hit/outgoing/{assignment_id}/completed")
 def hit_outgoing_completed(request, assignment_id, call_sid: Form[str]):
+    assignment = get_assignment(assignment_id)
+    update_assignment_stage(call_sid, assignment, Assignment.Stage.DONE)
+
     response = VoiceResponse()
     response.say("You have successfully completed this assignment. Thanks!")
     response.play(sound_path("fun-music"))
