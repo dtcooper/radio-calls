@@ -39,6 +39,7 @@ services:
       __NGINX_BACKEND_STATIC_CONF: |
         location /backend-static/ {
                 alias /backend-static/;
+                access_log off;
             }
       __NGINX_FRONTEND_CONF: |
         # Frontend static assets (immutable)
