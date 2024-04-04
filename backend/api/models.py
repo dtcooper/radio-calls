@@ -383,6 +383,16 @@ class Assignment(BaseModel):
     def __str__(self):
         return f"{self.worker}: {self.hit}"
 
+    def save(self, *args, **kwargs):
+        # Reset call when state set to INITIAL
+        if self.stage == self.Stage.INITIAL:
+            self.call_started_at = None
+        # Start call when stage moved from INITIAL to anything else
+        elif self.call_started_at is None:
+            self.call_started_at = timezone.now()
+
+        super().save(*args, **kwargs)
+
     @classmethod
     def from_api(cls, amazon_id, hit, worker, reset_to_initial=False):
         defaults = {
@@ -392,6 +402,6 @@ class Assignment(BaseModel):
             "worker": worker,
         }
         if reset_to_initial:
-            defaults.update({"stage": cls.Stage.INITIAL, "call_started_at": None})
+            defaults.update({"stage": cls.Stage.INITIAL})
         obj, _ = cls.objects.update_or_create(amazon_id=amazon_id, defaults=defaults)
         return obj

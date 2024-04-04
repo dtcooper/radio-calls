@@ -138,7 +138,7 @@ LOGGING = {
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = env("TIMEZONE", default="UTC")
+TIME_ZONE = env("TZ", default="US/Eastern")
 
 USE_I18N = True
 

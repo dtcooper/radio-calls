@@ -33,6 +33,7 @@ services:
       - ./backend/static:/backend-static
       - nginx_secrets:/etc/letsencrypt
     environment:
+      TZ: "${TZ}"
       DOMAIN_NAME: "${DOMAIN_NAME}"
       CERTBOT_EMAIL: "${CERTBOT_EMAIL}"
       __NGINX_BACKEND_STATIC_CONF: |
@@ -63,6 +64,7 @@ services:
       - postgres_data:/var/lib/postgresql/data/
     environment:
       POSTGRES_PASSWORD: postgres
+      TZ: "${TZ}"
 
 volumes:
   nginx_secrets:
