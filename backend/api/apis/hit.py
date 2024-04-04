@@ -66,6 +66,7 @@ class HandshakePreviewOut(BaseOut):
     topic: str
     show_host: str
     is_staff: bool
+    is_prod: bool = False
     estimated_before_verified_duration: datetime.timedelta = ESTIMATED_BEFORE_VERIFIED_DURATION
     min_call_duration: datetime.timedelta
     leave_voicemail_after_duration: datetime.timedelta
@@ -128,6 +129,7 @@ def get_hit_and_common_handshake_out(request, handshake):
         "topic": hit.topic,
         "show_host": hit.show_host,
         "is_staff": request.user.is_staff,
+        "is_prod": not settings.DEBUG,
         "min_call_duration": hit.min_call_duration,
         "leave_voicemail_after_duration": hit.leave_voicemail_after_duration,
     }

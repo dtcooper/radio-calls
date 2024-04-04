@@ -43,6 +43,7 @@ const createState = () => {
     gender: "",
     hitId: null,
     isStaff: false,
+    isProd: true,
     leaveVoicemailAfterDuration: null,
     micLevel: 0,
     minCallDuration: null,

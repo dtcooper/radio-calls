@@ -32,7 +32,7 @@
   >
     📞 Click to start call 📞
   </button>
-  {#if $debugMode && $state.isStaff}
+  {#if $debugMode && $state.isStaff && !$state.isProd}
     <button class="btn btn-secondary md:btn-lg md:!text-2xl" disabled={callDisabled} on:click={() => state.call(true)}>
       Cheat!
     </button>
