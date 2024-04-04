@@ -1,3 +1,6 @@
+import datetime
+
+
 MTURK_ID_LENGTH = 255  # From Amazon mturk docs
 QID_MASTERS_SANDBOX = "2ARFPLSP75KLA8M8DH1HTEQVJT3SY6"
 QID_MASTERS_PRODUCTION = "2F1QJWKUDD8XADTFD2Q0G6UTO95ALH"
@@ -35,3 +38,6 @@ ENGLISH_SPEAKING_COUNTRIES = (
 
 CORE_ENGLISH_SPEAKING_COUNTRIES = {"AU", "CA", "IE", "US", "GB"}
 CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES = ("Australia", "Canada", "Ireland", "United Kingdom", "United States of America")
+
+# Estimate it takes abouts 3 minutes to verify from the time we start HIT (for UI purposes)
+ESTIMATED_BEFORE_VERIFIED_DURATION = datetime.timedelta(minutes=3)

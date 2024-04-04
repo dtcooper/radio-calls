@@ -19,6 +19,7 @@
   let currentStep = 0
 
   const steps = [{ title: "Overview", component: Overview, emoji: "🔎", staffCanSkipTo: true }]
+
   if (!isPreview) {
     if ($debugMode) {
       currentStep = 3 // Call
@@ -43,7 +44,7 @@
 <!-- Dark mode and debug toggles -->
 {#if $state.isStaff}
   <div
-    class="tooltip tooltip-right fixed left-1 top-1 z-10"
+    class="tooltip tooltip-right fixed left-1 top-1 z-20"
     class:tooltip-info={!$darkTheme}
     data-tip="Enable {$debugMode ? 'regular' : 'debug'} mode"
   >
@@ -55,7 +56,7 @@
   </div>
 {/if}
 <div
-  class="tooltip tooltip-left right-1 top-1 z-10 {$state.isStaff ? 'fixed' : 'absolute'}"
+  class="tooltip tooltip-left right-1 top-1 z-20 {$state.isStaff ? 'fixed' : 'absolute'}"
   class:tooltip-info={!$darkTheme}
   data-tip="Enable {$darkTheme ? 'light' : 'dark'} theme"
 >
@@ -115,14 +116,14 @@
     >
       <svelte:component this={step.component} {next} />
     </main>
-  </div>
 
-  {#if !$state.isPreview}
-    <footer class="mt-1 bg-base-200 text-center italic">
-      Question? Comments? Concerns? Email
-      <a href="mailto:david@jew.pizza" target="_blank" class="link-hover link link-accent">david@jew.pizza</a>.
-    </footer>
-  {/if}
+    {#if !$state.isPreview}
+      <footer class="bg-base-200 py-0.5 text-center text-xs italic sm:text-sm md:text-base">
+        Question? Comments? Concerns? Email
+        <a href="mailto:david@jew.pizza" target="_blank" class="link-hover link link-accent">david@jew.pizza</a>.
+      </footer>
+    {/if}
+  </div>
 
   {#if $debugMode}
     <pre class="text-xs">{JSON.stringify($state, null, 2)}</pre>

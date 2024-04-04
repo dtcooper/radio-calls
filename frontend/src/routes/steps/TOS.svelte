@@ -1,5 +1,6 @@
 <script>
   import TOSTerm from "./components/TOSTerm.svelte"
+  import NextButton from "./components/NextButton.svelte"
   import { state, debugMode } from "../hit"
 
   export let next
@@ -19,7 +20,7 @@
   ⚖️⚖️⚖️
 </h2>
 
-<blockquote class="ml-5 flex flex-col gap-3 border-l-2 border-base-300 pl-2">
+<blockquote class="ml-5 flex flex-col gap-3 border-l-2 border-base-300 py-1 pl-2 md:py-2">
   <div><strong>Carefully</strong> read each term &amp; condition below, then click to agree.</div>
   <span class="text-error">
     If you <strong>disagree</strong> with <em>any</em> of these terms,
@@ -42,7 +43,7 @@
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
     <strong>
-      Your call will be <u>recorded</u> and <u>broadcast</u> on a radio show 📻 (and associated podcast).
+      Your call will be <u>recorded</u> and <u>broadcast</u> on a radio show 📻 (or podcast).
     </strong>
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
@@ -51,35 +52,52 @@
     >
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    Have any conversation you'd like, but the call should be placed to discuss the topic: <em class="text-secondary"
-      >{$state.topic}</em
-    >
+    Have any conversation you'd like, but you should discuss the topic: <em class="text-secondary">{$state.topic}</em>
+  </TOSTerm>
+  <TOSTerm bind:term index={nextIndex()}>
+    You may discuss adult subject matter (sex, drugs, etc...), or even insult the hosts 🤣, but:<br
+      class="hidden lg:inline"
+    />
+    <strong class="underline">Please refrain from swearing or cursing!</strong> 🔞🤬🍆
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
     If no one answers, you will be placed on a hold loop. You understand, that...
 
     <ul class="mt-2 list-disc">
-      <li class="ml-5">You <strong><u>CANNOT</u></strong> submit the assignment without completing the call;</li>
+      <li class="ml-5">
+        You <strong><u>CANNOT</u></strong> submit the assignment without completing the call or leaving a voicemail;
+      </li>
       <li class="ml-5">There is a chance the host may not answer the call;</li>
       <li class="ml-5">
-        The assignment may take a very long time if you end up waiting for the host to answer your call; and
+        The assignment <strong class="underline"
+          >may take up to {$state.leaveVoicemailAfterDuration.humanize()} or more</strong
+        >
+        if you end up needing to wait for the host to answer your call; and
       </li>
       <li class="ml-5">
-        If the host does not answer your call, you'll have to return the HIT &mdash; but this won't affect your rating.
+        If the host does not answer your call, you have the option of leaving a voicemail and submitting; <strong
+          >OR</strong
+        > you can always return the HIT &mdash; this won't affect your rating.
       </li>
     </ul>
   </TOSTerm>
+  <TOSTerm bind:term index={nextIndex()}>
+    Constant internet connectivity is needed to complete this assignment. 🌎💻🔌
+  </TOSTerm>
+  <TOSTerm bind:term index={nextIndex()}>
+    <span class="hidden text-success lg:contents">💰🤑💰</span>
+    <strong>
+      <span class="hidden text-success lg:inline">$$$</span>
+      Bonuses will be awarded to longer, weirder, or funnier calls!
+      <span class="text-success">$$$</span>
+    </strong>
+    💰🤑💰
+  </TOSTerm>
 </div>
 
-<p class="text-center">
-  <button
-    class="btn btn-warning btn-xs sm:btn-sm md:btn-lg"
-    on:click={next}
-    disabled={numTerms !== term && !$debugMode}
-  >
-    I have
-    <span class="contents sm:hidden">read</span>
-    <span class="hidden sm:contents">carefully read, understand,</span>
-    &amp; agree to the above terms.
-  </button>
-</p>
+<NextButton {next} disabled={numTerms !== term && !$debugMode} class="btn-warning" highlight={numTerms === term}>
+  I have
+  <span class="contents sm:hidden">read</span>
+  <span class="hidden sm:contents">carefully read, understand,</span>
+  &amp; agree to the above terms.
+</NextButton>

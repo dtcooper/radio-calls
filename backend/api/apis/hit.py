@@ -1,4 +1,6 @@
+import datetime
 import logging
+import uuid
 
 from pydantic.alias_generators import to_camel
 from twilio.jwt.access_token import AccessToken
@@ -10,6 +12,7 @@ from django.http import Http404
 from ninja import NinjaAPI, Schema as BaseSchema
 from ninja.errors import AuthenticationError, HttpError, ValidationError
 
+from ..constants import ESTIMATED_BEFORE_VERIFIED_DURATION
 from ..models import HIT, WORKER_NAME_MAX_LENGTH, Assignment, Worker
 
 
@@ -63,6 +66,10 @@ class HandshakePreviewOut(BaseOut):
     topic: str
     show_host: str
     is_staff: bool
+    estimated_before_verified_duration: datetime.timedelta = ESTIMATED_BEFORE_VERIFIED_DURATION
+    min_call_duration: datetime.timedelta
+    assignment_duration: datetime.timedelta
+    leave_voicemail_after_duration: datetime.timedelta
 
 
 class HandshakeOut(HandshakePreviewOut):
@@ -73,7 +80,6 @@ class HandshakeOut(HandshakePreviewOut):
     name: str
     token: str
     worker_id: str
-    submit_url: str | None
 
 
 class NameIn(Schema):
@@ -85,11 +91,25 @@ class TokenOut(BaseOut):
     token: str
 
 
-def get_assignment_from_session(request):
+class FinalizeOut(BaseOut):
+    accepted: bool
+    approval_code: uuid.UUID | None = None
+
+
+def get_assignment_from_session(request) -> Assignment:
     return Assignment.objects.get(id=request.session["assignment_id"])
 
 
-def get_hit_from_handshake(request, handshake):
+def get_token(worker):
+    token = AccessToken(
+        settings.TWILIO_ACCOUNT_SID, settings.TWILIO_API_KEY, settings.TWILIO_API_SECRET, identity=worker.id
+    )
+    grant = VoiceGrant(outgoing_application_sid=settings.TWILIO_TWIML_APP_SID)
+    token.add_grant(grant)
+    return token.to_jwt()
+
+
+def get_hit_and_common_handshake_out(request, handshake):
     hit = None
     try:
         if handshake.hit_id is not None:
@@ -105,34 +125,34 @@ def get_hit_from_handshake(request, handshake):
     if hit is None:
         raise HttpError(400, "HIT not found!")
 
-    return hit
-
-
-def get_token(worker):
-    token = AccessToken(
-        settings.TWILIO_ACCOUNT_SID, settings.TWILIO_API_KEY, settings.TWILIO_API_SECRET, identity=worker.id
-    )
-    grant = VoiceGrant(outgoing_application_sid=settings.TWILIO_TWIML_APP_SID)
-    token.add_grant(grant)
-    return token.to_jwt()
+    handshake_out = {
+        "topic": hit.topic,
+        "show_host": hit.show_host,
+        "is_staff": request.user.is_staff,
+        "min_call_duration": hit.min_call_duration,
+        "assignment_duration": hit.assignment_duration,
+        "leave_voicemail_after_duration": hit.leave_voicemail_after_duration,
+    }
+    return hit, handshake_out
 
 
 @api.post("handshake/preview", response=HandshakePreviewOut, by_alias=True)
 def handshake_preview(request, handshake: HandshakeIn):
-    hit = get_hit_from_handshake(request, handshake)
-    return {"topic": hit.topic, "is_staff": request.user.is_staff, "show_host": hit.show_host}
+    _, handshake_out = get_hit_and_common_handshake_out(request, handshake)
+    return handshake_out
 
 
 @api.post("handshake", response=HandshakeOut, by_alias=True)
 def handshake(request, handshake: HandshakeIn):
-    hit = get_hit_from_handshake(request, handshake)
+    hit, handshake_out = get_hit_and_common_handshake_out(request, handshake)
     is_staff = request.user.is_staff
 
     worker_id = None
+    simulated_worker = False
     if handshake.worker_id is not None:
         worker_id = handshake.worker_id
     elif is_staff:
-        worker_id = f"django:{request.user.id}"
+        worker_id = f"django-simulated/user:{request.user.id}"
     if worker_id is None:
         raise HttpError(400, "Worker ID invalid")
 
@@ -142,30 +162,23 @@ def handshake(request, handshake: HandshakeIn):
     if handshake.assignment_id is not None:
         assignment_id = handshake.assignment_id
     elif is_staff:
-        assignment_id = f"{worker.id}:{hit.id}"
+        assignment_id = f"django-simulated/user:{request.user.id}/worker:{worker.id}/hit:{hit.id}"
+        simulated_worker = True
     if assignment_id is None:
         raise HttpError(400, "Assignment ID invalid")
 
-    assignment = Assignment.from_api(assignment_id, hit=hit, worker=worker)
+    # Reset to initial state for simulated workers only
+    assignment = Assignment.from_api(assignment_id, hit=hit, worker=worker, reset_to_initial=simulated_worker)
     request.session.update({"assignment_id": assignment.id})
 
-    submit_url = None
-    if hit.status == HIT.Status.SANDBOX:
-        submit_url = "https://workersandbox.mturk.com/mturk/externalSubmit"
-    elif hit.status == HIT.Status.PRODUCTION:
-        submit_url = "https://www.mturk.com/mturk/externalSubmit"
-
     return {
+        **handshake_out,
         "assignment_id": assignment.amazon_id,
         "gender": worker.gender,
         "hit_id": hit.amazon_id,
-        "is_staff": is_staff,
         "name": worker.name,
         "token": get_token(worker),
-        "show_host": hit.show_host,
-        "topic": hit.topic,
         "worker_id": worker.amazon_id,
-        "submit_url": submit_url,
     }
 
 
@@ -180,9 +193,22 @@ def name(request, name: NameIn):
     if name.gender not in Worker.Gender.values:
         raise HttpError(400, f"Invalid gender {name.gender}")
 
+    new_name = name.name.strip()[:WORKER_NAME_MAX_LENGTH]
+    if not new_name:
+        raise HttpError(400, "Empty name!")
+
     assignment = get_assignment_from_session(request)
     worker = assignment.worker
-    worker.name = name.name[:WORKER_NAME_MAX_LENGTH]
+    worker.name = new_name
     worker.gender = name.gender
     worker.save()
     return {"success": True}
+
+
+@api.post("finalize", response=FinalizeOut, by_alias=True)
+def finalize(request):
+    assignment = get_assignment_from_session(request)
+    if assignment.stage in (Assignment.Stage.VOICEMAIL, Assignment.Stage.DONE):
+        return {"accepted": True, "approval_code": assignment.hit.approval_code}
+    else:
+        return {"accepted": False}

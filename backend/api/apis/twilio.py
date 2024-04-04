@@ -1,5 +1,7 @@
+import datetime
 import logging
 import pprint
+import random
 from urllib.parse import urlencode
 
 from twilio.request_validator import RequestValidator
@@ -25,11 +27,16 @@ SIP_BUSY_CODE = 486
 SIP_REJECT_CODE = 603
 SIP_DONE_CODE = 200
 
-BUSY_TRACKS = ()
+HOLD_MUSIC_TRACKS = 4
 
 
 def sound_path(name):
     return static(f"api/twilio/sounds/{name}.mp3")
+
+
+def to_pretty_minutes(timedelta):
+    minutes = round(max(timedelta.total_seconds() / 60, 0))
+    return f"{minutes} minute{'s' if minutes != 1 else ''}"
 
 
 def twilio_auth(request):
@@ -46,8 +53,21 @@ def twilio_auth(request):
     return True
 
 
-def get_assignment(id):
+def get_assignment(id) -> Assignment:
     return Assignment.objects.get(id=id)
+
+
+def update_assignment_stage(call_sid, assignment: Assignment, stage, countdown=None):
+    if stage not in Assignment.Stage.values:
+        raise Exception(f"Invalid stage: {stage}")
+    approval_code = None
+    if stage in (Assignment.Stage.VOICEMAIL, Assignment.Stage.DONE):
+        approval_code = str(assignment.hit.approval_code)
+    send_twilio_message(call_sid, stage, countdown, approval_code)
+    if assignment.stage != Assignment.Stage.VERIFIED and stage == Assignment.Stage.VERIFIED:
+        assignment.call_started_at = timezone.now()
+    assignment.stage = stage
+    assignment.save()
 
 
 def url(name, assignment=None, **params):
@@ -72,29 +92,26 @@ def sip_incoming(request):
 
 
 @api.post("hit/outgoing")
-def hit_outgoing(request, assignment_id: Form[str], cheat: Form[bool] = False):
+def hit_outgoing(request, assignment_id: Form[str], call_sid: Form[str], cheat: Form[bool] = False):
     assignment = Assignment.objects.get(amazon_id=assignment_id)
+    cheated = cheat and settings.DEBUG
+
     response = VoiceResponse()
-
-    if cheat and settings.DEBUG:
-        logger.warning(f"Cheating for assignment {assignment.id} because DEBUG = True")
-        assignment.stage = Assignment.Stage.VERIFIED
-        assignment.save()
-        response.say("Cheating!")
+    response.say("Cheated!" if cheated else "Welcome Mechanical Turk worker! Are you excited to call the radio show?")
+    if cheated or assignment.stage != Assignment.Stage.INITIAL:
         response.redirect(url("hit_outgoing_call", assignment))
-        return response
-
-    response.say(
-        "Welcome Mechanical Turk worker! You're going to call a radio show. First, we'll test your speaker, microphone"
-        " and your ability to speak English."
-    )
-    response.pause(0.5)
-    response.redirect(url("hit_outgoing_verify", assignment, first_run=1))
+    else:
+        send_twilio_message(call_sid, Assignment.Stage.INITIAL)
+        response.say("First, we'll test your speaker, microphone and your ability to speak English.")
+        response.pause(0.5)
+        response.redirect(url("hit_outgoing_verify", assignment, first_run=1))
     return response
 
 
 @api.post("hit/outgoing/{assignment_id}/verify")
-def hit_outgoing_verify(request, assignment_id, speech_result: Form[str | None] = None, first_run: bool = False):
+def hit_outgoing_verify(
+    request, assignment_id, call_sid: Form[str], speech_result: Form[str | None] = None, first_run: bool = False
+):
     assignment = get_assignment(assignment_id)
     response = VoiceResponse()
 
@@ -106,8 +123,7 @@ def hit_outgoing_verify(request, assignment_id, speech_result: Form[str | None] 
             f" actual=[{', '.join(words_heard)}]"
         )
         if match:
-            assignment.stage = Assignment.Stage.VERIFIED
-            assignment.save()
+            update_assignment_stage(call_sid, assignment, Assignment.Stage.VERIFIED)
             response.say(
                 "Correct! Well done. You are now being connected to the radio show. The show is hosted by"
                 f" {assignment.hit.show_host}. The topic of conversation is {assignment.hit.topic}."
@@ -140,11 +156,12 @@ def hit_outgoing_verify(request, assignment_id, speech_result: Form[str | None] 
 
 
 @api.post("hit/outgoing/{assignment_id}/call")
-def hit_outgoing_call(request, assignment_id):
+def hit_outgoing_call(request, assignment_id, call_sid: Form[str]):
     assignment = get_assignment(assignment_id)
-    assignment.call_started_at = timezone.now()
-    assignment.stage = Assignment.Stage.VERIFIED
-    assignment.save()
+    if assignment.stage == Assignment.Stage.INITIAL:
+        # Could have come here from cheating, so update status in that case
+        update_assignment_stage(call_sid, assignment, Assignment.Stage.VERIFIED)
+
     response = VoiceResponse()
     dial = response.dial(
         answer_on_bridge=True,
@@ -162,22 +179,62 @@ def hit_outgoing_call(request, assignment_id):
 @api.post("hit/outgoing/{assignment_id}/callback/answered")
 def hit_outgoing_callback_answered(request, assignment_id, parent_call_sid: Form[str]):
     assignment = get_assignment(assignment_id)
-    assignment.stage = assignment.Stage.CALL_IN_PROGRESS
-    assignment.save()
-    send_twilio_message(parent_call_sid, {"call": "answered"})
+    update_assignment_stage(parent_call_sid, assignment, Assignment.Stage.CALL, assignment.hit.min_call_duration)
     return HttpResponse(status=204)
 
 
 @api.post("hit/outgoing/{assignment_id}/call/done")
-def hit_outgoing_call_done(request, assignment_id, dial_call_status: Form[str]):
-    # assignment = get_assignment(assignment_id)
-
-    if dial_call_status == "completed":
-        pass
-
-    elif dial_call_status in ("no-answer", "busy"):
-        pass  # TODO?! send_twilio_message(parent_call_sid, {"call": "answered"})
+def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_call_status: Form[str]):
+    assignment = get_assignment(assignment_id)
 
     response = VoiceResponse()
-    response.say(f"call status {dial_call_status}")
+
+    if dial_call_status == "completed":
+        response.redirect(url("hit_outgoing_completed", assignment))
+
+    elif dial_call_status in ("no-answer", "busy"):
+        countdown = (assignment.hit.leave_voicemail_after_duration + assignment.call_started_at) - timezone.now()
+        response.say("The host of the show is currently taking another call.")
+        if countdown > datetime.timedelta(0):
+            update_assignment_stage(call_sid, assignment, Assignment.Stage.HOLD, countdown)
+            response.say(
+                "You must wait for the host to answer your call for at least another"
+                f" {to_pretty_minutes(countdown)} until you can leave a voicemail."
+            )
+            response.play(sound_path(f"hold-music-{random.randint(1, 4)}"))
+            response.say("Trying to connect again now.")
+            response.redirect(url("hit_outgoing_call", assignment))
+        else:
+            # TODO do a better job with recordings than twimlet
+            update_assignment_stage(call_sid, assignment, Assignment.Stage.VOICEMAIL)
+            message = (
+                f"Since you have waited {to_pretty_minutes(assignment.hit.leave_voicemail_after_duration)}. You can now"
+                " leave a voicemail. After you are done recording, press the 'finish voicemail' button, or stay silent"
+                " for a few moments. Afterwards, you may submit this assignment."
+            )
+            params = {"Email": settings.TWILIO_TWIMLET_VOICEMAIL_EMAIL, "Message": message, "Transcribe": "true"}
+            response.redirect(f"http://twimlets.com/voicemail?{urlencode(params)}")
+
+    return response
+
+
+@api.post("hit/outgoing/{assignment_id}/voicemail")
+def hit_outgoing_voicemail(request, assignment_id, call_sid: Form[str]):
+    assignment = get_assignment(assignment_id)
+    update_assignment_stage(call_sid, assignment, Assignment.Stage.VOICEMAIL)
+
+    response = VoiceResponse()
+    response.say("Af")
+
+
+@api.post("hit/outgoing/{assignment_id}/completed")
+def hit_outgoing_completed(request, assignment_id, call_sid: Form[str]):
+    assignment = get_assignment(assignment_id)
+    update_assignment_stage(call_sid, assignment, Assignment.Stage.DONE)
+    assignment = get_assignment(assignment_id)
+
+    response = VoiceResponse()
+    response.say("You have successfully completed this assignment. Thanks!")
+    response.play(sound_path("fun-music"))
+    response.hangup()
     return response

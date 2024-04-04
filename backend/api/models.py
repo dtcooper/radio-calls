@@ -86,7 +86,7 @@ class HIT(BaseModel):
     class Status(models.TextChoices):
         SANDBOX = "sandbox", "Sandbox (published)"
         PRODUCTION = "prod", "Production (published)"
-        LOCAL = "local", "Local (unpublished)"
+        LOCAL = "local", "Unpublished (local only)"
 
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     name = models.CharField("name", max_length=100, help_text="Not sent to workers. For internal cataloging.")
@@ -190,7 +190,7 @@ class HIT(BaseModel):
         for field in self.CLONE_FIELDS:
             value = getattr(self, field)
             setattr(hit, field, value)
-        hit.name = f"Clone of {hit.name}"[: self._meta.get_field("name").max_length]
+        hit.name = f"Clone of {self.name}"[: self._meta.get_field("name").max_length]
         hit.save()
         hit.refresh_from_db()
         return hit
@@ -210,9 +210,17 @@ class HIT(BaseModel):
             return self.submitted_at + self.duration + self.assignment_duration >= timezone.now()
         return False
 
+    @property
+    def is_production(self):
+        return self.status == HIT.Status.PRODUCTION
+
+    @property
+    def is_published(self):
+        return self.status in (HIT.Status.SANDBOX, HIT.Status.PRODUCTION)
+
     def delete(self, *args, **kwargs):
-        if self.amazon_id and self.status in (HIT.Status.SANDBOX, HIT.Status.PRODUCTION):
-            client = get_mturk_client(production=self.status == HIT.Status.PRODUCTION)
+        if self.amazon_id and self.is_published:
+            client = get_mturk_client(production=self.is_production)
             try:
                 client.delete_hit(HITId=self.amazon_id)
             except Exception:
@@ -221,8 +229,8 @@ class HIT(BaseModel):
                 logger.info(f"HIT {self.amazon_id} successfully deleted from mechanical turk")
         super().delete(*args, **kwargs)
 
-    def publish_to_mturk(self, production=False):
-        client = get_mturk_client(production)
+    def publish_to_mturk(self, *, production=False):
+        client = get_mturk_client(production=production)
         kwargs = {
             "AssignmentDurationInSeconds": int(self.assignment_duration.total_seconds()),
             "AutoApprovalDelayInSeconds": int(self.approval_delay.total_seconds()),
@@ -331,13 +339,13 @@ def generate_words_to_pronounce():
 
 class Assignment(BaseModel):
     class Stage(models.TextChoices):
+        # Update HIT.js
         INITIAL = "initial", "Handshake completed"
         VERIFIED = "verified", "Verified"
         HOLD = "hold", "Hold loop"
-        CALL_IN_PROGRESS = "in-progress", "Call in progress"
-        CALL_COMPLETED = "completed", "Call completed"
-        VOICEMAIL = "voicemail", "Left voicemail"
-        DONE = "done", "HIT Complete"
+        CALL = "call", "Call made"
+        VOICEMAIL = "voicemail", "HIT complete (voicemail)"
+        DONE = "done", "HIT complete (call)"
 
     hit = models.ForeignKey(HIT, on_delete=models.CASCADE)
     worker = models.ForeignKey(Worker, on_delete=models.CASCADE)
@@ -361,15 +369,14 @@ class Assignment(BaseModel):
         return f"{self.worker}: {self.hit}"
 
     @classmethod
-    def from_api(cls, amazon_id, hit, worker):
-        obj, _ = cls.objects.update_or_create(
-            amazon_id=amazon_id,
-            defaults={
-                "call_started_at": None,
-                "hit": hit,
-                "stage": cls.Stage.INITIAL,
-                "words_to_pronounce": generate_words_to_pronounce(),
-                "worker": worker,
-            },
-        )
+    def from_api(cls, amazon_id, hit, worker, reset_to_initial=False):
+        defaults = {
+            "call_started_at": None,
+            "hit": hit,
+            "words_to_pronounce": generate_words_to_pronounce(),
+            "worker": worker,
+        }
+        if reset_to_initial:
+            defaults.update({"stage": cls.Stage.INITIAL, "call_started_at": None})
+        obj, _ = cls.objects.update_or_create(amazon_id=amazon_id, defaults=defaults)
         return obj

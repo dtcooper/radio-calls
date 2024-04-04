@@ -1,15 +1,40 @@
 <script>
   import { state } from "../hit"
-  let form
+  import NextButton from "./components/NextButton.svelte"
 
-  $$restProps // Ignore unused next
+  let form
+  let submitting = false
+  const submit = async () => {
+    submitting = true
+    const success = await state.finalize()
+    if ($state.submitUrl) {
+      if (success) {
+        form.submit()
+      } else {
+        alert(
+          "An error occurred while submitting this assignment. Try again. If it persists, contact the HIT author david@jew.pizza."
+        )
+        submitting = false
+      }
+    } else {
+      const formData = new FormData(form)
+      alert(
+        `You are getting this popup because no turkSubmitTo was supplied.\n\nAccepted: ${success}\n` +
+          Array.from(formData.entries())
+            .map(([key, value]) => `${key}: ${value}`)
+            .join("\n")
+      )
+      submitting = false
+    }
+  }
+
+  $$restProps // silence: <Submit> was created with unknown prop 'next'
 </script>
 
-<p>
-  <button class="btn btn-neutral" on:click={form.submit()}>Submit</button>
-</p>
+<NextButton class="btn-info" next={() => submit()} disabled={submitting}>Submit</NextButton>
 
 <form bind:this={form} method="post" action={$state.submitUrl} class="hidden">
-  <input type="hidden" name="assignmentId" value={$state.assignmentId} />
-  <input type="hidden" name="approvalCode" value="TODO" />
+  {#each ["assignmentId", "approvalCode", "name", "gender"] as key}
+    <input type="hidden" name={key} value={$state[key]} />
+  {/each}
 </form>

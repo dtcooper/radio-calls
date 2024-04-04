@@ -1,7 +1,21 @@
 <script>
+  import { onMount, onDestroy } from "svelte"
   import { state, isPreview } from "../hit"
+  import NextButton from "./components/NextButton.svelte"
+  import TopicSummary from "./components/CallSummary.svelte"
 
   export let next
+
+  let highlight = false
+  let highlightTimeout
+
+  onMount(() => {
+    if (!isPreview) {
+      setTimeout(() => (highlight = true), 5000)
+    }
+  })
+
+  onDestroy(() => clearTimeout(highlightTimeout))
 </script>
 
 <p>
@@ -9,50 +23,40 @@
   browser to call 📞 people on a <em>live</em> radio show / podcast. 📻
 </p>
 
-<p>The goal is to have a conversation and talk to the host(s) of the radio show.</p>
+<p>The goal is to have a conversation and talk to the host(s) of the radio show about the following topic,</p>
 
-<div class="ml-4 grid grid-cols-[max-content_1fr] gap-2 border-l-4 border-base-300 pl-2">
-  <div class="text-right">Conversation topic:</div>
-  <div class="font-bold text-primary">{$state.topic}</div>
-  <blockquote class="text-right">Show Host(s):</blockquote>
-  <div class="font-bold text-primary">{$state.showHost}</div>
-</div>
+<TopicSummary overviewOnly={true} />
 
 <p>
   💰🤑💰
   <strong>
     <span class="text-success">$$$</span>
-    Bonuses will be awarded to longer, stranger, or funnier calls!
+    Bonuses will be awarded to longer, weirder, or funnier calls!
     <span class="text-success">$$$</span>
   </strong>
   💰🤑💰
 </p>
 
-<p>Note: the host(s) of the program will be expecting your call.</p>
+<p><strong>NOTE:</strong> the host(s) of the program will be expecting your call.</p>
 
 <p>
-  <small
-    >TODO: IMPLEMENT min_call_time AND leave_voicemail_after_time (5 mins should add some constant to min_call_time to
-    account for the verify step)</small
-  ><br />
-
-  This assignment will take approximately 5 to 15 minutes to complete. 🕒🕒🕒<br />
-  If after 15 minutes you are still not connected to the host, you'll have the opportunity to
-  <strong>leave a voice mail</strong> 📬 and submit the assignment.
+  This assignment will take approximately
+  {$state.estimatedBeforeVerifiedDuration.add($state.minCallDuration).humanize()} to
+  {$state.leaveVoicemailAfterDuration.humanize()} to complete. 🕒🕒🕒<br />
+  If after {$state.leaveVoicemailAfterDuration.humanize()} you are still not connected to the host, you'll have the opportunity
+  to <strong>leave a voice mail</strong> 📬 and submit the assignment.
 </p>
 
 <p>
-  Once connected, you will have to stay on the call for <em>at least 2 minutes</em>, but you are more than welcome to
-  talk as long as you would like!
+  Once connected, you will have to stay on the call for <em>at least</em>
+  <strong>{$state.minCallDuration.humanize()}</strong>, but you are more than welcome to talk as long as you would like!
 </p>
 
-<p class="text-center">
-  <button class="btn btn-success btn-xs sm:btn-sm md:btn-lg" disabled={isPreview} on:click={next}>
-    {#if isPreview}
-      You are currently previewing this assignment.
-      <span class="hidden sm:contents">Press ACCEPT to start.</span>
-    {:else}
-      Continue with assignment
-    {/if}
-  </button>
-</p>
+<NextButton {next} {highlight} disabled={isPreview}>
+  {#if isPreview}
+    You are currently previewing this assignment.
+    <span class="hidden sm:contents">Press ACCEPT to start.</span>
+  {:else}
+    Continue with assignment
+  {/if}
+</NextButton>

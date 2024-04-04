@@ -42,9 +42,14 @@ class TwilioParser(Parser):
         return {underscore_converter_re.sub("_", k).lower(): v for k, v in result.items()}
 
 
-def send_twilio_message(parent_call_sid, message):
+def send_twilio_message(call_sid, stage, countdown=None, approval_code=None):
+    if countdown is not None:
+        countdown = max(round(countdown.total_seconds()), 0)
+
     try:
-        twilio_client.calls(parent_call_sid).user_defined_messages.create(content=json.dumps(message))
+        twilio_client.calls(call_sid).user_defined_messages.create(
+            content=json.dumps({"stage": stage, "countdown": countdown, "approvalCode": approval_code})
+        )
     except Exception:
         logger.exception("send_twilio_message() threw an exception!")
 
@@ -63,13 +68,14 @@ def ChoicesCharField(*args, choices, **kwargs):
 
 
 @cache
-def get_mturk_client(production=False):
+def get_mturk_client(*, production=False):
     if production:
         raise Exception("XXX production disabled for now!")
 
     kwargs = {}
     if not production:
         kwargs["endpoint_url"] = "https://mturk-requester-sandbox.us-east-1.amazonaws.com"
+
     return boto3.client(
         "mturk",
         region_name="us-east-1",
@@ -79,5 +85,5 @@ def get_mturk_client(production=False):
     )
 
 
-def get_mturk_available_balance(production=False):
+def get_mturk_available_balance(*, production=False):
     return get_mturk_client(production).get_account_balance()["AvailableBalance"]
