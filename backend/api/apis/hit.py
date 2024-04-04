@@ -83,7 +83,11 @@ class HandshakeOut(HandshakePreviewOut):
     location: str
 
 
-class NameIn(Schema):
+class BaseIn(Schema):
+    assignment_id: str
+
+
+class NameIn(BaseIn):
     name: str
     gender: str
 
@@ -95,10 +99,6 @@ class TokenOut(BaseOut):
 class FinalizeOut(BaseOut):
     accepted: bool
     approval_code: uuid.UUID | None = None
-
-
-def get_assignment_from_session(request) -> Assignment:
-    return Assignment.objects.get(id=request.session["assignment_id"])
 
 
 def get_token(worker):
@@ -169,8 +169,7 @@ def handshake(request, handshake: HandshakeIn):
         raise HttpError(400, "Assignment ID invalid")
 
     # Reset to initial state for simulated workers only
-    assignment = Assignment.from_api(assignment_id, hit=hit, worker=worker, reset_to_initial=simulated_worker)
-    request.session.update({"assignment_id": assignment.id})
+    assignment = Assignment.from_api(amazon_id=assignment_id, hit=hit, worker=worker, reset_to_initial=simulated_worker)
 
     return {
         **handshake_out,
@@ -185,13 +184,15 @@ def handshake(request, handshake: HandshakeIn):
 
 
 @api.post("token", response=TokenOut, by_alias=True)
-def token(request):
-    assignment = get_assignment_from_session(request)
+def token(request, token: BaseIn):
+    assignment = Assignment.objects.get(amazon_id=token.assignment_id)
     return {"token": get_token(assignment.worker)}
 
 
 @api.post("name", response=BaseOut, by_alias=True)
 def name(request, name: NameIn):
+    assignment = Assignment.objects.get(amazon_id=name.assignment_id)
+
     if name.gender not in Worker.Gender.values:
         raise HttpError(400, f"Invalid gender {name.gender}")
 
@@ -199,7 +200,6 @@ def name(request, name: NameIn):
     if not new_name:
         raise HttpError(400, "Empty name!")
 
-    assignment = get_assignment_from_session(request)
     worker = assignment.worker
     worker.name = new_name
     worker.gender = name.gender
@@ -208,8 +208,8 @@ def name(request, name: NameIn):
 
 
 @api.post("finalize", response=FinalizeOut, by_alias=True)
-def finalize(request):
-    assignment = get_assignment_from_session(request)
+def finalize(request, finalize: BaseIn):
+    assignment = Assignment.objects.get(amazon_id=finalize.assignment_id)
 
     # Same as in frontend, if we got here it may be beacuse a call got disconnected abruptly
     # so a request to finalize should be accepted anyway

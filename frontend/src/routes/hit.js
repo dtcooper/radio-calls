@@ -30,7 +30,8 @@ export const debugMode = persisted("debug-mode", false)
 
 const isDebug = () => _get(debugMode)
 
-const post = (endpoint, data) => _post(endpoint, data, isDebug())
+// Every endpoint takes the assignment ID
+const post = (endpoint, data) => _post(endpoint, { assignmentId, ...data }, isDebug())
 
 const createState = () => {
   const { subscribe, update: _update } = writable({
@@ -102,7 +103,7 @@ const createState = () => {
         if (isPreview) {
           url += "/preview"
         }
-        const { success, ...data } = await post(url, { assignmentId, hitId, workerId, dbId, isPreview })
+        const { success, ...data } = await post(url, { hitId, workerId, dbId, isPreview })
         if (!success) {
           fatalError(`Couldn't initialize! ${data.error}`)
           return

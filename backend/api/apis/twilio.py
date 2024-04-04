@@ -202,7 +202,7 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
             update_assignment_stage(call_sid, assignment, Assignment.Stage.HOLD, countdown)
             response.say(
                 "You must wait for the host to answer your call for at least another"
-                f" {to_pretty_minutes(countdown)} until you can leave a voicemail."
+                f" {to_pretty_minutes(countdown)} at which point you can leave a voicemail and submit this assignment."
             )
             response.play(sound_path(f"hold-music-{random.randint(1, 4)}"))
             response.say("Trying to connect again now.")
