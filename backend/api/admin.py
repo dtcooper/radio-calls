@@ -1,7 +1,11 @@
 import datetime
+from urllib.parse import urlencode
 
 from django.contrib import admin, messages
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import Group, User
 from django.db import models
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.html import format_html
 
@@ -19,6 +23,26 @@ class BaseModelAdmin(admin.ModelAdmin):
     save_on_top = True
 
     formfield_overrides = {models.DurationField: {"widget": TimeDurationWidget}}
+
+
+class UserAdmin(BaseUserAdmin):
+    fieldsets = (
+        (None, {"fields": ("username", "password")}),
+        ("Personal info", {"fields": ("first_name", "last_name", "email")}),
+        (
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                ),
+            },
+        ),
+        ("Important dates", {"fields": ("last_login", "date_joined")}),
+    )
+    filter_horizontal = ("groups",)
 
 
 def has_publish_permission(request, hit, **kwargs):
@@ -137,7 +161,15 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
             return readonly_fields + self.submitted_readonly_fields
         return readonly_fields
 
-    @button(html_attrs={"style": "background-color: oklch(0.648 0.15 160); color: #000000"})
+    @button(permission=lambda request, hit, **kw: request.user.has_perm("api.preview_hit"))
+    def preview(self, request, pk):
+        hit = get_object_or_404(HIT, pk=pk)
+        return HttpResponseRedirect(f"/hit/?{urlencode({'dbId': hit.id})}")
+
+    @button(
+        html_attrs={"style": "background-color: oklch(0.648 0.15 160); color: #000000"},
+        permission=lambda request, hit, **kw: request.user.has_perm("api.add_hit"),
+    )
     def clone(self, request, pk):
         hit = get_object_or_404(HIT, pk=pk)
         new_hit = hit.clone()
@@ -146,7 +178,8 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
 
     @button(
         html_attrs={"style": "background-color: oklch(0.8471 0.199 83.87); color: #000000"},
-        permission=has_publish_permission,
+        permission=lambda request, hit, **kw: request.user.has_perm("api.publish_sandbox_hit")
+        and hit.status == HIT.Status.LOCAL,
     )
     def publish_to_sandbox(self, request, pk):
         hit = get_object_or_404(HIT, pk=pk)
@@ -157,7 +190,8 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
 
     @button(
         html_attrs={"style": "background-color: oklch(0.7176 0.221 22.18); color: #000000"},
-        permission=has_publish_permission,
+        permission=lambda request, hit, **kw: request.user.has_perm("api.publish_production_hit")
+        and hit.status == HIT.Status.PRODUCTION,
     )
     def publish_to_production(self, request, pk):
         hit = get_object_or_404(HIT, pk=pk)
@@ -239,6 +273,9 @@ class AssignmentAdmin(BaseModelAdmin):
         return False
 
 
+admin.site.unregister(User)
+admin.site.unregister(Group)
+admin.site.register(User, UserAdmin)
 admin.site.register(HIT, HITAdmin)
 admin.site.register(Worker, WorkerAdmin)
 admin.site.register(Assignment, AssignmentAdmin)

@@ -2,7 +2,7 @@
 
 {% block userlinks %}
   {% if request.user.is_superuser %}
-    <a href="{% url "mturk_manage" %}" target="_blank">MTurk Tool</a> /
+    <a href="{% url "mturk_manage" %}" target="_blank">MTurk Manage</a> /
   {% endif %}
   {{ block.super }}
 {% endblock %}

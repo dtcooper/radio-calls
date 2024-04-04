@@ -30,6 +30,7 @@ def mturk_manage(request):
 
 admin.site.site_title = admin.site.site_header = "Radio Calls"
 admin.site.index_title = "Administration"
+admin.site.site_url = None
 
 
 urlpatterns = [

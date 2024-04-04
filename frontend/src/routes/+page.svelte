@@ -12,7 +12,7 @@
   <HIT />
 {:else if $state.failure}
   <div
-    class="p-3 text-bold flex h-screen w-screen flex-col items-center justify-center gap-3 bg-error text-xl text-error-content"
+    class="text-bold flex h-screen w-screen flex-col items-center justify-center gap-3 bg-error p-3 text-xl text-error-content"
   >
     <h1 class="font-mono text-xl font-bold sm:text-2xl">An unexpected failure occurred.</h1>
     <h2 class="bold font-mono text-lg italic sm:text-xl">Please reload the page and try again.</h2>

@@ -114,7 +114,7 @@ def get_hit_and_common_handshake_out(request, handshake):
     try:
         if handshake.hit_id is not None:
             hit = HIT.objects.get(amazon_id=handshake.hit_id)
-        elif request.user.is_staff:
+        elif request.user.has_perm("api.preview_hit"):
             if handshake.db_id is not None:
                 hit = HIT.objects.get(id=handshake.db_id)
             else:

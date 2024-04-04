@@ -4,7 +4,6 @@ import logging
 import pprint
 import random
 import traceback
-from urllib.parse import urlencode
 import uuid
 
 from faker import Faker
@@ -179,9 +178,11 @@ class HIT(BaseModel):
         verbose_name = "HIT"
         ordering = ("-created_at", "id")
         get_latest_by = "created_at"
-
-    def get_absolute_url(self):
-        return f"/hit/?{urlencode({'dbId': self.id})}"
+        permissions = (
+            ("preview_hit", "Can preview HIT (frontend)"),
+            ("publish_sandbox_hit", "Can publish HIT to MTurk (Sandbox)"),
+            ("publish_production_hit", "Can publish HIT to MTurk (Production)"),
+        )
 
     def __str__(self):
         return self.name
