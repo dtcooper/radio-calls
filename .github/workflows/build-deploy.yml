@@ -37,6 +37,6 @@ jobs:
         with:
           push: true
           pull: true
-          platforms: linux/arm64
+          platforms: linux/amd64
           context: ./backend/
           tags: ghcr.io/dtcooper/radio-calls-backend:latest
