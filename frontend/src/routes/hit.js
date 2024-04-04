@@ -134,7 +134,7 @@ const createState = () => {
         update({
           ready: true,
           isStaff,
-          submitUrl: turkSubmitTo && `${turkSubmitTo}mturk/externalSubmit`,
+          submitUrl: turkSubmitTo && `${turkSubmitTo}/mturk/externalSubmit`,
           ...rest
         })
 
