@@ -41,8 +41,8 @@ services:
             }
       __NGINX_FRONTEND_CONF: |
         # Frontend static assets (immutable)
-            location /hit/_app/immutable/ {
-                root /frontend/build;
+            location /hit/_app/immutable {
+                alias /frontend/build/_app/immutable;
                 expires max;
                 add_header Cache-Control "public, immutable";
                 access_log off;
