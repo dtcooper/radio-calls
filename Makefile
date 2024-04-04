@@ -55,4 +55,4 @@ deploy-build: verify-prod
 	docker compose build
 	docker compose down --remove-orphans
 	docker compose up --quiet-pull --remove-orphans --no-build --detach
-	docker system prune --force --all
+	docker system prune --force
