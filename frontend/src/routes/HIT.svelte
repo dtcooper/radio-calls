@@ -4,7 +4,7 @@
 
   import { persisted } from "svelte-persisted-store"
 
-  import { state, debugMode } from "./hit"
+  import { state, debugMode, isPreview } from "./hit"
   import Call from "./steps/Call.svelte"
   import ChooseName from "./steps/ChooseName.svelte"
   import Overview from "./steps/Overview.svelte"
@@ -117,7 +117,7 @@
       <svelte:component this={step.component} {next} />
     </main>
 
-    {#if !$state.isPreview}
+    {#if !isPreview}
       <footer class="bg-base-200 py-0.5 text-center text-xs italic sm:text-sm md:text-base">
         Question? Comments? Concerns? Email
         <a href="mailto:david@jew.pizza" target="_blank" class="link-hover link link-accent">david@jew.pizza</a>.
