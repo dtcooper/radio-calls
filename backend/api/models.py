@@ -9,7 +9,6 @@ import uuid
 from faker import Faker
 
 from django.conf import settings
-from django.contrib.admin.decorators import display
 from django.contrib.auth.models import User
 from django.core import validators
 from django.db import models
@@ -206,12 +205,6 @@ class HIT(BaseModel):
         unit_cost = self.assignment_reward * (1 + fees)
         return (unit_cost * self.assignment_number).quantize(Decimal("0.01"))
 
-    @display(description="is running?", boolean=True)
-    def is_running(self):
-        if self.submitted_at:
-            return self.submitted_at + self.duration + self.assignment_duration >= timezone.now()
-        return False
-
     @property
     def is_production(self):
         return self.status == HIT.Status.PRODUCTION
@@ -366,6 +359,7 @@ class Assignment(BaseModel):
     worker = models.ForeignKey(Worker, on_delete=models.CASCADE)
     stage = ChoicesCharField("stage", choices=Stage, default=Stage.INITIAL)
     call_started_at = models.DateTimeField("call started at", default=None, null=True, blank=True)
+    call_completed_at = models.DateTimeField("call ended time", default=None, null=True, blank=True)
     words_to_pronounce = JSONField(
         schema={
             "type": "array",
@@ -375,6 +369,8 @@ class Assignment(BaseModel):
             "uniqueItems": True,
         },
     )
+    voicemail_duration = models.DurationField("voicemail duration", default=datetime.timedelta(0))
+    voicemail_url = models.URLField("voicemail URL", blank=True)
 
     class Meta:
         ordering = ("-created_at", "id")
@@ -390,6 +386,9 @@ class Assignment(BaseModel):
         # Start call when stage moved from INITIAL to anything else
         elif self.call_started_at is None:
             self.call_started_at = timezone.now()
+
+        if self.stage == self.Stage.DONE and self.call_completed_at is None:
+            self.call_completed_at = timezone.now()
 
         super().save(*args, **kwargs)
 

@@ -3,7 +3,6 @@ import logging
 import pprint
 import random
 from urllib.parse import urlencode
-import uuid
 
 from twilio.request_validator import RequestValidator
 from twilio.twiml.voice_response import VoiceResponse
@@ -23,10 +22,10 @@ from ..utils import TwilioParser, TwiMLRenderer, is_subsequence, normalize_words
 validator = RequestValidator(settings.TWILIO_AUTH_TOKEN)
 logger = logging.getLogger("django")
 
-# This is what Blink uses
-SIP_BUSY_CODE = 486
-SIP_REJECT_CODE = 603
-SIP_DONE_CODE = 200
+# This is what Blink uses (unused, but here for reference)
+# SIP_BUSY_CODE = 486
+# SIP_REJECT_CODE = 603
+# SIP_DONE_CODE = 200
 
 HOLD_MUSIC_TRACKS = 4
 
@@ -62,8 +61,10 @@ def get_assignment(id) -> Assignment:
 def update_assignment_stage_and_message_client(call_sid, assignment: Assignment, stage, countdown=None):
     if stage not in Assignment.Stage.values:
         raise Exception(f"Invalid stage: {stage}")
+
     assignment.stage = stage
     assignment.save()
+
     send_twilio_message(call_sid, stage, countdown)
 
 
@@ -143,9 +144,9 @@ def hit_outgoing_verify(
     gather = response.gather(
         action_on_empty_result=True,
         action=url("hit_outgoing_verify", assignment),
+        enhanced=True,
         hints=", ".join(assignment.words_to_pronounce),
         input="speech",
-        enhanced=True,
         speech_model="phone_call",
         timeout=3,
     )
@@ -183,6 +184,8 @@ def hit_outgoing_callback_answered(request, assignment_id, call_status: Form[str
         )
     elif call_status == "completed":
         if assignment.stage in (Assignment.Stage.CALL, Assignment.Stage.VOICEMAIL):
+            # Don't message this to client, they can get to final stage if call is in
+            # CALL or VOICEMAIL status anyway, we get here after a hangup.
             assignment.stage = Assignment.Stage.DONE
             assignment.save()
     return HttpResponse(status=204)
@@ -211,16 +214,43 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
             response.redirect(url("hit_outgoing_call", assignment))
         else:
             # TODO do a better job with recordings than twimlet
-            update_assignment_stage_and_message_client(call_sid, assignment, Assignment.Stage.VOICEMAIL)
-            message = (
-                f"Since you have waited {to_pretty_minutes(assignment.hit.leave_voicemail_after_duration)}. You can now"
-                " leave a voicemail. After you are done recording, press the 'finish voicemail' button, or stay silent"
-                " for a few moments. Afterwards, you may submit this assignment."
+            # update_assignment_stage_and_message_client(call_sid, assignment, Assignment.Stage.VOICEMAIL)
+            response.say(
+                f"Since you have waited {to_pretty_minutes(assignment.hit.leave_voicemail_after_duration)}, you may now"
+                " complete this assignment and submit it after leaving a voicemail. After you are done recording,"
+                " press the 'finish voicemail' button, or stay silent for a few moments. If you provide a silent"
+                " voicemail, your assignment will be rejected."
             )
-            params = {"Email": settings.TWILIO_TWIMLET_VOICEMAIL_EMAIL, "Message": message, "Transcribe": "true"}
-            response.redirect(f"http://twimlets.com/voicemail?{urlencode(params)}")
+            response.redirect(url("hit_outgoing_voicemail", assignment))
 
     return response
+
+
+@api.post("hit/outgoing/{assignment_id}/voicemail")
+def hit_outgoing_voicemail(request, assignment_id, call_sid: Form[str]):
+    assignment = get_assignment(assignment_id)
+    update_assignment_stage_and_message_client(call_sid, assignment, Assignment.Stage.VOICEMAIL)
+
+    response = VoiceResponse()
+    response.say("At the tone, please record your message.")
+    response.record(
+        timeout=10,
+        maxLength=150,  # 2.5 minutes
+        action=url("hit_outgoing_completed", assignment),
+        recording_status_callback=url("hit_outgoing_callback_voicemail", assignment),
+    )
+    response.redirect(url("hit_outgoing_voicemail", assignment))
+    return response
+
+
+@api.post("hit/outgoing/{assignment_id}/callback/voicemail")
+def hit_outgoing_callback_voicemail(request, assignment_id, recording_duration: Form[int], recording_url: Form[str]):
+    assignment = get_assignment(assignment_id)
+    # May cause a race condition with completed, but shouldn't really matter
+    assignment.voicemail_url = recording_url
+    assignment.voicemail_duration = datetime.timedelta(seconds=recording_duration)
+    assignment.save()
+    return HttpResponse(status=204)
 
 
 @api.post("hit/outgoing/{assignment_id}/completed")

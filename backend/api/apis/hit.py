@@ -137,6 +137,10 @@ def get_hit_and_common_handshake_out(request, handshake):
     return hit, handshake_out
 
 
+def get_assignment(amazon_id) -> Assignment:
+    return Assignment.objects.get(amazon_id=amazon_id)
+
+
 @api.post("handshake/preview", response=HandshakePreviewOut, by_alias=True)
 def handshake_preview(request, handshake: HandshakeIn):
     _, handshake_out = get_hit_and_common_handshake_out(request, handshake)
@@ -153,7 +157,7 @@ def handshake(request, handshake: HandshakeIn):
     if handshake.worker_id is not None:
         worker_id = handshake.worker_id
     elif is_staff:
-        worker_id = f"django-simulated/user:{request.user.id}"
+        worker_id = f"simulated/user:{request.user.id}"
     if worker_id is None:
         raise HttpError(400, "Worker ID invalid")
 
@@ -163,7 +167,7 @@ def handshake(request, handshake: HandshakeIn):
     if handshake.assignment_id is not None:
         assignment_id = handshake.assignment_id
     elif is_staff:
-        assignment_id = f"django-simulated/user:{request.user.id}/worker:{worker.id}/hit:{hit.id}"
+        assignment_id = f"simulated/user:{request.user.id}/worker:{worker.id}/hit:{hit.id}"
         simulated_worker = True
     if assignment_id is None:
         raise HttpError(400, "Assignment ID invalid")
@@ -185,13 +189,13 @@ def handshake(request, handshake: HandshakeIn):
 
 @api.post("token", response=TokenOut, by_alias=True)
 def token(request, token: BaseIn):
-    assignment = Assignment.objects.get(amazon_id=token.assignment_id)
+    assignment = get_assignment(amazon_id=token.assignment_id)
     return {"token": get_token(assignment.worker)}
 
 
 @api.post("name", response=BaseOut, by_alias=True)
 def name(request, name: NameIn):
-    assignment = Assignment.objects.get(amazon_id=name.assignment_id)
+    assignment = get_assignment(amazon_id=name.assignment_id)
 
     if name.gender not in Worker.Gender.values:
         raise HttpError(400, f"Invalid gender {name.gender}")
@@ -209,7 +213,8 @@ def name(request, name: NameIn):
 
 @api.post("finalize", response=FinalizeOut, by_alias=True)
 def finalize(request, finalize: BaseIn):
-    assignment = Assignment.objects.get(amazon_id=finalize.assignment_id)
+    # This could happen during voicemail callback, so wrap it in a transaction
+    assignment = get_assignment(amazon_id=finalize.assignment_id)
 
     # Same as in frontend, if we got here it may be beacuse a call got disconnected abruptly
     # so a request to finalize should be accepted anyway

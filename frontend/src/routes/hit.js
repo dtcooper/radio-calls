@@ -62,12 +62,8 @@ const createState = () => {
   })
 
   const update = (data) => _update(($state) => ({ ...$state, ...data }))
-  const fatalError = (msg, e) => {
-    if (e && isDebug()) {
-      msg += ` [Error: ${e}]`
-    }
-    update({ failure: msg })
-  }
+  const error = (msg) => update({ failure: msg })
+  const fatalError = (msg) => update({ failure: msg, ready: false })
 
   setInterval(() => update({ now: dayjs() }), 500)
   const { subscribe: subscribeDerived } = derived({ subscribe }, ($state) => {
@@ -153,9 +149,9 @@ const createState = () => {
       device = new Device(token, { closeProtection: true })
       device.on("tokenWillExpire", () => this.refreshToken())
       device.on("error", (e) => {
-        console.warn("An twilio error has occurred: ", e)
-        // TODO: Use a toast
-        update({ failure: e.message })
+        if (isDebug()) {
+          console.warn("device error: ", e)
+        }
       })
     },
     hangup() {
@@ -171,12 +167,7 @@ const createState = () => {
     },
     async call(cheat = false) {
       if (!call) {
-        try {
-          call = await device.connect({ params: { assignmentId, cheat: cheat } })
-        } catch (e) {
-          console.error("Error placing call", e)
-          return
-        }
+        call = await device.connect({ params: { assignmentId, cheat: cheat } })
 
         // Fake initial state until we hear otherwise from server
         update({ callInProgress: true, state: STAGE_INITIAL })
@@ -207,7 +198,13 @@ const createState = () => {
             console.warn("Got unknown user message from twilio", data)
           }
         })
-        // TODO: Use a toast on error
+        call.on("error", (e) => {
+          if ([31401, 31208].includes(e.code)) {
+            error("There was a problem with your audio. Are you sure your microphone is enabled?", e)
+          } else if (isDebug()) {
+            console.warn("call error:", e)
+          }
+        })
       } else {
         console.warn("Call already in progress! Can't call()")
       }
@@ -227,6 +224,9 @@ const createState = () => {
         return true
       }
       return false
+    },
+    setFailure(failure) {
+      update({ failure })
     }
   }
 }

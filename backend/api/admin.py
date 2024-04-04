@@ -1,12 +1,14 @@
 import datetime
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group, User
 from django.db import models
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
 from django.utils.html import format_html
 
 from admin_extra_buttons.api import ExtraButtonsMixin, button, confirm_action
@@ -150,6 +152,12 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         "title",
     )
 
+    @admin.display(description="is running?", boolean=True)
+    def is_running(self, obj: HIT):
+        if obj.submitted_at:
+            return obj.submitted_at + obj.duration + obj.assignment_duration >= timezone.now()
+        return False
+
     def get_fieldsets(self, request, obj: HIT = None):
         if obj is None:
             return self.add_fieldsets
@@ -263,14 +271,30 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
             )
 
 
-class WorkerAdmin(BaseModelAdmin):
+class WorkerAndAssignmentBaseAdmin(BaseModelAdmin):
     def has_add_permission(self, request):
         return False
 
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser and settings.DEBUG and False
 
-class AssignmentAdmin(BaseModelAdmin):
-    def has_add_permission(self, request):
-        return False
+
+class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
+    pass
+
+
+class AssignmentAdmin(WorkerAndAssignmentBaseAdmin):
+    list_display = ("amazon_id", "stage", "worker", "hit", "call_duration", "left_voicemail")
+    readonly_fields = ("voicemail_url", "call_duration", "voicemail_duration", "left_voicemail")
+
+    @admin.display(boolean=True)
+    def left_voicemail(self, obj: Assignment):
+        return bool(obj.voicemail_url)
+
+    def call_duration(self, obj: Assignment):
+        if obj.call_completed_at is not None and obj.call_started_at is not None:
+            return obj.call_completed_at - obj.call_started_at
+        return None
 
 
 admin.site.unregister(User)

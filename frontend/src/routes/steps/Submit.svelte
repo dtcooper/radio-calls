@@ -11,7 +11,7 @@
       if (success) {
         form.submit()
       } else {
-        alert(
+        state.setFailure(
           "An error occurred while submitting this assignment. Try again. If it persists, contact the HIT author david@jew.pizza."
         )
         submitting = false

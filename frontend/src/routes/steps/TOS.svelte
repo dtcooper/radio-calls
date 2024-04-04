@@ -52,20 +52,29 @@
     >
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
+    <p>You have good internet connectivity, since it will be needed to complete this assignment. 🌎💻🔌</p>
+    <p>
+      <strong class="text-error">Getting disconnected is a sure-fire way to be unable to submit this assignment!</strong
+      >
+      😩😩😩
+    </p>
+  </TOSTerm>
+  <TOSTerm bind:term index={nextIndex()}>
     <div>
-      <p>You may have any conversation you'd like, but you should discuss the topic:</p>
+      <p>You may have any conversation you'd like, but you should discuss the following,</p>
       <div class="ml-1 mt-1 border-l-2 border-base-300 pl-3">
         Topic: <em class="font-bold text-secondary">{$state.topic}</em>
       </div>
     </div>
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    You may discuss adult subject matter (sex, drugs, etc...), or <em>even insult the hosts</em> 🤣, but:
+    You may discuss adult subject matter &ndash; sex, drugs, etc &ndash; or <em>even insult the hosts</em> 🤣, but:
     <br class="hidden lg:inline" />
     <strong class="underline">Please refrain from swearing or cursing!</strong> 🔞🤬🍆
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    If no one answers, you will be placed on a hold loop. You understand, that...
+    If no one answers, you will be placed on a hold loop. 🔁<br />
+    You understand, that...
 
     <ul class="mt-2 list-disc">
       <li class="ml-5">
@@ -86,21 +95,15 @@
     </ul>
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    <p>You have good internet connectivity, since it will be needed to complete this assignment. 🌎💻🔌</p>
-    <p>
-      <strong class="text-error">Getting disconnected is a sure-fire way to be unable to submit this assignment!</strong
-      >
-      😩😩😩
-    </p>
-  </TOSTerm>
-  <TOSTerm bind:term index={nextIndex()}>
-    <span class="hidden text-success lg:contents">💰🤑💰</span>
-    <strong>
-      <span class="hidden text-success lg:inline">$$$</span>
-      Bonuses will be awarded to longer, weirder, or funnier calls!
-      <span class="text-success">$$$</span>
-    </strong>
-    💰🤑💰
+    <div class="inline items-center gap-1 text-base text-error sm:flex sm:gap-2 md:text-xl lg:gap-3 lg:text-2xl">
+      <strong class="font-bold underline" class:animate-pulse={term === numTerms - 1}>IMPORTANT:</strong>
+      <p class="inline sm:block">
+        <em
+          >A <strong>silent call</strong> or <strong>voicemail</strong> where you do not speak
+          <span class="undline">will result in a <strong class="underline">REJECTED</strong> assignment!</span></em
+        >
+      </p>
+    </div>
   </TOSTerm>
 </div>
 

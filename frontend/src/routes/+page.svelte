@@ -1,14 +1,18 @@
 <script>
   import { onMount } from "svelte"
   import HIT from "./HIT.svelte"
-  import { state } from "./hit"
+  import ErrorModal from "./steps/components/ErrorModal.svelte"
+  import { state, debugMode } from "./hit"
 
   onMount(() => {
     state.initialize()
   })
+
+  $: window.state = $debugMode ? state : null
 </script>
 
 {#if $state.ready}
+  <ErrorModal />
   <HIT />
 {:else if $state.failure}
   <div

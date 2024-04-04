@@ -19,8 +19,8 @@
 </script>
 
 <p>
-  This is will be a <strong>funny</strong> and <strong>enjoyable</strong> assignment 😂😂😂 where you'll use your web
-  browser to call 📞 people on a <em>live</em> radio show / podcast. 📻
+  This is a <strong>funny</strong> and <strong>enjoyable</strong> assignment 😂😂😂 where you'll use your web browser to
+  call 📞 a <em>live</em> radio show / podcast. 📻
 </p>
 
 <p>The goal is to have a conversation and talk to the host(s) of the radio show about the following topic,</p>
@@ -43,13 +43,14 @@
   This assignment will take approximately
   {$state.estimatedBeforeVerifiedDuration.add($state.minCallDuration).humanize()} to
   {$state.leaveVoicemailAfterDuration.humanize()} to complete. 🕒🕒🕒<br />
-  If after {$state.leaveVoicemailAfterDuration.humanize()} you are still not connected to the host, you'll then have the
-  opportunity to <strong>leave a voice mail</strong> 📬 and submit the assignment.
+  If after {$state.leaveVoicemailAfterDuration.humanize()} you are still not connected to the host, you'll have the opportunity
+  to <strong>leave a voice mail</strong> 📬 and submit the assignment <em>anyway.</em>
 </p>
 
 <p>
   Once connected, you will have to stay on the call for <em>at least</em>
-  <strong>{$state.minCallDuration.humanize()}</strong>, but you are more than welcome to talk as long as you would like!
+  <strong>{$state.minCallDuration.humanize()}</strong>, though you are more than welcome to talk as long as you would
+  like! 👍
 </p>
 
 <NextButton {next} {highlight} disabled={isPreview}>

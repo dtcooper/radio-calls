@@ -22,6 +22,16 @@
 
 <TopicSummary />
 
+<p>
+  <span class="hidden text-success lg:contents">💰🤑💰</span>
+  <strong>
+    <span class="hidden text-success lg:inline">$$$</span>
+    Bonuses will be awarded to longer, weirder, or funnier calls!
+    <span class="text-success">$$$</span>
+  </strong>
+  💰🤑💰
+</p>
+
 <div class="mt-2 flex justify-center gap-2 md:mt-3 md:gap-5">
   <button
     class="btn btn-info md:btn-lg md:!text-2xl"

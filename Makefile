@@ -28,8 +28,8 @@ shell-nodeps:
 nginx-nodeps:
 	$(COMPOSE) run --no-deps --rm --service-ports nginx
 
-.PHONY: format-lint
-format-lint:
+.PHONY: lint-format
+lint-format:
 	@$(COMPOSE) run --no-deps --rm --entrypoint /bin/sh backend -c "black . ; isort . ; flake8 ." || true
 	@cd frontend ; sh -c "npm run format ; npm run lint" || true
 
