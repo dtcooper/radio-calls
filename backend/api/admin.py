@@ -265,11 +265,20 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
             warn(f"The cost estimate for this HIT is ${cost_estimate} and exceeds $250. Please verify this is correct!")
 
         for check_duration_field in ("min_call_duration", "leave_voicemail_after_duration"):
-            if getattr(obj, check_duration_field) > obj.assignment_duration:
-                warn(f"{name(check_duration_field)} is longer than {name('assignment_duration')}")
+            if getattr(obj, check_duration_field) + datetime.timedelta(minutes=15) > obj.assignment_duration:
+                warn(
+                    f"{name(check_duration_field)} is 15 minutes less than {name('assignment_duration')}! This may not"
+                    " give workers enough time."
+                )
 
-        if obj.duration > datetime.timedelta(hours=2):
-            warn(f"{name('duration')} is longer than two hours")
+        if obj.assignment_duration + datetime.timedelta(minutes=20) > obj.duration:
+            warn(
+                f"{name('assignment_duration')} is 20 minutes less than {name('duration')}! This may not give workers"
+                " enough time."
+            )
+
+        if not (datetime.timedelta(minutes=20) <= obj.duration <= datetime.timedelta(hours=2)):
+            warn(f"{name('duration')} is not between 20 minutes and 2 hours. This may cause unexpected results.")
 
         if obj.assignment_duration > datetime.timedelta(minutes=45):
             warn(f"{name('assignment_duration')} is longer than 45 minutes")
