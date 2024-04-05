@@ -131,10 +131,6 @@ LOGGING = {
     },
 }
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.0/topics/i18n/
-
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = env("TZ", default="US/Eastern")
@@ -143,14 +139,11 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.0/howto/static-files/
-
 STATIC_URL = "backend-static/"
 STATIC_ROOT = "/static/"
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+SHELL_PLUS_IMPORTS = [
+    "from api.utils import get_mturk_client, get_mturk_available_balance, get_ip_addr, get_location_from_ip_addr",
+]

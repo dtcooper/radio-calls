@@ -152,6 +152,12 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         "title",
     )
 
+    def get_changeform_initial_data(self, request):
+        initial = super().get_changeform_initial_data(request)
+        if request.user.first_name:
+            initial["show_host"] = request.user.first_name
+        return initial
+
     @admin.display(description="is running?", boolean=True)
     def is_running(self, obj: HIT):
         if obj.submitted_at:
@@ -205,7 +211,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         hit = get_object_or_404(HIT, pk=pk)
 
         def publish_to_production(request):
-            hit.publish_to_mturk(production=False)
+            hit.publish_to_mturk(production=True)
             return redirect("admin:api_hit_change", object_id=hit.pk)
 
         return confirm_action(
@@ -276,16 +282,64 @@ class WorkerAndAssignmentBaseAdmin(BaseModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
-        return request.user.is_superuser and settings.DEBUG and False
+        return request.user.is_superuser and settings.DEBUG
 
 
 class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
     pass
 
 
-class AssignmentAdmin(WorkerAndAssignmentBaseAdmin):
+def can_admin_assignment(request, assignment, **kwargs):
+    return (
+        settings.DEBUG
+        and request.user.has_perm("api.admin_assignment")
+        and assignment.get_amazon_status() == "Submitted"
+    )
+
+
+class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
+    fields = (
+        "amazon_id",
+        "hit",
+        "worker",
+        "stage",
+        "call_started_at",
+        "call_completed_at",
+        "words_to_pronounce",
+        "voicemail_duration",
+        "voicemail_url",
+        "created_at",
+        "left_voicemail",
+        "call_duration",
+        "get_amazon_status",
+    )
     list_display = ("amazon_id", "stage", "worker", "hit", "call_duration", "left_voicemail")
-    readonly_fields = ("voicemail_url", "call_duration", "voicemail_duration", "left_voicemail")
+    readonly_fields = (
+        "amazon_id",
+        "created_at",
+        "voicemail_url",
+        "call_duration",
+        "voicemail_duration",
+        "left_voicemail",
+        "get_amazon_status",
+    )
+
+    @button(
+        html_attrs={"style": "background-color: oklch(0.648 0.15 160); color: #000000"}, permission=can_admin_assignment
+    )
+    def approve(self, request, pk):
+        assignment = get_object_or_404(Assignment, pk=pk)
+        self.message_user(request, "TODO: would redirect to approve assignment form", messages.SUCCESS)
+        return redirect("admin:api_assignment_change", object_id=assignment.pk)
+
+    @button(
+        html_attrs={"style": "background-color: oklch(0.7176 0.221 22.18); color: #000000"},
+        permission=can_admin_assignment,
+    )
+    def reject(self, request, pk):
+        assignment = get_object_or_404(Assignment, pk=pk)
+        self.message_user(request, "TODO: would redirect to reject assignment form", messages.ERROR)
+        return redirect("admin:api_assignment_change", object_id=assignment.pk)
 
     @admin.display(boolean=True)
     def left_voicemail(self, obj: Assignment):

@@ -99,7 +99,7 @@
       <strong class="font-bold underline" class:animate-pulse={term === numTerms - 1}>IMPORTANT:</strong>
       <p class="inline sm:block">
         <em
-          >A <strong>silent call</strong> or <strong>voicemail</strong> where you do not speak
+          >A <strong>silent call</strong> or <strong>silent voicemail</strong> where you do not speak
           <span class="undline">will result in a <strong class="underline">REJECTED</strong> assignment!</span></em
         >
       </p>

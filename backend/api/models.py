@@ -1,5 +1,6 @@
 import datetime
 from decimal import Decimal
+from functools import cached_property
 import logging
 import pprint
 import random
@@ -9,6 +10,7 @@ import uuid
 from faker import Faker
 
 from django.conf import settings
+from django.contrib import admin
 from django.contrib.auth.models import User
 from django.core import validators
 from django.db import models
@@ -184,7 +186,7 @@ class HIT(BaseModel):
         )
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.topic})"
 
     def clone(self):
         hit = HIT()
@@ -375,6 +377,7 @@ class Assignment(BaseModel):
     class Meta:
         ordering = ("-created_at", "id")
         get_latest_by = "created_at"
+        permissions = (("admin_assignment", "Can approve and reject assignments"),)
 
     def __str__(self):
         return f"{self.worker}: {self.hit}"
@@ -391,6 +394,21 @@ class Assignment(BaseModel):
             self.call_completed_at = timezone.now()
 
         super().save(*args, **kwargs)
+
+    @cached_property
+    def __amazon_obj(self) -> dict | None:
+        if self.amazon_id and self.hit.is_published:
+            production = self.hit.is_production
+            client = get_mturk_client(production=production)
+            try:
+                return client.get_assignment(AssignmentId=self.amazon_id)["Assignment"]
+            except Exception:
+                logger.exception(f"Error fetching assignment {self.amazon_id} from Amazon ({production=})")
+        return None
+
+    @admin.display(description="Amazon status")
+    def get_amazon_status(self):
+        return self.__amazon_obj["AssignmentStatus"] if self.__amazon_obj else "Not submitted"
 
     @classmethod
     def from_api(cls, amazon_id, hit, worker, reset_to_initial=False):

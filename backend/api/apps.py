@@ -1,3 +1,5 @@
+import itertools
+
 from django.apps import AppConfig, apps
 from django.db.models import signals
 
@@ -14,10 +16,10 @@ class ApiConfig(AppConfig):
         Group = apps.get_model("auth.Group")
         Permission = apps.get_model("auth.Permission")
         ContentType = apps.get_model("contenttypes.ContentType")
-        content_types = [ContentType.objects.get_for_model(m) for m in apps.get_app_config("api").get_models()]
+        models = list(apps.get_app_config("api").get_models())
+        content_types = [ContentType.objects.get_for_model(m) for m in models]
         permission_qs = Permission.objects.filter(content_type__in=content_types)
-
-        additional_permissions = apps.get_model("api.HIT")._meta.permissions
+        additional_permissions = list(itertools.chain.from_iterable(m._meta.permissions for m in models))
         no_additional_permission_qs = permission_qs.exclude(codename__in=[p[0] for p in additional_permissions])
 
         all_groups = []
