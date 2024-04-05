@@ -7,7 +7,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-boto3 = "^1.34.78"
+boto3 = "^1.34.79"
 django = "^5.0.4"
 django-admin-extra-buttons = "^1.5.7"
 django-countries = "^7.6.1"
@@ -15,7 +15,7 @@ django-durationwidget = {git = "https://github.com/tanwirahmad/django-durationwi
 django-environ = "^0.11.2"
 django-jsonform = "^2.22.0"
 django-ninja = "^1.1.0"
-faker = "^24.4.0"
+faker = "^24.7.1"
 geoip2 = "^4.8.0"
 gunicorn = "^21.2.0"
 psycopg = {extras = ["binary"], version = "^3.1.18"}
