@@ -16,7 +16,7 @@ wait-for-it --timeout 0 --service db:5432
 ./manage.py migrate
 
 if [ "$DEV_MODE" ]; then
-    if [ "$(./manage.py shell -c 'from django.contrib.auth.models import User; print("" if User.objects.exists() else "1")')" = 1 ]; then
+    if [ "$(./manage.py shell -c 'from api.models import User; print("" if User.objects.exists() else "1")')" = 1 ]; then
         DJANGO_SUPERUSER_PASSWORD=calls ./manage.py createsuperuser --noinput --username calls --email ''
     fi
 

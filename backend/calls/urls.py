@@ -8,7 +8,7 @@ from api.apis import hit_api, twilio_api
 
 
 def index(request):
-    if settings.DEBUG or request.user.is_staff:
+    if request.user.has_perm("api.preview_hit"):
         return redirect("admin:index")
     return HttpResponse(
         "There are forty people in the world and five of them are hamburgers.", content_type="text/plain"

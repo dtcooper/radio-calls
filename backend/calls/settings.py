@@ -31,6 +31,8 @@ if DEBUG:
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
+AUTH_USER_MODEL = "api.User"
+
 INSTALLED_APPS = [
     # Django
     "django.contrib.admin",

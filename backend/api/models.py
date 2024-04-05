@@ -11,7 +11,7 @@ from faker import Faker
 
 from django.conf import settings
 from django.contrib import admin
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
 from django.core import validators
 from django.db import models
 from django.template.loader import render_to_string
@@ -39,6 +39,18 @@ from .utils import ChoicesCharField, get_ip_addr, get_location_from_ip_addr, get
 
 
 logger = logging.getLogger("django")
+
+
+class User(AbstractUser):
+    is_staff = True  # All users are staff
+
+    class Meta:
+        verbose_name = "admin"
+        verbose_name_plural = "admins"
+
+    def __init__(self, *args, **kwargs):
+        kwargs.pop("is_staff", None)
+        super().__init__(*args, **kwargs)
 
 
 class BaseModel(models.Model):
@@ -398,7 +410,6 @@ class Assignment(BaseModel):
     class Meta:
         ordering = ("-created_at", "id")
         get_latest_by = "created_at"
-        permissions = (("admin_assignment", "Can approve and reject assignments"),)
 
     def __str__(self):
         return f"{self.worker}: {self.hit}"

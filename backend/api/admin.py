@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.db import models
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
@@ -15,7 +15,7 @@ from admin_extra_buttons.api import ExtraButtonsMixin, button, confirm_action
 from durationwidget.widgets import TimeDurationWidget
 
 from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES
-from .models import HIT, Assignment, Worker
+from .models import HIT, Assignment, User, Worker
 
 
 class BaseModelAdmin(admin.ModelAdmin):
@@ -36,7 +36,6 @@ class UserAdmin(BaseUserAdmin):
             {
                 "fields": (
                     "is_active",
-                    "is_staff",
                     "is_superuser",
                     "groups",
                 ),
@@ -45,6 +44,20 @@ class UserAdmin(BaseUserAdmin):
         ("Important dates", {"fields": ("last_login", "date_joined")}),
     )
     filter_horizontal = ("groups",)
+    list_display = ("username", "email", "first_name", "last_name")
+    list_filter = ("is_superuser", "is_active", "groups")
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 
 def has_publish_permission(request, hit, **kwargs):
@@ -291,14 +304,6 @@ class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
     pass
 
 
-def can_admin_assignment(request, assignment, **kwargs):
-    return (
-        settings.DEBUG
-        and request.user.has_perm("api.admin_assignment")
-        and assignment.get_amazon_status() == "Submitted"
-    )
-
-
 class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
     fields = (
         "amazon_id",
@@ -326,23 +331,6 @@ class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
         "get_amazon_status",
     )
 
-    @button(
-        html_attrs={"style": "background-color: oklch(0.648 0.15 160); color: #000000"}, permission=can_admin_assignment
-    )
-    def approve(self, request, pk):
-        assignment = get_object_or_404(Assignment, pk=pk)
-        self.message_user(request, "TODO: would redirect to approve assignment form", messages.SUCCESS)
-        return redirect("admin:api_assignment_change", object_id=assignment.pk)
-
-    @button(
-        html_attrs={"style": "background-color: oklch(0.7176 0.221 22.18); color: #000000"},
-        permission=can_admin_assignment,
-    )
-    def reject(self, request, pk):
-        assignment = get_object_or_404(Assignment, pk=pk)
-        self.message_user(request, "TODO: would redirect to reject assignment form", messages.ERROR)
-        return redirect("admin:api_assignment_change", object_id=assignment.pk)
-
     @admin.display(boolean=True)
     def left_voicemail(self, obj: Assignment):
         return bool(obj.voicemail_url)
@@ -353,7 +341,6 @@ class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
         return None
 
 
-admin.site.unregister(User)
 admin.site.unregister(Group)
 admin.site.register(User, UserAdmin)
 admin.site.register(HIT, HITAdmin)
