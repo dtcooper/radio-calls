@@ -154,13 +154,13 @@ def handshake_preview(request, handshake: HandshakeIn):
 @api.post("handshake", response=HandshakeOut, by_alias=True)
 def handshake(request, handshake: HandshakeIn):
     hit, handshake_out = get_hit_and_common_handshake_out(request, handshake)
-    is_staff = request.user.is_staff
+    can_preview = request.user.has_perm("api.preview_hit")
 
     worker_id = None
     simulated_worker = False
     if handshake.worker_id is not None:
         worker_id = handshake.worker_id
-    elif is_staff:
+    elif can_preview:
         worker_id = f"simulated/user:{request.user.id}"
     if worker_id is None:
         raise HttpError(400, "Worker ID invalid")
@@ -170,7 +170,7 @@ def handshake(request, handshake: HandshakeIn):
     assignment_id = None
     if handshake.assignment_id is not None:
         assignment_id = handshake.assignment_id
-    elif is_staff:
+    elif can_preview:
         assignment_id = f"simulated/user:{request.user.id}/worker:{worker.id}/hit:{hit.id}"
         simulated_worker = True
     if assignment_id is None:
