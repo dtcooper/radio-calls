@@ -4,7 +4,7 @@
 
   import { persisted } from "svelte-persisted-store"
 
-  import { state, debugMode, isPreview } from "./hit"
+  import { state, levels, debugMode, isPreview } from "./hit"
   import Call from "./steps/Call.svelte"
   import ChooseName from "./steps/ChooseName.svelte"
   import Overview from "./steps/Overview.svelte"
@@ -124,6 +124,7 @@
   </div>
 
   {#if $debugMode}
-    <pre class="text-xs">{JSON.stringify($state, null, 2)}</pre>
+    <pre class="hidden text-xs sm:block">state={JSON.stringify($state, null, 2)}
+levels={JSON.stringify($levels, null, 2)}</pre>
   {/if}
 </div>

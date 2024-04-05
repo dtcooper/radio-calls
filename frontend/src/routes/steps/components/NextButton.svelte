@@ -14,6 +14,6 @@
     {disabled}
     on:click={() => next()}
   >
-    <slot>Continue with assignment</slot>
+    <slot>Continue assignment</slot>
   </button>
 </p>

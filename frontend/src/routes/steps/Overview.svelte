@@ -11,7 +11,7 @@
 
   onMount(() => {
     if (!isPreview) {
-      setTimeout(() => (highlight = true), 5000)
+      setTimeout(() => (highlight = true), 4000)
     }
   })
 
@@ -48,8 +48,8 @@
 </p>
 
 <p>
-  Once connected, you will have to stay on the call for <em>at least</em>
-  <strong>{$state.minCallDuration.humanize()}</strong>, though you are more than welcome to talk as long as you would
+  Once connected, you <strong>must</strong> stay on the call for <em>at least</em>
+  <strong>{$state.minCallDuration.humanize()}</strong>. Of course, you're more than welcome to talk as long as you would
   like! 👍
 </p>
 

@@ -8,6 +8,7 @@ from twilio.request_validator import RequestValidator
 from twilio.twiml.voice_response import VoiceResponse
 
 from django.conf import settings
+from django.db import transaction
 from django.http import HttpResponse
 from django.templatetags.static import static
 from django.urls import reverse
@@ -16,7 +17,7 @@ from django.utils import timezone
 from ninja import Form, NinjaAPI
 
 from ..models import Assignment
-from ..utils import TwilioParser, TwiMLRenderer, is_subsequence, normalize_words, send_twilio_message
+from ..utils import TwilioParser, TwiMLRenderer, is_subsequence, normalize_words, send_twilio_message_at_end_of_request
 
 
 validator = RequestValidator(settings.TWILIO_AUTH_TOKEN)
@@ -54,18 +55,18 @@ def twilio_auth(request):
     return authorized
 
 
-def get_assignment(id) -> Assignment:
-    return Assignment.objects.get(id=id)
+def get_assignment_atomic(id) -> Assignment:
+    return Assignment.objects.select_for_update().get(id=id)
 
 
-def update_assignment_stage_and_message_client(call_sid, assignment: Assignment, stage, countdown=None):
+def update_assignment_stage_and_message_client(request, call_sid, assignment: Assignment, stage, countdown=None):
     if stage not in Assignment.Stage.values:
         raise Exception(f"Invalid stage: {stage}")
 
     assignment.stage = stage
     assignment.save()
 
-    send_twilio_message(call_sid, stage, countdown)
+    send_twilio_message_at_end_of_request(request, call_sid, stage, countdown)
 
 
 def url(name, assignment=None, **params):
@@ -79,7 +80,9 @@ def url(name, assignment=None, **params):
     return url
 
 
-api = NinjaAPI(renderer=TwiMLRenderer(), parser=TwilioParser(), urls_namespace="twilio", auth=twilio_auth)
+api = NinjaAPI(
+    renderer=TwiMLRenderer(), parser=TwilioParser(), urls_namespace="twilio", auth=twilio_auth, docs_url=None
+)
 
 
 @api.post("sip/incoming")
@@ -92,7 +95,7 @@ def sip_incoming(request):
 @api.post("hit/outgoing")
 def hit_outgoing(request, assignment_id: Form[str], call_sid: Form[str], cheat: Form[bool] = False):
     assignment = Assignment.objects.get(amazon_id=assignment_id)
-    cheated = cheat and settings.DEBUG
+    cheated = cheat and settings.DEBUG  # Only work in development
 
     response = VoiceResponse()
     response.say(
@@ -101,7 +104,7 @@ def hit_outgoing(request, assignment_id: Form[str], call_sid: Form[str], cheat: 
     if cheated or assignment.stage != Assignment.Stage.INITIAL:
         response.redirect(url("hit_outgoing_call", assignment))
     else:
-        send_twilio_message(call_sid, Assignment.Stage.INITIAL)
+        send_twilio_message_at_end_of_request(request, call_sid, Assignment.Stage.INITIAL)
         response.say("First, we'll test your speaker, microphone and your ability to speak English.")
         response.pause(0.5)
         response.redirect(url("hit_outgoing_verify", assignment, first_run=1))
@@ -109,10 +112,11 @@ def hit_outgoing(request, assignment_id: Form[str], call_sid: Form[str], cheat: 
 
 
 @api.post("hit/outgoing/{assignment_id}/verify")
+@transaction.atomic
 def hit_outgoing_verify(
     request, assignment_id, call_sid: Form[str], speech_result: Form[str | None] = None, first_run: bool = False
 ):
-    assignment = get_assignment(assignment_id)
+    assignment = get_assignment_atomic(assignment_id)
     response = VoiceResponse()
 
     if speech_result is not None:
@@ -123,7 +127,7 @@ def hit_outgoing_verify(
             f" actual=[{', '.join(words_heard)}]"
         )
         if match:
-            update_assignment_stage_and_message_client(call_sid, assignment, Assignment.Stage.VERIFIED)
+            update_assignment_stage_and_message_client(request, call_sid, assignment, Assignment.Stage.VERIFIED)
             response.say(
                 "Correct! Well done. You are now being connected to the radio show. The show is hosted by"
                 f" {assignment.hit.show_host}. The topic of conversation is {assignment.hit.topic}."
@@ -131,6 +135,9 @@ def hit_outgoing_verify(
             response.redirect(url("hit_outgoing_call", assignment))
             return response
         else:
+            send_twilio_message_at_end_of_request(
+                request, call_sid, Assignment.Stage.INITIAL, words_heard=", ".join(w.title() for w in words_heard)
+            )
             response.say("You repeated the words incorrectly. Please try again.")
             response.pause(0.5)
     elif not first_run:
@@ -144,22 +151,22 @@ def hit_outgoing_verify(
     gather = response.gather(
         action_on_empty_result=True,
         action=url("hit_outgoing_verify", assignment),
-        enhanced=True,
         hints=", ".join(assignment.words_to_pronounce),
         input="speech",
-        speech_model="phone_call",
-        timeout=3,
+        speech_model="experimental_conversations",
+        timeout=4,
     )
     gather.play(sound_path("beep"))
     return response
 
 
 @api.post("hit/outgoing/{assignment_id}/call")
+@transaction.atomic
 def hit_outgoing_call(request, assignment_id, call_sid: Form[str]):
-    assignment = get_assignment(assignment_id)
+    assignment = get_assignment_atomic(assignment_id)
     if assignment.stage == Assignment.Stage.INITIAL:
         # Could have come here from cheating, so update status in that case
-        update_assignment_stage_and_message_client(call_sid, assignment, Assignment.Stage.VERIFIED)
+        update_assignment_stage_and_message_client(request, call_sid, assignment, Assignment.Stage.VERIFIED)
 
     response = VoiceResponse()
     dial = response.dial(
@@ -176,11 +183,12 @@ def hit_outgoing_call(request, assignment_id, call_sid: Form[str]):
 
 
 @api.post("hit/outgoing/{assignment_id}/callback/answered")
+@transaction.atomic
 def hit_outgoing_callback_answered(request, assignment_id, call_status: Form[str], parent_call_sid: Form[str]):
-    assignment = get_assignment(assignment_id)
+    assignment = get_assignment_atomic(assignment_id)
     if call_status == "in-progress":  # Answered
         update_assignment_stage_and_message_client(
-            parent_call_sid, assignment, Assignment.Stage.CALL, assignment.hit.min_call_duration
+            request, parent_call_sid, assignment, Assignment.Stage.CALL, assignment.hit.min_call_duration
         )
     elif call_status == "completed":
         if assignment.stage in (Assignment.Stage.CALL, Assignment.Stage.VOICEMAIL):
@@ -192,8 +200,9 @@ def hit_outgoing_callback_answered(request, assignment_id, call_status: Form[str
 
 
 @api.post("hit/outgoing/{assignment_id}/call/done")
+@transaction.atomic
 def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_call_status: Form[str]):
-    assignment = get_assignment(assignment_id)
+    assignment = get_assignment_atomic(assignment_id)
 
     response = VoiceResponse()
 
@@ -204,7 +213,7 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
         countdown = (assignment.hit.leave_voicemail_after_duration + assignment.call_started_at) - timezone.now()
         response.say("The host of the show is currently taking another call.")
         if countdown > datetime.timedelta(0):
-            update_assignment_stage_and_message_client(call_sid, assignment, Assignment.Stage.HOLD, countdown)
+            update_assignment_stage_and_message_client(request, call_sid, assignment, Assignment.Stage.HOLD, countdown)
             response.say(
                 "You must wait for the host to answer your call for at least another"
                 f" {to_pretty_minutes(countdown)} at which point you can leave a voicemail and submit this assignment."
@@ -213,8 +222,6 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
             response.say("Trying to connect again now.")
             response.redirect(url("hit_outgoing_call", assignment))
         else:
-            # TODO do a better job with recordings than twimlet
-            # update_assignment_stage_and_message_client(call_sid, assignment, Assignment.Stage.VOICEMAIL)
             response.say(
                 f"Since you have waited {to_pretty_minutes(assignment.hit.leave_voicemail_after_duration)}, you may now"
                 " complete this assignment and submit it after leaving a voicemail. After you are done recording,"
@@ -227,14 +234,15 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
 
 
 @api.post("hit/outgoing/{assignment_id}/voicemail")
+@transaction.atomic
 def hit_outgoing_voicemail(request, assignment_id, call_sid: Form[str]):
-    assignment = get_assignment(assignment_id)
-    update_assignment_stage_and_message_client(call_sid, assignment, Assignment.Stage.VOICEMAIL)
+    assignment = get_assignment_atomic(assignment_id)
+    update_assignment_stage_and_message_client(request, call_sid, assignment, Assignment.Stage.VOICEMAIL)
 
     response = VoiceResponse()
     response.say("At the tone, please record your message.")
     response.record(
-        timeout=10,
+        timeout=5,
         maxLength=150,  # 2.5 minutes
         action=url("hit_outgoing_completed", assignment),
         recording_status_callback=url("hit_outgoing_callback_voicemail", assignment),
@@ -244,19 +252,22 @@ def hit_outgoing_voicemail(request, assignment_id, call_sid: Form[str]):
 
 
 @api.post("hit/outgoing/{assignment_id}/callback/voicemail")
+@transaction.atomic
 def hit_outgoing_callback_voicemail(request, assignment_id, recording_duration: Form[int], recording_url: Form[str]):
-    assignment = get_assignment(assignment_id)
-    # May cause a race condition with completed, but shouldn't really matter
+    # Callback may come from twilio at any time, causing a race condition, so do this in a transaction
+    assignment = get_assignment_atomic(assignment_id, for_update=True)
     assignment.voicemail_url = recording_url
     assignment.voicemail_duration = datetime.timedelta(seconds=recording_duration)
     assignment.save()
+
     return HttpResponse(status=204)
 
 
 @api.post("hit/outgoing/{assignment_id}/completed")
+@transaction.atomic
 def hit_outgoing_completed(request, assignment_id, call_sid: Form[str]):
-    assignment = get_assignment(assignment_id)
-    update_assignment_stage_and_message_client(call_sid, assignment, Assignment.Stage.DONE)
+    assignment = get_assignment_atomic(assignment_id)
+    update_assignment_stage_and_message_client(request, call_sid, assignment, Assignment.Stage.DONE)
 
     response = VoiceResponse()
     response.say("You have successfully completed this assignment. Thanks!")

@@ -7,6 +7,7 @@ from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VoiceGrant
 
 from django.conf import settings
+from django.db import transaction
 from django.http import Http404
 
 from ninja import NinjaAPI, Schema as BaseSchema
@@ -16,7 +17,7 @@ from ..constants import ESTIMATED_BEFORE_VERIFIED_DURATION
 from ..models import HIT, WORKER_NAME_MAX_LENGTH, Assignment, Worker
 
 
-api = NinjaAPI(urls_namespace="hit")
+api = NinjaAPI(urls_namespace="hit", docs_url=None)
 
 
 logger = logging.getLogger("django")
@@ -137,8 +138,11 @@ def get_hit_and_common_handshake_out(request, handshake):
     return hit, handshake_out
 
 
-def get_assignment(amazon_id) -> Assignment:
-    return Assignment.objects.get(amazon_id=amazon_id)
+def get_assignment(amazon_id, for_update=False) -> Assignment:
+    qs = Assignment.objects.filter(amazon_id=amazon_id)
+    if for_update:
+        qs = qs.select_for_update()
+    return qs.get()
 
 
 @api.post("handshake/preview", response=HandshakePreviewOut, by_alias=True)
@@ -213,14 +217,15 @@ def name(request, name: NameIn):
 
 @api.post("finalize", response=FinalizeOut, by_alias=True)
 def finalize(request, finalize: BaseIn):
-    # This could happen during voicemail callback, so wrap it in a transaction
-    assignment = get_assignment(amazon_id=finalize.assignment_id)
+    # Status updating should be atomic
+    with transaction.atomic():
+        assignment = get_assignment(amazon_id=finalize.assignment_id, for_update=True)
 
-    # Same as in frontend, if we got here it may be beacuse a call got disconnected abruptly
-    # so a request to finalize should be accepted anyway
-    if assignment.stage in (Assignment.Stage.VOICEMAIL, Assignment.Stage.CALL):
-        assignment.stage = Assignment.Stage.DONE
-        assignment.save()
+        # Same as in frontend, if we got here it may be beacuse a call got disconnected abruptly
+        # so a request to finalize should be accepted anyway
+        if assignment.stage in (Assignment.Stage.VOICEMAIL, Assignment.Stage.CALL):
+            assignment.stage = Assignment.Stage.DONE
+            assignment.save()
 
     if assignment.stage == Assignment.Stage.DONE:
         return {"accepted": True, "approval_code": assignment.hit.approval_code}

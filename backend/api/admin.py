@@ -97,6 +97,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
                     "get_cost_estimate",
                     "status",
                     "submitted_at",
+                    "get_amazon_status",
                     "is_running",
                     "amazon_id",
                 )
@@ -129,13 +130,14 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         "created_at",
         "created_by",
         "get_cost_estimate",
+        "get_amazon_status",
         "is_running",
         "publish_api_exception",
         "status",
         "submitted_at",
         "unique_request_token",
     )
-    submitted_readonly_fields = (
+    submitted_additional_readonly_fields = (
         "approval_delay",
         "assignment_duration",
         "assignment_number",
@@ -172,7 +174,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
     def get_readonly_fields(self, request, obj: HIT = None):
         readonly_fields = super().get_readonly_fields(request, obj)
         if obj is not None and obj.status != HIT.Status.LOCAL:
-            return readonly_fields + self.submitted_readonly_fields
+            return readonly_fields + self.submitted_additional_readonly_fields
         return readonly_fields
 
     @button(permission=lambda request, hit, **kw: request.user.has_perm("api.preview_hit"))

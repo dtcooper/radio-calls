@@ -11,36 +11,36 @@
   $: countdownDuration = $state.countdownDuration?.format("mm:ss")
   $: if ($state.done) {
     callStatus = ["Assignment completed!", "text-bold text-success"]
-    countdown = ["-"]
+    countdown = [false]
   } else if ($state.callInProgress) {
     switch ($state.stage) {
       case STAGE_INITIAL:
         callStatus = ["Awaiting verification", "text-info animate-pulse"]
-        countdown = ["-"]
+        countdown = [false]
         break
       case STAGE_VERIFIED:
         callStatus = ["Verified! Connecting.", "text-success animate-pulse"]
-        countdown = ["-"]
+        countdown = [false]
         break
       case STAGE_HOLD:
         callStatus = ["On hold", "text-warning animate-pulse"]
-        countdown = [`${countdownDuration} until you can leave a voicemail`, "text-info"]
+        countdown = ["until you can leave a voicemail", "text-info", countdownDuration]
         break
       case STAGE_CALL:
         callStatus = ["On a call", "text-success"]
-        countdown = [`${countdownDuration} until you can hang up`, "text-info"]
+        countdown = ["until you can hang up", "text-info", countdownDuration]
         break
       case STAGE_VOICEMAIL:
         callStatus = ["Leaving voicemail", "text-error animate-pulse"]
-        countdown = ["-"]
+        countdown = [false]
         break
       default:
         callStatus = [`UNKNOWN STATE: ${$state.stage}`, "text-error"]
-        countdown = ["-"]
+        countdown = [false]
     }
   } else {
     callStatus = ["Please start the call", "text-info italic animate-pulse"]
-    countdown = ["-"]
+    countdown = [false]
   }
 
   $: {
@@ -59,12 +59,17 @@
 
 <div class="my-0.5 ml-2 sm:my-1 md:mx-6 md:my-1.5 md:ml-4">
   <div
-    class="inline-grid grid-cols-[max-content_auto] gap-0.5 border-2 border-base-200 bg-base-200 sm:gap-1 sm:border-4 md:grid"
+    class="grid grid-cols-[max-content_auto] gap-0.5 border-2 border-base-200 bg-base-200 sm:gap-1 sm:border-4"
     class:md:grid-cols-[max-content_3fr_max-content_2fr]={!overviewOnly}
   >
-    {#each items as [name, value, classes]}
+    {#each items as [name, value, classes, monoPrefix]}
       <div class="flex items-center justify-end bg-base-100 p-2 text-right font-bold">{name}:</div>
-      <div class="text-bold flex items-center bg-base-100 p-2 {classes || ''}">{value}</div>
+      <div class="text-bold flex items-center bg-base-100 p-2 {classes || ''}">
+        {#if monoPrefix}
+          <span class="contents font-mono">{monoPrefix}</span>
+        {/if}
+        {value || "-"}
+      </div>
     {/each}
   </div>
 </div>

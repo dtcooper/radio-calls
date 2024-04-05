@@ -64,6 +64,7 @@ call_duration_validators = min_max(datetime.timedelta(seconds=30), datetime.time
 
 
 class HIT(BaseModel):
+    CLONE_PREFIX = "Clone of "
     CLONE_FIELDS = (
         "approval_delay",
         "assignment_duration",
@@ -98,7 +99,14 @@ class HIT(BaseModel):
     status = ChoicesCharField("status", choices=Status, default=Status.LOCAL)
     title = models.CharField("title", max_length=1024, help_text="Title as it displays on MTurk.")
     description = models.CharField("description", max_length=1024, help_text="Description as it displays on MTurk.")
-    keywords = models.CharField("keywords", max_length=1024, help_text="Keywords as they display on MTurk.")
+    keywords = models.CharField(
+        "keywords",
+        max_length=1024,
+        help_text=(
+            'Keywords as they display on MTurk. Examples show these as comma-separated and lowercase, e. g. "one, two,'
+            ' three".'
+        ),
+    )
     unique_request_token = models.UUIDField(
         default=uuid.uuid4, help_text="Token to prevent double submission to MTurk."
     )
@@ -193,10 +201,15 @@ class HIT(BaseModel):
         for field in self.CLONE_FIELDS:
             value = getattr(self, field)
             setattr(hit, field, value)
-        hit.name = f"Clone of {self.name}"[: self._meta.get_field("name").max_length]
-        hit.save()
+        hit.name = f"{self.CLONE_PREFIX}{self.name}"[: self._meta.get_field("name").max_length]
+        hit.save(is_cloning=True)
         hit.refresh_from_db()
         return hit
+
+    def save(self, *args, is_cloning=False, **kwargs):
+        if not is_cloning and self.name.startswith(self.CLONE_PREFIX):
+            self.name = self.name.removeprefix(self.CLONE_PREFIX)
+        super().save(*args, **kwargs)
 
     def get_cost_estimate(self):
         fees = Decimal("0.20")
@@ -215,16 +228,24 @@ class HIT(BaseModel):
     def is_published(self):
         return self.status in (HIT.Status.SANDBOX, HIT.Status.PRODUCTION)
 
-    def delete(self, *args, **kwargs):
-        if self.amazon_id and self.is_published:
-            client = get_mturk_client(production=self.is_production)
+    @property
+    def is_on_amazon(self):
+        return self.amazon_id and self.is_published
+
+    @cached_property
+    def __amazon_obj(self) -> dict | None:
+        if self.is_on_amazon:
+            production = self.is_production
+            client = get_mturk_client(production=production)
             try:
-                client.delete_hit(HITId=self.amazon_id)
+                return client.get_hit(HITId=self.amazon_id)["HIT"]
             except Exception:
-                logger.exception(f"Got an error deleting HIT {self.amazon_id} from MTurk")
-            else:
-                logger.info(f"HIT {self.amazon_id} successfully deleted from mechanical turk")
-        super().delete(*args, **kwargs)
+                logger.exception(f"Error fetching HIT {self.amazon_id} from Amazon ({production=})")
+        return None
+
+    @admin.display(description="Amazon status")
+    def get_amazon_status(self):
+        return self.__amazon_obj["HITStatus"] if self.__amazon_obj else "Not submitted"
 
     def publish_to_mturk(self, *, production=False):
         client = get_mturk_client(production=production)
@@ -397,7 +418,7 @@ class Assignment(BaseModel):
 
     @cached_property
     def __amazon_obj(self) -> dict | None:
-        if self.amazon_id and self.hit.is_published:
+        if self.hit.is_on_amazon:
             production = self.hit.is_production
             client = get_mturk_client(production=production)
             try:

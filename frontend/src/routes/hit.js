@@ -1,7 +1,7 @@
 import { post as _post } from "$lib/utils"
 import { Device } from "@twilio/voice-sdk"
 import { persisted } from "svelte-persisted-store"
-import { get as _get, derived, writable } from "svelte/store"
+import { get as _get, derived, readonly, writable } from "svelte/store"
 
 import dayjs from "dayjs"
 import { default as dayjsPluginDuration } from "dayjs/plugin/duration"
@@ -33,6 +33,12 @@ const isDebug = () => _get(debugMode)
 // Every endpoint takes the assignment ID
 const post = (endpoint, data) => _post(endpoint, { assignmentId, ...data }, isDebug())
 
+// Separate store for levels because this gets written to a lot
+const levelsFuzzAmount = 1.25
+const levels = writable({ speaker: 0, mic: 0 })
+const readonlyLevels = readonly(levels)
+export { readonlyLevels as levels }
+
 const createState = () => {
   const { subscribe, update: _update } = writable({
     approvalCode: "invalid-approval-code",
@@ -47,17 +53,16 @@ const createState = () => {
     isStaff: false,
     leaveVoicemailAfterDuration: null,
     location: "",
-    micLevel: 0,
     minCallDuration: null,
     name: "",
     nameMaxLength: 0,
     now: dayjs(),
     ready: false,
     showHost: "",
-    speakerLevel: 0,
     stage: STAGE_INITIAL,
     submitUrl: "",
     topic: "",
+    wordsHeard: "",
     workerId: null
   })
 
@@ -65,7 +70,7 @@ const createState = () => {
   const error = (msg) => update({ failure: msg })
   const fatalError = (msg) => update({ failure: msg, ready: false })
 
-  setInterval(() => update({ now: dayjs() }), 500)
+  setInterval(() => update({ now: dayjs() }), 250) // Up-to-date ish dayjs object for intervals
   const { subscribe: subscribeDerived } = derived({ subscribe }, ($state) => {
     let countdownDuration = null
     if ($state.countdown) {
@@ -111,7 +116,7 @@ const createState = () => {
           // In case we're staff, these may have been sent back by server if unspecified
           ;({ assignmentId, hitId, workerId } = data)
           if (!hitId) {
-            console.warn("hitId was returned as null. This assignment doesn't appear to be hosted by Amazon.")
+            console.warn("hitId was returned as null. This assignment doesn't appear to be actually hosted on Amazon.")
           }
         } else {
           debugMode.set(false)
@@ -149,6 +154,7 @@ const createState = () => {
       device = new Device(token, { closeProtection: true })
       device.on("tokenWillExpire", () => this.refreshToken())
       device.on("error", (e) => {
+        error("An unknown error occurred with your call. Try again.")
         if (isDebug()) {
           console.warn("device error: ", e)
         }
@@ -173,12 +179,14 @@ const createState = () => {
         update({ callInProgress: true, state: STAGE_INITIAL })
 
         call.on("volume", (inputVolume, outputVolume) => {
-          const micLevel = Math.min(inputVolume * 100 * 1.25, 100)
-          const speakerLevel = Math.min(outputVolume * 100 * 1.25, 100)
-          update({ micLevel, speakerLevel })
+          levels.set({
+            mic: Math.min(inputVolume * 100 * levelsFuzzAmount, 100),
+            speaker: Math.min(outputVolume * 100 * levelsFuzzAmount, 100)
+          })
         })
         call.on("disconnect", () => {
-          update({ micLevel: 0, speakerLevel: 0, callInProgress: false })
+          update({ callInProgress: false })
+          levels.set({ mic: 0, speaker: 0 })
           // If we're disconnected during the voicemail or call stage, consider the assignment done (backend will too)
           if ([STAGE_CALL, STAGE_VOICEMAIL].includes(get().stage)) {
             update({ stage: STAGE_DONE })
@@ -187,13 +195,13 @@ const createState = () => {
         })
         call.on("messageReceived", (data) => {
           const {
-            content: { stage, countdown }
+            content: { stage, countdown, wordsHeard }
           } = data
           if (isDebug()) {
-            console.log(`Got message from twilio stage=${stage}, countdown=${countdown}`)
+            console.log(`Got message from twilio`, data)
           }
           if (stage) {
-            update({ stage, countdown: countdown && dayjs().add(countdown, "second") })
+            update({ stage, countdown: countdown && dayjs().add(countdown, "second"), wordsHeard })
           } else {
             console.warn("Got unknown user message from twilio", data)
           }
@@ -201,8 +209,11 @@ const createState = () => {
         call.on("error", (e) => {
           if ([31401, 31208].includes(e.code)) {
             error("There was a problem with your audio. Are you sure your microphone is enabled?", e)
-          } else if (isDebug()) {
-            console.warn("call error:", e)
+          } else {
+            error("An unknown error occured with your call. Try again.")
+            if (isDebug()) {
+              console.warn("call error:", e)
+            }
           }
         })
       } else {

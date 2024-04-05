@@ -1,5 +1,6 @@
 <script>
   import NextButton from "./components/NextButton.svelte"
+  import Warning from "./components/Warning.svelte"
 
   import { title } from "$lib/utils"
   import { state } from "../hit"
@@ -19,10 +20,18 @@
 
 <p>Now it's time to choose a name. The person you'll be talking to will refer to you as this name.</p>
 
-<p>
-  You are encouraged <strong>NOT</strong> to use your real name and to make something up. We've assigned a random one below,
-  but you're welcome to change it.
+<p>You are encouraged <strong>NOT</strong> to use your real name and to make something up.</p>
+
+<p class="italic text-primary">
+  We've assigned you a <strong>random name</strong> and <strong>gender</strong> below, but you're are
+  <strong>encouraged change it!</strong>
 </p>
+
+<Warning>
+  <strong>NOTICE:</strong>
+  Revealing your real name is against Amazon Mechanical Turk's Acceptable Use Policy! That's why we've assigned you a random
+  one below.
+</Warning>
 
 <div
   class="mx-4 mt-3 grid grid-cols-[max-content_1fr] items-baseline gap-x-5 gap-y-8 border-l-2 border-l-neutral py-2 pl-2 sm:mx-4 sm:pl-4 md:mx-12"

@@ -19,7 +19,7 @@
     } else {
       const formData = new FormData(form)
       alert(
-        `You are getting this popup because no turkSubmitTo was supplied.\n\nAccepted: ${success}\n` +
+        `You are getting this popup because no turkSubmitTo was supplied.\n\n[Accepted: ${success}]\n` +
           Array.from(formData.entries())
             .map(([key, value]) => `${key}: ${value}`)
             .join("\n")

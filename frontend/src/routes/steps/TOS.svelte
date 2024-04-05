@@ -47,15 +47,15 @@
     </strong>
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    <span class="text-error"
-      >You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk under <strong><em>any</em></strong> circumstances.</span
-    >
+    <span class="text-error">
+      You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk under <strong><em>any</em></strong> circumstances.
+    </span>
+    <br />Pretend you're a <strong class="text-success">real caller</strong> of the show.
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
     <p>You have good internet connectivity, since it will be needed to complete this assignment. 🌎💻🔌</p>
     <p>
-      <strong class="text-error">Getting disconnected is a sure-fire way to be unable to submit this assignment!</strong
-      >
+      <strong class="text-error">Getting disconnected will prevent you from submitting the assignment!</strong>
       😩😩😩
     </p>
   </TOSTerm>
@@ -68,29 +68,42 @@
     </div>
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    You may discuss adult subject matter &ndash; sex, drugs, etc &ndash; or <em>even insult the hosts</em> 🤣, but:
+    You may discuss adult subject matter &ndash; sex, drugs, etc &ndash; or <em>even insult the host(s)</em> 🤣, but:
     <br class="hidden lg:inline" />
     <strong class="underline">Please refrain from swearing or cursing!</strong> 🔞🤬🍆
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    If no one answers, you will be placed on a hold loop. 🔁<br />
+    <strong>If no one answers, you will be placed on <span class="text-primary">a hold loop.</span> 🔁</strong>
+    If that happens, <strong class="italic text-success">DON'T PANIC!</strong><br />
     You understand, that...
 
     <ul class="mt-2 list-disc">
       <li class="ml-5">
         You <strong><u>CANNOT</u></strong> submit the assignment without completing the call or leaving a voicemail;
       </li>
-      <li class="ml-5">There is a chance the host may not answer the call;</li>
       <li class="ml-5">
-        The assignment <strong class="underline"
-          >may take up to {$state.leaveVoicemailAfterDuration.humanize()} or more</strong
-        >
-        if you end up needing to wait for the host to answer your call; and
+        There is a chance the host may not answer the call, and <strong class="text-primary"
+          >that means you'll be placed on hold</strong
+        >;
       </li>
       <li class="ml-5">
-        If the host does not answer your call, you have the option of leaving a voicemail 📬 and submitting; <strong
-          >OR</strong
-        > you can always return the HIT &mdash; this won't affect your rating.
+        The assignment <strong class="text-error underline"
+          >may take up to {$state.leaveVoicemailAfterDuration.humanize()} or more</strong
+        >, especially if you end up on hold, waiting for the host to answer your call; and
+      </li>
+      <li class="ml-5">
+        If the host does not answer your call,
+        <strong class="text-primary"
+          >after holding for {$state.leaveVoicemailAfterDuration.humanize()} you may leave a voicemail 📬</strong
+        >
+        and submit the assignment; <strong class="italic underline">OR</strong> you can always return the HIT &mdash; this
+        won't affect your rating.
+      </li>
+      <li class="ml-5">
+        This means you'll <em class="font-bold text-success">
+          be able to submit the assignment after, even if you are placed on hold!</em
+        >
+        😁
       </li>
     </ul>
   </TOSTerm>

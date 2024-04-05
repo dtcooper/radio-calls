@@ -1,11 +1,9 @@
 from functools import cache
-import json
 import logging
 import re
 
 import boto3
 import geoip2.database
-from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.db import models
@@ -18,7 +16,6 @@ from .constants import LOCATION_UNKNOWN
 
 underscore_converter_re = re.compile(r"(?<!^)(?=[A-Z])")
 depunctuate_words_re = re.compile(r"[^a-z]+")
-twilio_client = TwilioClient(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
 logger = logging.getLogger("django")
 
 
@@ -45,16 +42,9 @@ class TwilioParser(Parser):
         return {underscore_converter_re.sub("_", k).lower(): v for k, v in result.items()}
 
 
-def send_twilio_message(call_sid, stage, countdown=None):
-    if countdown is not None:
-        countdown = max(round(countdown.total_seconds()), 0)
-
-    try:
-        twilio_client.calls(call_sid).user_defined_messages.create(
-            content=json.dumps({"stage": stage, "countdown": countdown})
-        )
-    except Exception:
-        logger.exception("send_twilio_message() threw an exception! Recovering from the error.")
+def send_twilio_message_at_end_of_request(request, call_sid, stage, countdown=None, words_heard=None):
+    # Happens after request is processed via middle so any transactions aren't blocked
+    request._twilio_user_defined_message = (call_sid, stage, countdown, words_heard)
 
 
 def is_subsequence(x, y):
@@ -72,8 +62,8 @@ def ChoicesCharField(*args, choices, **kwargs):
 
 @cache
 def get_mturk_client(*, production=False):
-    if production:
-        raise Exception("XXX production disabled for now!")
+    if production and settings.DEBUG:
+        raise Exception("Preventing production access when DEBUG = True")
 
     kwargs = {}
     if not production:
