@@ -38,7 +38,6 @@ if [ "$#" = 0 ]; then
                 -w "$NUM_GUNICORN_WORKERS" \
                 --capture-output \
                 --access-logfile - \
-                --preload \
             calls.wsgi
     fi
 else
