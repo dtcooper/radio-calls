@@ -62,8 +62,8 @@ def ChoicesCharField(*args, choices, **kwargs):
 
 @cache
 def get_mturk_client(*, production=False):
-    if production and settings.DEBUG:
-        raise Exception("Preventing production access when DEBUG = True")
+    if production and not settings.ALLOW_PUBLISH_TO_MTURK_PRODUCTION:
+        raise Exception("Preventing production access when ALLOW_PUBLISH_TO_MTURK_PRODUCTION = False")
 
     kwargs = {}
     if not production:
@@ -76,10 +76,6 @@ def get_mturk_client(*, production=False):
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
         **kwargs,
     )
-
-
-def get_mturk_available_balance(*, production=False):
-    return get_mturk_client(production).get_account_balance()["AvailableBalance"]
 
 
 def get_ip_addr(request):

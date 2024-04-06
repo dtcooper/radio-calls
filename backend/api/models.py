@@ -451,6 +451,6 @@ class Assignment(BaseModel):
             "worker": worker,
         }
         if reset_to_initial:
-            defaults.update({"stage": cls.Stage.INITIAL})
+            defaults.update({"stage": cls.Stage.INITIAL, "call_started_at": None, "call_completed_at": None})
         obj, _ = cls.objects.update_or_create(amazon_id=amazon_id, defaults=defaults)
         return obj

@@ -1,13 +1,19 @@
 <script>
   import NextButton from "./components/NextButton.svelte"
   import TopicSummary from "./components/CallSummary.svelte"
-  import Warning from "./components/Warning.svelte"
+  import Notice from "./components/Notice.svelte"
   import { slide } from "svelte/transition"
-  import { state, debugMode, STAGE_VOICEMAIL } from "../hit"
+  import { state, debugMode, scroll, STAGE_VOICEMAIL } from "../hit"
 
   export let next
 
   $: callDisabled = $state.callInProgress || $state.done
+
+  let scrolledOnDone = false // $state is a little too reactive, so protect scrolling more than once
+  $: if ($state.done && !scrolledOnDone) {
+    scroll("next-btn")
+    scrolledOnDone = true
+  }
 
   const submit = () => {
     state.hangup()
@@ -15,7 +21,7 @@
   }
 </script>
 
-<p>Now it's time to make your call! 😆😆😆</p>
+<p>Now it's time to make your call! 😆😆😆 <em class="text-accent">Have fun!</em></p>
 
 <p>
   When you're ready, press the call button below to start. Make sure you have a working microphone and headset
@@ -24,9 +30,9 @@
 
 {#if $state.wordsHeard}
   <div transition:slide>
-    <Warning>
-      We heard the following words: <em>"{$state.wordsHeard}".</em> Try again.
-    </Warning>
+    <Notice>
+      We heard the following: <em>"{$state.wordsHeard}"</em> &mdash; which is incorrect. Try again.
+    </Notice>
   </div>
 {/if}
 
@@ -36,15 +42,15 @@
   <span class="hidden text-success lg:contents">💰🤑💰</span>
   <strong>
     <span class="hidden text-success lg:inline">$$$</span>
-    Bonuses will be awarded to longer, weirder, or funnier calls!
+    Bonuses may be awarded to longer, weirder, or funnier calls!
     <span class="text-success">$$$</span>
   </strong>
   💰🤑💰
 </p>
 
-<div class="mt-2 flex justify-center gap-2 md:mt-3 md:gap-5">
+<div class="mt-2 flex flex-col justify-center gap-2 sm:flex-row md:mt-3 md:gap-5">
   <button
-    class="btn btn-info btn-xs sm:btn-md md:btn-lg md:!text-2xl"
+    class="btn btn-info btn-sm sm:btn-md md:btn-lg md:!text-2xl"
     disabled={callDisabled}
     on:click={() => state.call()}
     class:animate-highlight-shadow={!callDisabled}
@@ -54,7 +60,7 @@
   </button>
   {#if $debugMode && $state.isStaff && !$state.isProd}
     <button
-      class="btn btn-secondary btn-xs sm:btn-md md:btn-lg md:!text-2xl"
+      class="btn btn-secondary btn-sm sm:btn-md md:btn-lg md:!text-2xl"
       disabled={callDisabled}
       on:click={() => state.call(true)}
     >
@@ -62,7 +68,7 @@
     </button>
   {/if}
   <button
-    class="btn btn-warning btn-xs sm:btn-md md:btn-lg md:!text-2xl"
+    class="btn btn-warning btn-sm sm:btn-md md:btn-lg md:!text-2xl"
     disabled={!$state.canHangUp}
     on:click={() => state.hangup()}
   >

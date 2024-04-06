@@ -31,7 +31,7 @@
   💰🤑💰
   <strong>
     <span class="text-success">$$$</span>
-    Bonuses will be awarded to longer, weirder, or funnier calls!
+    Bonuses may be awarded to longer, weirder, or funnier calls!
     <span class="text-success">$$$</span>
   </strong>
   💰🤑💰
@@ -53,11 +53,11 @@
   like! 👍
 </p>
 
-<NextButton {next} {highlight} disabled={isPreview}>
+<NextButton {next} {highlight} disabled={isPreview} class="btn-accent">
   {#if isPreview}
-    You are currently previewing this assignment.
+    You're previewing this assignment.
     <span class="hidden sm:contents">Press ACCEPT to start.</span>
   {:else}
-    Continue with assignment
+    Okay! I'm ready to begin! 💘
   {/if}
 </NextButton>

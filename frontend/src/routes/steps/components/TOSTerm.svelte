@@ -12,7 +12,7 @@
   }
 </script>
 
-<div class="flex items-center justify-center">
+<div id="tos-term-{index}" class="flex items-center justify-center">
   <input
     type="checkbox"
     class="checkbox checkbox-sm shadow-error sm:checkbox-md md:checkbox-lg"

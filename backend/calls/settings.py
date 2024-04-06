@@ -9,7 +9,7 @@ env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = env("SECRET_KEY")
-DEBUG = env.bool("DEV_MODE", False)
+DEBUG = env.bool("DEV_MODE", default=False)
 DOMAIN_NAME = env("DOMAIN_NAME")
 
 TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID")
@@ -20,6 +20,7 @@ TWILIO_TWIML_APP_SID = env("TWILIO_TWIML_APP_SID")
 TWILIO_API_KEY = env("TWILIO_API_KEY")
 TWILIO_API_SECRET = env("TWILIO_API_SECRET")
 
+ALLOW_PUBLISH_TO_MTURK_PRODUCTION = env.bool("ALLOW_PUBLISH_TO_MTURK_PRODUCTION", default=False)
 AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY")
 
@@ -148,5 +149,5 @@ STATIC_ROOT = "/static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SHELL_PLUS_IMPORTS = [
-    "from api.utils import get_mturk_client, get_mturk_available_balance, get_ip_addr, get_location_from_ip_addr",
+    "from api.utils import get_mturk_client, get_ip_addr, get_location_from_ip_addr",
 ]

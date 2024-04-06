@@ -98,14 +98,19 @@ def hit_outgoing(request, assignment_id: Form[str], call_sid: Form[str], cheat: 
     cheated = cheat and settings.DEBUG  # Only work in development
 
     response = VoiceResponse()
-    response.say(
-        "Cheated!" if cheated else f"Welcome, {assignment.worker.name}! Are you excited to call the radio show?"
-    )
+    if cheated:
+        response.say("Cheating.")
+    else:
+        response.say(
+            f"Welcome, {assignment.worker.name}! Thanks for doing this assignment. Are you excited to call the radio"
+            " show?"
+        )
+
     if cheated or assignment.stage != Assignment.Stage.INITIAL:
         response.redirect(url("hit_outgoing_call", assignment))
     else:
         send_twilio_message_at_end_of_request(request, call_sid, Assignment.Stage.INITIAL)
-        response.say("First, we'll test your speaker, microphone and your ability to speak English.")
+        response.say("First, we'll test your speaker and microphone and your ability to speak English.")
         response.pause(0.5)
         response.redirect(url("hit_outgoing_verify", assignment, first_run=1))
     return response
@@ -129,25 +134,28 @@ def hit_outgoing_verify(
         if match:
             update_assignment_stage_and_message_client(request, call_sid, assignment, Assignment.Stage.VERIFIED)
             response.say(
-                "Correct! Well done. You are now being connected to the radio show. The show is hosted by"
-                f" {assignment.hit.show_host}. The topic of conversation is {assignment.hit.topic}."
+                "That is correct! Well done. You are now being connected to the radio show. The show is hosted by"
+                f" {assignment.hit.show_host}. The topic of conversation is: {assignment.hit.topic}."
             )
             response.redirect(url("hit_outgoing_call", assignment))
             return response
         else:
             send_twilio_message_at_end_of_request(
-                request, call_sid, Assignment.Stage.INITIAL, words_heard=", ".join(w.title() for w in words_heard)
+                request, call_sid, Assignment.Stage.INITIAL, words_heard=speech_result
             )
             response.say("You repeated the words incorrectly. Please try again.")
             response.pause(0.5)
     elif not first_run:
-        response.say("We didn't seem to hear anything. Please check your microphone is working correctly.")
+        response.say("We didn't seem to hear anything. Please check that your microphone is working correctly.")
         response.pause(0.5)
 
-    response.say(
-        f"{'After the tone, please r' if first_run else 'R'}epeat the following fruits."
-        f" {'. '.join(w.title() for w in assignment.words_to_pronounce)}."
-    )
+    if first_run:
+        response.say("After the tone, please repeat the following fruits.")
+    else:
+        response.say("Repeat the following fruits. When you are done, stay silent.")
+    response.pause(0.5)
+    response.say(". ".join(w.title() for w in assignment.words_to_pronounce))
+
     gather = response.gather(
         action_on_empty_result=True,
         action=url("hit_outgoing_verify", assignment),
@@ -155,6 +163,7 @@ def hit_outgoing_verify(
         input="speech",
         speech_model="experimental_conversations",
         timeout=4,
+        max_speech_time=10,
     )
     gather.play(sound_path("beep"))
     return response

@@ -166,6 +166,9 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         "qualification_num_previously_approved",
         "title",
     )
+    list_filter = ("status", "submitted_at", "created_at")
+    search_fields = ("amazon_id", "name")
+    date_hierarchy = "submitted_at"
 
     def get_changeform_initial_data(self, request):
         initial = super().get_changeform_initial_data(request)
@@ -219,7 +222,8 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
 
     @button(
         html_attrs={"style": "background-color: oklch(0.7176 0.221 22.18); color: #000000"},
-        permission=lambda request, hit, **kw: request.user.has_perm("api.publish_production_hit")
+        permission=lambda request, hit, **kw: settings.ALLOW_PUBLISH_TO_MTURK_PRODUCTION
+        and request.user.has_perm("api.publish_production_hit")
         and hit.status == HIT.Status.LOCAL,
     )
     def publish_to_production(self, request, pk):
@@ -237,7 +241,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
             message=format_html('Are you sure you want to publish HIT <em>"{}"</em> to Production?', hit.name),
             pk=pk,
             success_message=f"Published {hit.name} to Production! It should appear shortly.",
-            error_message=f"An error occured while publishing {hit.name} to Production!",
+            error_message=f"An error occured while publishing {hit.name} to production!",
             title="Publish HIT to Production",
         )
 
@@ -257,7 +261,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         def warn(msg):
             self.message_user(request, f"WARNING: {msg}", messages.WARNING)
 
-        def name(field):
+        def name(field) -> str:
             return self.model._meta.get_field(field).verbose_name
 
         cost_estimate = obj.get_cost_estimate()
@@ -265,39 +269,33 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
             warn(f"The cost estimate for this HIT is ${cost_estimate} and exceeds $250. Please verify this is correct!")
 
         for check_duration_field in ("min_call_duration", "leave_voicemail_after_duration"):
-            if getattr(obj, check_duration_field) + datetime.timedelta(minutes=15) > obj.assignment_duration:
+            if getattr(obj, check_duration_field) + datetime.timedelta(minutes=10) > obj.assignment_duration:
                 warn(
-                    f"{name(check_duration_field)} is 15 minutes less than {name('assignment_duration')}! This may not"
-                    " give workers enough time."
+                    f"{name(check_duration_field).capitalize()} is 10 minutes less than {name('assignment_duration')}!"
+                    " This may not give workers enough time."
                 )
-
-        if obj.assignment_duration + datetime.timedelta(minutes=20) > obj.duration:
-            warn(
-                f"{name('assignment_duration')} is 20 minutes less than {name('duration')}! This may not give workers"
-                " enough time."
-            )
 
         if not (datetime.timedelta(minutes=20) <= obj.duration <= datetime.timedelta(hours=2)):
             warn(f"{name('duration')} is not between 20 minutes and 2 hours. This may cause unexpected results.")
 
         if obj.assignment_duration > datetime.timedelta(minutes=45):
-            warn(f"{name('assignment_duration')} is longer than 45 minutes")
+            warn(f"{name('assignment_duration').capitalize()} is longer than 45 minutes")
 
         if obj.assignment_reward > 10:
-            warn(f"{name('assignment_reward')} is more that $10")
+            warn(f"{name('assignment_reward').capitalize()} is more that $10")
 
         if obj.assignment_number > 150:
-            warn(f"{name('assignment_number')} is more than 150")
+            warn(f"{name('assignment_number').capitalize()} is more than 150")
 
         if not (datetime.timedelta(days=1) <= obj.approval_delay <= datetime.timedelta(days=3)):
-            warn(f"{name('approval_delay')} should be between 1 and 3 days")
+            warn(f"{name('approval_delay').capitalize()} should be between 1 and 3 days")
 
         if not obj.qualification_countries:
             warn(f"open to workers in ANY and ALL {name('qualification_countries')}")
         elif not CORE_ENGLISH_SPEAKING_COUNTRIES.issubset(set(c.code for c in obj.qualification_countries)):
             warn(
-                f"{name('qualification_countries')} do not include workers from the 'core' English speaking countries:"
-                f" {', '.join(CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES)}"
+                f"{name('qualification_countries').capitalize()} do not include workers from the 'core' English"
+                f" speaking countries: {', '.join(CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES)}."
             )
 
 
@@ -310,7 +308,10 @@ class WorkerAndAssignmentBaseAdmin(BaseModelAdmin):
 
 
 class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
-    pass
+    fields = ("amazon_id", "name", "gender", "location", "ip_address", "created_at")
+    readonly_fields = ("amazon_id", "created_at")
+    list_display = ("amazon_id", "name", "gender", "location")
+    search_fields = ("amazon_id", "name", "location")
 
 
 class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
@@ -339,14 +340,16 @@ class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
         "left_voicemail",
         "get_amazon_status",
     )
+    list_filter = ("hit", "stage")
+    search_fields = ("amazon_id", "worker__name", "hit__name")
 
-    @admin.display(boolean=True)
+    @admin.display(boolean=True, ordering="voicemail_duration")
     def left_voicemail(self, obj: Assignment):
         return bool(obj.voicemail_url)
 
     def call_duration(self, obj: Assignment):
         if obj.call_completed_at is not None and obj.call_started_at is not None:
-            return obj.call_completed_at - obj.call_started_at
+            return obj.call_started_at - obj.call_completed_at
         return None
 
 

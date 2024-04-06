@@ -12,6 +12,10 @@
     return numTerms - 1
   }
 
+  $: if (term > 0) {
+    document.getElementById(`tos-term-${term}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+  }
+
   $$restProps // Ignore unused
 </script>
 
@@ -108,21 +112,19 @@
     </ul>
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()}>
-    <div class="inline items-center gap-1 text-base text-error sm:flex sm:gap-2 md:text-xl lg:gap-3 lg:text-2xl">
-      <strong class="font-bold underline" class:animate-pulse={term === numTerms - 1}>IMPORTANT:</strong>
-      <p class="inline sm:block">
-        <em
-          >A <strong>silent call</strong> or <strong>silent voicemail</strong> where you do not speak
-          <span class="undline">will result in a <strong class="underline">REJECTED</strong> assignment!</span></em
-        >
-      </p>
-    </div>
+    <p class="text-base text-error md:text-xl lg:gap-3 lg:text-2xl">
+      <strong>IMPORTANT:</strong>
+      <em
+        >A <strong>silent call</strong> or <strong>silent voicemail</strong> where you do not speak will result in a
+        <strong class="underline">REJECTED</strong> assignment!</em
+      >
+    </p>
   </TOSTerm>
 </div>
 
 <NextButton {next} disabled={numTerms !== term && !$debugMode} class="btn-warning" highlight={numTerms === term}>
   I have
   <span class="contents sm:hidden">read</span>
-  <span class="hidden sm:contents">carefully read, understand,</span>
+  <span class="hidden sm:contents">carefully read, understand</span>
   &amp; agree to the above terms.
 </NextButton>

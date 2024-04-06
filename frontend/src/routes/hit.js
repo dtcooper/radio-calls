@@ -29,6 +29,13 @@ export const isPreview = assignmentId === "ASSIGNMENT_ID_NOT_AVAILABLE"
 export const debugMode = persisted("debug-mode", false)
 
 const isDebug = () => _get(debugMode)
+const log = (...args) => isDebug() && console.log(...args)
+const warn = (...args) => isDebug() && console.warn(...args)
+
+export const scroll = (elemOrId) => {
+  const elem = typeof elemOrId === "string" ? document.getElementById(elemOrId) : elemOrId
+  elem?.scrollIntoView({ behavior: "smooth", block: "center" })
+}
 
 // Every endpoint takes the assignment ID
 const post = (endpoint, data) => _post(endpoint, { assignmentId, ...data }, isDebug())
@@ -80,9 +87,7 @@ const createState = () => {
     const done = $state.stage === STAGE_DONE || ($state.stage === STAGE_VOICEMAIL && !$state.callInProgress)
     const canHangUp =
       $state.callInProgress &&
-      (isDebug() ||
-        $state.stage === STAGE_VOICEMAIL ||
-        ($state.stage == STAGE_CALL && $state.now.isAfter($state.countdown)))
+      (isDebug() || done || ($state.stage == STAGE_CALL && $state.now.isAfter($state.countdown)))
 
     return { ...$state, countdownDuration, canHangUp, done }
   })
@@ -116,7 +121,7 @@ const createState = () => {
           // In case we're staff, these may have been sent back by server if unspecified
           ;({ assignmentId, hitId, workerId } = data)
           if (!hitId) {
-            console.warn("hitId was returned as null. This assignment doesn't appear to be actually hosted on Amazon.")
+            warn("hitId was returned as null. This assignment doesn't appear to be actually hosted on Amazon.")
           }
         } else {
           debugMode.set(false)
@@ -139,9 +144,7 @@ const createState = () => {
           ...rest
         })
 
-        if (isDebug()) {
-          console.log("initial state:", get())
-        }
+        log("initial state:", get())
       }
     },
     async refreshToken() {
@@ -155,9 +158,7 @@ const createState = () => {
       device.on("tokenWillExpire", () => this.refreshToken())
       device.on("error", (e) => {
         error("An unknown error occurred with your call. Try again.")
-        if (isDebug()) {
-          console.warn("device error: ", e)
-        }
+        warn("device error: ", e)
       })
     },
     hangup() {
@@ -167,8 +168,8 @@ const createState = () => {
         } else {
           call.disconnect()
         }
-      } else if (isDebug()) {
-        console.warn("Call NOT in progress, skipping hangup()")
+      } else {
+        warn("Call NOT in progress, that's okay. Skipping hangup()")
       }
     },
     async call(cheat = false) {
@@ -197,13 +198,11 @@ const createState = () => {
           const {
             content: { stage, countdown, wordsHeard }
           } = data
-          if (isDebug()) {
-            console.log(`Got message from twilio`, data)
-          }
+          log(`Got message from twilio`, { stage, countdown, wordsHeard })
           if (stage) {
             update({ stage, countdown: countdown && dayjs().add(countdown, "second"), wordsHeard })
           } else {
-            console.warn("Got unknown user message from twilio", data)
+            warn("Got unknown user message from twilio", data)
           }
         })
         call.on("error", (e) => {
@@ -211,13 +210,11 @@ const createState = () => {
             error("There was a problem with your audio. Are you sure your microphone is enabled?", e)
           } else {
             error("An unknown error occured with your call. Try again.")
-            if (isDebug()) {
-              console.warn("call error:", e)
-            }
+            warn("Unexpected call error:", e)
           }
         })
       } else {
-        console.warn("Call already in progress! Can't call()")
+        warn("Call already in progress! Can't call()")
       }
     },
     async updateName(name, gender) {
@@ -225,7 +222,7 @@ const createState = () => {
       if (success) {
         update({ name, gender })
       } else {
-        console.warn("Error updating name!")
+        warn("Error updating name!")
       }
     },
     async finalize() {
