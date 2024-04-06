@@ -31,7 +31,7 @@
 {#if $state.wordsHeard}
   <div transition:slide>
     <Notice>
-      We heard the following: <em>"{$state.wordsHeard}"</em> &mdash; which is incorrect. Try again.
+      We heard the following: <em>"{$state.wordsHeard}"</em> &mdash; which is incorrect. Please try again.
     </Notice>
   </div>
 {/if}

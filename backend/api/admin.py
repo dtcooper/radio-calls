@@ -179,7 +179,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
     @admin.display(description="is running?", boolean=True)
     def is_running(self, obj: HIT):
         if obj.submitted_at:
-            return obj.submitted_at + obj.duration + obj.assignment_duration >= timezone.now()
+            return obj.submitted_at + obj.duration >= timezone.now()
         return False
 
     def get_fieldsets(self, request, obj: HIT = None):

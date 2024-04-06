@@ -24,12 +24,12 @@
 
 <Notice>
   <strong>NOTICE:</strong>
-  Revealing your real name is against Amazon Mechanical Turk's Acceptable Use Policy! That's why we've assigned you a random
-  one below.
+  Revealing your real name is against Amazon Mechanical Turk's Acceptable Use Policy!
+  That's why we've assigned you a random one below.
 </Notice>
 
 <p class="italic text-primary">
-  We've assigned you a <strong>random name</strong> and <strong>gender</strong> below, but you're are
+  We've assigned you a <strong>random name</strong> and <strong>gender</strong>, but you're
   <strong>encouraged change it!</strong>
 </p>
 

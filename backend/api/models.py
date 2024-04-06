@@ -186,13 +186,13 @@ class HIT(BaseModel):
         help_text="Worker qualification. Limit workers to these countries. Leave blank to allow any and all countries.",
     )
     qualification_adult = models.BooleanField(
-        "adult qualification", default=False, help_text="Worker qualification. Enable to require workers over 18"
+        "adult qualification", default=False, help_text="Worker qualification. Enable to require workers ."
     )
     publish_api_exception = models.TextField(
         "error details",
         default="",
         blank=True,
-        help_text="The last contains of the last error (if any) that occurred while publishing this HIT to MTurk",
+        help_text="The last contains of the last error (if any) that occurred while publishing this HIT to MTurk.",
     )
 
     class Meta:
