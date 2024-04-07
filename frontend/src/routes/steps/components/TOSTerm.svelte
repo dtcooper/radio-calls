@@ -1,6 +1,9 @@
 <script>
+  import { state } from "../../hit"
+
   export let term = 0
   export let index = 0
+  export let numTerms = 0
 
   $: accepted = term > index
   $: enabled = term === index
@@ -8,6 +11,7 @@
   const accept = () => {
     if (!accepted) {
       term += 1
+      state.logProgress(`TOS accept ${term}/${numTerms}`)
     }
   }
 </script>

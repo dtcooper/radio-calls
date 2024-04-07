@@ -1,0 +1,8 @@
+{
+    "CALL_STEP_INITIAL": "initial",
+    "CALL_STEP_VERIFIED": "verified",
+    "CALL_STEP_HOLD": "hold",
+    "CALL_STEP_CALL": "call",
+    "CALL_STEP_VOICEMAIL": "voicemail",
+    "CALL_STEP_DONE": "done"
+}

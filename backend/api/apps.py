@@ -1,6 +1,7 @@
 import itertools
 
 from django.apps import AppConfig, apps
+from django.conf.locale.en import formats as en_formats
 from django.db.models import signals
 
 
@@ -11,6 +12,11 @@ class ApiConfig(AppConfig):
 
     def ready(self):
         signals.post_migrate.connect(self.create_groups, sender=self)
+        self.patch_date_formats()
+
+    def patch_date_formats(self):
+        en_formats.SHORT_DATETIME_FORMAT = "n/j/y g:i A"
+        en_formats.DATETIME_FORMAT = "M j Y, g:i A"
 
     def create_groups(self, using=None, *args, **kwargs):
         Group = apps.get_model("auth.Group")

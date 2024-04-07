@@ -11,6 +11,8 @@ if [ "$DEV_MODE" = '0' ]; then
     DEV_MODE=
 fi
 
+cd "$(dirname "$0")"
+
 wait-for-it --timeout 0 --service db:5432
 
 ./manage.py migrate
@@ -29,16 +31,8 @@ if [ "$#" = 0 ]; then
     if [ "$DEV_MODE" ]; then
         exec ./manage.py runserver
     else
-        NUM_GUNICORN_WORKERS="$(python -c 'import multiprocessing as m; print(m.cpu_count() * 2)')"
-
         ./manage.py collectstatic --noinput
-        exec gunicorn \
-                --forwarded-allow-ips '*' \
-                -b 0.0.0.0:8000 \
-                -w "$NUM_GUNICORN_WORKERS" \
-                --capture-output \
-                --access-logfile - \
-            calls.wsgi
+        exec gunicorn
     fi
 else
     echo "Executing: $*"

@@ -12,8 +12,10 @@ from faker import Faker
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.models import AbstractUser
+from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
+from django.db.models import F, Func, Value
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.text import slugify
@@ -22,6 +24,12 @@ from django_countries.fields import CountryField
 from django_jsonform.models.fields import JSONField
 
 from .constants import (
+    CALL_STEP_CALL,
+    CALL_STEP_DONE,
+    CALL_STEP_HOLD,
+    CALL_STEP_INITIAL,
+    CALL_STEP_VERIFIED,
+    CALL_STEP_VOICEMAIL,
     ENGLISH_SPEAKING_COUNTRIES,
     LOCATION_UNKNOWN,
     MTURK_ID_LENGTH,
@@ -34,11 +42,12 @@ from .constants import (
     QID_PERCENT_APPROVED,
     WORDS_TO_PRONOUNCE,
     WORKER_NAME_MAX_LENGTH,
+    ZULU_STRFTIME,
 )
 from .utils import ChoicesCharField, get_ip_addr, get_location_from_ip_addr, get_mturk_client
 
 
-logger = logging.getLogger("django")
+logger = logging.getLogger(f"calls.{__name__}")
 
 
 class User(AbstractUser):
@@ -381,18 +390,21 @@ def generate_words_to_pronounce():
 
 
 class Assignment(BaseModel):
-    class Stage(models.TextChoices):
+    PROGRESS_MAX_LENGTH = 256
+
+    class CallStep(models.TextChoices):
         # Update HIT.js
-        INITIAL = "initial", "Handshake completed"
-        VERIFIED = "verified", "Verified"
-        HOLD = "hold", "Hold loop"
-        CALL = "call", "Call made"
-        VOICEMAIL = "voicemail", "HIT complete (voicemail)"
-        DONE = "done", "HIT complete (call)"
+        INITIAL = CALL_STEP_INITIAL, "Handshake completed"
+        VERIFIED = CALL_STEP_VERIFIED, "Verified"
+        HOLD = CALL_STEP_HOLD, "Hold loop"
+        CALL = CALL_STEP_CALL, "Call made"
+        VOICEMAIL = CALL_STEP_VOICEMAIL, "HIT complete (voicemail)"
+        DONE = CALL_STEP_DONE, "HIT complete (call)"
 
     hit = models.ForeignKey(HIT, on_delete=models.CASCADE)
     worker = models.ForeignKey(Worker, on_delete=models.CASCADE)
-    stage = ChoicesCharField("stage", choices=Stage, default=Stage.INITIAL)
+    progress = ArrayField(models.CharField(max_length=PROGRESS_MAX_LENGTH), default=list)
+    call_step = ChoicesCharField("call step", choices=CallStep, default=CallStep.INITIAL)
     call_started_at = models.DateTimeField("call started at", default=None, null=True, blank=True)
     call_completed_at = models.DateTimeField("call ended time", default=None, null=True, blank=True)
     words_to_pronounce = JSONField(
@@ -414,15 +426,20 @@ class Assignment(BaseModel):
     def __str__(self):
         return f"{self.worker}: {self.hit}"
 
+    def append_progress(self, progress: str):
+        zulu_now = datetime.datetime.now(tz=datetime.timezone.utc).strftime(ZULU_STRFTIME)
+        encoded_progress = f"{zulu_now}/{progress}"[: self.PROGRESS_MAX_LENGTH]
+        self.progress = Func(F("progress"), Value(encoded_progress), function="array_append")
+
     def save(self, *args, **kwargs):
         # Reset call when state set to INITIAL
-        if self.stage == self.Stage.INITIAL:
+        if self.call_step == self.CallStep.INITIAL:
             self.call_started_at = None
-        # Start call when stage moved from INITIAL to anything else
+        # Start call when call_step moved from INITIAL to anything else
         elif self.call_started_at is None:
             self.call_started_at = timezone.now()
 
-        if self.stage == self.Stage.DONE and self.call_completed_at is None:
+        if self.call_step == self.CallStep.DONE and self.call_completed_at is None:
             self.call_completed_at = timezone.now()
 
         super().save(*args, **kwargs)
@@ -451,6 +468,8 @@ class Assignment(BaseModel):
             "worker": worker,
         }
         if reset_to_initial:
-            defaults.update({"stage": cls.Stage.INITIAL, "call_started_at": None, "call_completed_at": None})
+            defaults.update(
+                {"call_step": cls.CallStep.INITIAL, "call_started_at": None, "call_completed_at": None, "progress": []}
+            )
         obj, _ = cls.objects.update_or_create(amazon_id=amazon_id, defaults=defaults)
         return obj

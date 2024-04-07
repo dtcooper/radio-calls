@@ -39,31 +39,31 @@
   </div>
   <div class="text-center font-mono font-bold italic underline">Term</div>
 
-  <TOSTerm bind:term index={nextIndex()}>
+  <TOSTerm bind:term index={nextIndex()} {numTerms}>
     <strong>You <u>MUST</u> speak in English.</strong>
   </TOSTerm>
-  <TOSTerm bind:term index={nextIndex()}>
+  <TOSTerm bind:term index={nextIndex()} {numTerms}>
     You <u>MUST</u> have a <em>working</em> headset 🎧 (or speaker 🔉) with a <u>microphone</u>. 🎤️🎙️️
   </TOSTerm>
-  <TOSTerm bind:term index={nextIndex()}>
+  <TOSTerm bind:term index={nextIndex()} {numTerms}>
     <strong>
       Your call will be <u>recorded</u> and <u>broadcast</u> on a radio show 📻 (or podcast).
     </strong>
   </TOSTerm>
-  <TOSTerm bind:term index={nextIndex()}>
+  <TOSTerm bind:term index={nextIndex()} {numTerms}>
     <span class="text-error">
       You should <strong><u>NOT</u></strong> mention Amazon Mechanical Turk under <strong><em>any</em></strong> circumstances.
     </span>
     <br />Pretend you're a <strong class="text-success">real caller</strong> of the show.
   </TOSTerm>
-  <TOSTerm bind:term index={nextIndex()}>
+  <TOSTerm bind:term index={nextIndex()} {numTerms}>
     <p>You have good internet connectivity, since it will be needed to complete this assignment. 🌎💻🔌</p>
     <p>
       <strong class="text-error">Getting disconnected will prevent you from submitting the assignment!</strong>
       😩😩😩
     </p>
   </TOSTerm>
-  <TOSTerm bind:term index={nextIndex()}>
+  <TOSTerm bind:term index={nextIndex()} {numTerms}>
     <div>
       <p>You may have any conversation you'd like, but you should discuss the following,</p>
       <div class="ml-1 mt-1 border-l-2 border-base-300 pl-3">
@@ -71,12 +71,12 @@
       </div>
     </div>
   </TOSTerm>
-  <TOSTerm bind:term index={nextIndex()}>
+  <TOSTerm bind:term index={nextIndex()} {numTerms}>
     You may discuss adult subject matter &ndash; sex, drugs, etc &ndash; or <em>even insult the host(s)</em> 🤣, but:
     <br class="hidden lg:inline" />
     <strong class="underline">Please refrain from swearing or cursing!</strong> 🔞🤬🍆
   </TOSTerm>
-  <TOSTerm bind:term index={nextIndex()}>
+  <TOSTerm bind:term index={nextIndex()} {numTerms}>
     <strong>If no one answers, you will be placed on <span class="text-primary">a hold loop.</span> 🔁</strong>
     If that happens, <strong class="italic text-success">DON'T PANIC!</strong><br />
     You understand, that...
@@ -111,7 +111,7 @@
       </li>
     </ul>
   </TOSTerm>
-  <TOSTerm bind:term index={nextIndex()}>
+  <TOSTerm bind:term index={nextIndex()} {numTerms}>
     <p class="text-base text-error md:text-xl lg:gap-3 lg:text-2xl">
       <strong>IMPORTANT:</strong>
       <em

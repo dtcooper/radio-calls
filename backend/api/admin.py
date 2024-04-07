@@ -1,6 +1,8 @@
 import datetime
 from urllib.parse import urlencode
 
+from dateutil.parser import parse as dateutil_parse
+
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -9,13 +11,18 @@ from django.db import models
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
-from django.utils.html import format_html
+from django.utils.formats import date_format as django_date_format
+from django.utils.html import format_html, format_html_join
 
 from admin_extra_buttons.api import ExtraButtonsMixin, button, confirm_action
 from durationwidget.widgets import TimeDurationWidget
 
-from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES
+from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES, SIMULATED_PREFIX
 from .models import HIT, Assignment, User, Worker
+
+
+def short_datetime_str(dt):
+    return django_date_format(timezone.localtime(dt), "SHORT_DATETIME_FORMAT")
 
 
 class BaseModelAdmin(admin.ModelAdmin):
@@ -304,7 +311,11 @@ class WorkerAndAssignmentBaseAdmin(BaseModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
-        return request.user.is_superuser and settings.DEBUG
+        return (
+            # Change "simulated" objects only, unless you're the superuser in debug mode
+            request.user.has_perm(f"api.change_{self.model._meta.model_name}")
+            and (obj is None or obj.amazon_id.startswith(SIMULATED_PREFIX))
+        ) or (request.user.is_superuser and settings.DEBUG)
 
 
 class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
@@ -319,7 +330,8 @@ class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
         "amazon_id",
         "hit",
         "worker",
-        "stage",
+        "progress_display",
+        "call_step",
         "call_started_at",
         "call_completed_at",
         "words_to_pronounce",
@@ -330,17 +342,18 @@ class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
         "call_duration",
         "get_amazon_status",
     )
-    list_display = ("amazon_id", "stage", "worker", "hit", "call_duration", "left_voicemail")
+    list_display = ("amazon_id", "call_step", "worker", "hit", "call_duration", "left_voicemail")
     readonly_fields = (
         "amazon_id",
-        "created_at",
-        "voicemail_url",
         "call_duration",
-        "voicemail_duration",
-        "left_voicemail",
+        "created_at",
         "get_amazon_status",
+        "left_voicemail",
+        "progress_display",
+        "voicemail_duration",
+        "voicemail_url",
     )
-    list_filter = ("hit", "stage")
+    list_filter = ("hit", "call_step")
     search_fields = ("amazon_id", "worker__name", "hit__name")
 
     @admin.display(boolean=True, ordering="voicemail_duration")
@@ -349,8 +362,17 @@ class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
 
     def call_duration(self, obj: Assignment):
         if obj.call_completed_at is not None and obj.call_started_at is not None:
-            return obj.call_started_at - obj.call_completed_at
+            return obj.call_completed_at - obj.call_started_at
         return None
+
+    @admin.display(description="progress")
+    def progress_display(self, obj: Assignment):
+        try:
+            splits = map(lambda s: s.split("/", 1), obj.progress)
+            encoded = ((short_datetime_str(dateutil_parse(dt)), s) for dt, s in splits)
+            return format_html("<ol>{}</ol>", format_html_join("\n", "<li>{} &mdash; {}</li>", encoded)) or None
+        except Exception:
+            return f"Error parsing progress: {obj.progress}"
 
 
 admin.site.unregister(Group)

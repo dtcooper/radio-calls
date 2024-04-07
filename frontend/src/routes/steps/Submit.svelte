@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from "svelte"
   import { state } from "../hit"
   import NextButton from "./components/NextButton.svelte"
   import Notice from "./components/Notice.svelte"
@@ -26,8 +27,11 @@
             .join("\n")
       )
       submitting = false
+      state.logProgress("fake submit assignment")
     }
   }
+
+  onMount(() => state.logProgress("on submit page"))
 
   $$restProps // silence: <Submit> was created with unknown prop 'next'
 </script>

@@ -128,10 +128,10 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
-        # "calls": {  # TODO: local logs?
-        #     "handlers": ["console"],
-        #     "level": "INFO",
-        # },
+        "calls": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
     },
 }
 

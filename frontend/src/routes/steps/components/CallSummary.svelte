@@ -1,5 +1,12 @@
 <script>
-  import { state, STAGE_INITIAL, STAGE_VERIFIED, STAGE_CALL, STAGE_VOICEMAIL, STAGE_HOLD } from "../../hit"
+  import { state } from "../../hit"
+  import {
+    CALL_STEP_INITIAL,
+    CALL_STEP_VERIFIED,
+    CALL_STEP_CALL,
+    CALL_STEP_VOICEMAIL,
+    CALL_STEP_HOLD
+  } from "../../../../../backend/shared-constants.json"
 
   export let overviewOnly = false
 
@@ -13,29 +20,29 @@
     callStatus = ["Assignment completed!", "text-bold text-success"]
     countdown = [false]
   } else if ($state.callInProgress) {
-    switch ($state.stage) {
-      case STAGE_INITIAL:
+    switch ($state.callStep) {
+      case CALL_STEP_INITIAL:
         callStatus = ["Awaiting verification", "text-info animate-pulse"]
         countdown = [false]
         break
-      case STAGE_VERIFIED:
+      case CALL_STEP_VERIFIED:
         callStatus = ["Verified! Connecting.", "text-success animate-pulse"]
         countdown = [false]
         break
-      case STAGE_HOLD:
+      case CALL_STEP_HOLD:
         callStatus = ["On hold", "text-warning animate-pulse"]
         countdown = ["until you can leave a voicemail", "text-info", countdownDuration]
         break
-      case STAGE_CALL:
+      case CALL_STEP_CALL:
         callStatus = ["On a call", "text-success"]
         countdown = ["until you can hang up", "text-info", countdownDuration]
         break
-      case STAGE_VOICEMAIL:
+      case CALL_STEP_VOICEMAIL:
         callStatus = ["Leaving voicemail", "text-error animate-pulse"]
         countdown = [false]
         break
       default:
-        callStatus = [`UNKNOWN STATE: ${$state.stage}`, "text-error"]
+        callStatus = [`UNKNOWN STATE: ${$state.callStep}`, "text-error"]
         countdown = [false]
     }
   } else {

@@ -7,6 +7,8 @@ import geoip2.database
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
+from django.utils.formats import date_format as django_date_format
 
 from ninja.parser import Parser
 from ninja.renderers import BaseRenderer
@@ -16,7 +18,7 @@ from .constants import LOCATION_UNKNOWN
 
 underscore_converter_re = re.compile(r"(?<!^)(?=[A-Z])")
 depunctuate_words_re = re.compile(r"[^a-z]+")
-logger = logging.getLogger("django")
+logger = logging.getLogger(f"calls.{__name__}")
 
 
 class TwiMLRenderer(BaseRenderer):
@@ -42,9 +44,13 @@ class TwilioParser(Parser):
         return {underscore_converter_re.sub("_", k).lower(): v for k, v in result.items()}
 
 
-def send_twilio_message_at_end_of_request(request, call_sid, stage, countdown=None, words_heard=None):
+def send_twilio_message_at_end_of_request(request, call_sid, call_step, countdown=None, words_heard=None):
     # Happens after request is processed via middle so any transactions aren't blocked
-    request._twilio_user_defined_message = (call_sid, stage, countdown, words_heard)
+    request._twilio_user_defined_message = (call_sid, call_step, countdown, words_heard)
+
+
+def short_datetime_str(dt):
+    return django_date_format(timezone.localtime(dt), "SHORT_DATETIME_FORMAT")
 
 
 def is_subsequence(x, y):

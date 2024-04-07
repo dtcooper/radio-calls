@@ -24,8 +24,8 @@
 
 <Notice>
   <strong>NOTICE:</strong>
-  Revealing your real name is against Amazon Mechanical Turk's Acceptable Use Policy!
-  That's why we've assigned you a random one below.
+  Revealing your real name is against Amazon Mechanical Turk's Acceptable Use Policy! That's why we've assigned you a random
+  one below.
 </Notice>
 
 <p class="italic text-primary">

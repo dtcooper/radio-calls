@@ -18,15 +18,15 @@ build:
 
 .PHONY: shell
 shell:
-	$(COMPOSE) run --service-ports --use-aliases --rm backend /bin/bash
+	$(COMPOSE) run --service-ports --use-aliases --rm backend /bin/bash || true
 
 .PHONY: shell-nodeps
 shell-nodeps:
-	$(COMPOSE) run --no-deps --rm --entrypoint /bin/bash backend
+	$(COMPOSE) run --no-deps --rm --entrypoint /bin/bash backend || true
 
 .PHONY: nginx-nodeps
 nginx-nodeps:
-	$(COMPOSE) run --no-deps --rm --service-ports nginx
+	$(COMPOSE) run --no-deps --rm --service-ports nginx || true
 
 .PHONY: lint-format
 lint-format:

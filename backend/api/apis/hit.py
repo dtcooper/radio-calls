@@ -13,14 +13,14 @@ from django.http import Http404
 from ninja import NinjaAPI, Schema as BaseSchema
 from ninja.errors import AuthenticationError, HttpError, ValidationError
 
-from ..constants import ESTIMATED_BEFORE_VERIFIED_DURATION
+from ..constants import ESTIMATED_BEFORE_VERIFIED_DURATION, SIMULATED_PREFIX
 from ..models import HIT, WORKER_NAME_MAX_LENGTH, Assignment, Worker
 
 
 api = NinjaAPI(urls_namespace="hit", docs_url=None)
 
 
-logger = logging.getLogger("django")
+logger = logging.getLogger(f"calls.{__name__}")
 
 
 def register_exec_handler(exception, code, message):
@@ -55,51 +55,8 @@ class BaseOut(Schema):
     success: bool = True
 
 
-class HandshakeIn(Schema):
-    assignment_id: str | None = None
-    db_id: int | None = None
-    worker_id: str | None = None
-    hit_id: str | None = None
-    is_preview: bool = False
-
-
-class HandshakePreviewOut(BaseOut):
-    topic: str
-    show_host: str
-    is_staff: bool
-    is_prod: bool = False
-    estimated_before_verified_duration: datetime.timedelta = ESTIMATED_BEFORE_VERIFIED_DURATION
-    min_call_duration: datetime.timedelta
-    leave_voicemail_after_duration: datetime.timedelta
-
-
-class HandshakeOut(HandshakePreviewOut):
-    assignment_id: str
-    gender: str
-    hit_id: str | None
-    name_max_length: int = WORKER_NAME_MAX_LENGTH
-    name: str
-    token: str
-    worker_id: str
-    location: str
-
-
 class BaseIn(Schema):
     assignment_id: str
-
-
-class NameIn(BaseIn):
-    name: str
-    gender: str
-
-
-class TokenOut(BaseOut):
-    token: str
-
-
-class FinalizeOut(BaseOut):
-    accepted: bool
-    approval_code: uuid.UUID | None = None
 
 
 def get_token(worker):
@@ -145,10 +102,39 @@ def get_assignment(amazon_id, for_update=False) -> Assignment:
     return qs.get()
 
 
+class HandshakeIn(Schema):
+    assignment_id: str | None = None
+    db_id: int | None = None
+    worker_id: str | None = None
+    hit_id: str | None = None
+    is_preview: bool = False
+
+
+class HandshakePreviewOut(BaseOut):
+    topic: str
+    show_host: str
+    is_staff: bool
+    is_prod: bool = False
+    estimated_before_verified_duration: datetime.timedelta = ESTIMATED_BEFORE_VERIFIED_DURATION
+    min_call_duration: datetime.timedelta
+    leave_voicemail_after_duration: datetime.timedelta
+
+
 @api.post("handshake/preview", response=HandshakePreviewOut, by_alias=True)
 def handshake_preview(request, handshake: HandshakeIn):
     _, handshake_out = get_hit_and_common_handshake_out(request, handshake)
     return handshake_out
+
+
+class HandshakeOut(HandshakePreviewOut):
+    assignment_id: str
+    gender: str
+    hit_id: str | None
+    name_max_length: int = WORKER_NAME_MAX_LENGTH
+    name: str
+    token: str
+    worker_id: str
+    location: str
 
 
 @api.post("handshake", response=HandshakeOut, by_alias=True)
@@ -161,7 +147,7 @@ def handshake(request, handshake: HandshakeIn):
     if handshake.worker_id is not None:
         worker_id = handshake.worker_id
     elif can_preview:
-        worker_id = f"simulated/user:{request.user.id}"
+        worker_id = f"{SIMULATED_PREFIX}user:{request.user.id}"
     if worker_id is None:
         raise HttpError(400, "Worker ID invalid")
 
@@ -171,7 +157,7 @@ def handshake(request, handshake: HandshakeIn):
     if handshake.assignment_id is not None:
         assignment_id = handshake.assignment_id
     elif can_preview:
-        assignment_id = f"simulated/user:{request.user.id}/worker:{worker.id}/hit:{hit.id}"
+        assignment_id = f"{SIMULATED_PREFIX}user:{request.user.id}/worker:{worker.id}/hit:{hit.id}"
         simulated_worker = True
     if assignment_id is None:
         raise HttpError(400, "Assignment ID invalid")
@@ -191,10 +177,32 @@ def handshake(request, handshake: HandshakeIn):
     }
 
 
+class ProgressIn(BaseIn):
+    progress: str
+
+
+@api.post("progress", response=BaseOut, by_alias=True)
+def progress(request, progress: ProgressIn):
+    with transaction.atomic():
+        assignment = get_assignment(amazon_id=progress.assignment_id, for_update=True)
+        assignment.append_progress(progress.progress)
+        assignment.save()
+    return {"success": True}
+
+
+class TokenOut(BaseOut):
+    token: str
+
+
 @api.post("token", response=TokenOut, by_alias=True)
 def token(request, token: BaseIn):
     assignment = get_assignment(amazon_id=token.assignment_id)
     return {"token": get_token(assignment.worker)}
+
+
+class NameIn(BaseIn):
+    name: str
+    gender: str
 
 
 @api.post("name", response=BaseOut, by_alias=True)
@@ -215,6 +223,11 @@ def name(request, name: NameIn):
     return {"success": True}
 
 
+class FinalizeOut(BaseOut):
+    accepted: bool
+    approval_code: uuid.UUID | None = None
+
+
 @api.post("finalize", response=FinalizeOut, by_alias=True)
 def finalize(request, finalize: BaseIn):
     # Status updating should be atomic
@@ -223,11 +236,11 @@ def finalize(request, finalize: BaseIn):
 
         # Same as in frontend, if we got here it may be beacuse a call got disconnected abruptly
         # so a request to finalize should be accepted anyway
-        if assignment.stage in (Assignment.Stage.VOICEMAIL, Assignment.Stage.CALL):
-            assignment.stage = Assignment.Stage.DONE
+        if assignment.call_step in (Assignment.CallStep.VOICEMAIL, Assignment.CallStep.CALL):
+            assignment.call_step = Assignment.CallStep.DONE
             assignment.save()
 
-    if assignment.stage == Assignment.Stage.DONE:
+    if assignment.call_step == Assignment.CallStep.DONE:
         return {"accepted": True, "approval_code": assignment.hit.approval_code}
     else:
         return {"accepted": False}

@@ -1,5 +1,5 @@
 <script>
-  import { tick } from "svelte"
+  import { onMount, tick } from "svelte"
   import { slide } from "svelte/transition"
 
   import { persisted } from "svelte-persisted-store"
@@ -16,27 +16,30 @@
   $: document.documentElement.setAttribute("data-theme", $darkTheme ? "dark" : "light")
   let currentStep = 0
 
-  const steps = [{ title: "Overview", component: Overview, emoji: "🔎", staffCanSkipTo: true }]
+  const steps = [{ title: "Overview", component: Overview, emoji: "🔎", codeName: "overview", staffCanSkipTo: true }]
 
   if (!isPreview) {
     if ($debugMode) {
       currentStep = 3 // Call
     }
     steps.push(
-      { title: "Terms of Service", component: TOS, emoji: "📜", staffCanSkipTo: true },
-      { title: "Choose a Name", component: ChooseName, emoji: "👫", staffCanSkipTo: true },
-      { title: "Call", component: Call, emoji: "📞", staffCanSkipTo: true },
-      { title: "Submit", component: Submit, emoji: "💫", staffCanSkipTo: false }
+      { title: "Terms of Service", component: TOS, emoji: "📜", codeName: "tos", staffCanSkipTo: true },
+      { title: "Choose a Name", component: ChooseName, emoji: "👫", codeName: "name", staffCanSkipTo: true },
+      { title: "Call", component: Call, emoji: "📞", codeName: "call", staffCanSkipTo: true },
+      { title: "Submit", component: Submit, emoji: "💫", codeName: "done", staffCanSkipTo: false }
     )
   }
 
+  $: step = steps[currentStep]
+
   const next = async () => {
+    state.logProgress(`step: ${step.codeName} => ${steps[currentStep + 1].codeName}`)
     currentStep = currentStep + 1
-    await tick()
+    await tick() // Allows UI to update before scrolling
     window.scroll({ top: 0, behavior: "smooth" })
   }
 
-  $: step = steps[currentStep]
+  onMount(() => state.logProgress(`step: ${steps[0].codeName}`))
 </script>
 
 <!-- Dark mode and debug toggles -->

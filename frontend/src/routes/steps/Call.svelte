@@ -3,7 +3,8 @@
   import TopicSummary from "./components/CallSummary.svelte"
   import Notice from "./components/Notice.svelte"
   import { slide } from "svelte/transition"
-  import { state, debugMode, scroll, STAGE_VOICEMAIL } from "../hit"
+  import { state, debugMode, scroll } from "../hit"
+  import { CALL_STEP_VOICEMAIL } from "../../../../backend/shared-constants.json"
 
   export let next
 
@@ -11,11 +12,15 @@
 
   let scrolledOnDone = false // $state is a little too reactive, so protect scrolling more than once
   $: if ($state.done && !scrolledOnDone) {
+    if ($debugMode) {
+      console.log("Call state moved to done!")
+    }
     scroll("next-btn")
     scrolledOnDone = true
   }
 
   const submit = () => {
+    state.logProgress("call done")
     state.hangup()
     next()
   }
@@ -72,7 +77,7 @@
     disabled={!$state.canHangUp}
     on:click={() => state.hangup()}
   >
-    {#if $state.stage === STAGE_VOICEMAIL}
+    {#if $state.callStep === CALL_STEP_VOICEMAIL}
       📬 Finish voicemail 📬
     {:else}
       🚫 Hang up 🚫

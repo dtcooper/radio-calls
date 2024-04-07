@@ -1,11 +1,17 @@
-import { post as _post } from "$lib/utils"
 import { Device } from "@twilio/voice-sdk"
 import { persisted } from "svelte-persisted-store"
 import { get as _get, derived, readonly, writable } from "svelte/store"
 
+import { post as _post } from "$lib/utils"
 import dayjs from "dayjs"
 import { default as dayjsPluginDuration } from "dayjs/plugin/duration"
 import { default as dayjsPluginRelativeTime } from "dayjs/plugin/relativeTime"
+import {
+  CALL_STEP_CALL,
+  CALL_STEP_DONE,
+  CALL_STEP_INITIAL,
+  CALL_STEP_VOICEMAIL
+} from "../../../backend/shared-constants.json"
 
 dayjs.extend(dayjsPluginDuration)
 dayjs.extend(dayjsPluginRelativeTime)
@@ -16,14 +22,6 @@ let hitId = params.get("hitId")
 let workerId = params.get("workerId")
 const turkSubmitTo = params.get("turkSubmitTo") || null
 let dbId = params.get("dbId")
-
-// Taken from models.py -- make sure they match
-export const STAGE_INITIAL = "initial"
-export const STAGE_VERIFIED = "verified"
-export const STAGE_HOLD = "hold"
-export const STAGE_CALL = "call"
-export const STAGE_VOICEMAIL = "voicemail"
-export const STAGE_DONE = "done"
 
 export const isPreview = assignmentId === "ASSIGNMENT_ID_NOT_AVAILABLE"
 export const debugMode = persisted("debug-mode", false)
@@ -66,7 +64,7 @@ const createState = () => {
     now: dayjs(),
     ready: false,
     showHost: "",
-    stage: STAGE_INITIAL,
+    callStep: CALL_STEP_INITIAL,
     submitUrl: "",
     topic: "",
     wordsHeard: "",
@@ -84,10 +82,11 @@ const createState = () => {
       countdownDuration = dayjs.duration(Math.max($state.countdown.diff($state.now), 0))
     }
 
-    const done = $state.stage === STAGE_DONE || ($state.stage === STAGE_VOICEMAIL && !$state.callInProgress)
+    const done =
+      $state.callStep === CALL_STEP_DONE || ($state.callStep === CALL_STEP_VOICEMAIL && !$state.callInProgress)
     const canHangUp =
       $state.callInProgress &&
-      (isDebug() || done || ($state.stage == STAGE_CALL && $state.now.isAfter($state.countdown)))
+      (isDebug() || done || ($state.callStep == CALL_STEP_CALL && $state.now.isAfter($state.countdown)))
 
     return { ...$state, countdownDuration, canHangUp, done }
   })
@@ -112,6 +111,7 @@ const createState = () => {
         const { success, ...data } = await post(url, { hitId, workerId, dbId, isPreview })
         if (!success) {
           fatalError(`Couldn't initialize! ${data.error}`)
+          this.logProgress("Handshake failed!")
           return
         }
 
@@ -128,6 +128,7 @@ const createState = () => {
         }
 
         if (!isPreview) {
+          this.logProgress("handshake succeeded")
           this.createDevice(token)
         }
 
@@ -151,21 +152,27 @@ const createState = () => {
       const { success, token } = await post("token")
       if (success) {
         device.updateToken(token)
+        this.logProgress("update token")
+      } else {
+        this.logProgress("update token FAILURE!")
       }
     },
     createDevice(token) {
       device = new Device(token, { closeProtection: true })
       device.on("tokenWillExpire", () => this.refreshToken())
       device.on("error", (e) => {
+        this.logProgress("create device error")
         error("An unknown error occurred with your call. Try again.")
         warn("device error: ", e)
       })
     },
     hangup() {
       if (call) {
-        if (get().stage === STAGE_VOICEMAIL) {
+        if (get().callStep === CALL_STEP_VOICEMAIL) {
+          this.logProgress("end voicemail pressed")
           call.sendDigits("*")
         } else {
+          this.logProgress("hang up")
           call.disconnect()
         }
       } else {
@@ -174,10 +181,11 @@ const createState = () => {
     },
     async call(cheat = false) {
       if (!call) {
+        this.logProgress(`making call${cheat ? " (cheating)" : ""}`)
         call = await device.connect({ params: { assignmentId, cheat: cheat } })
 
         // Fake initial state until we hear otherwise from server
-        update({ callInProgress: true, state: STAGE_INITIAL })
+        update({ callInProgress: true, state: CALL_STEP_INITIAL })
 
         call.on("volume", (inputVolume, outputVolume) => {
           levels.set({
@@ -186,40 +194,63 @@ const createState = () => {
           })
         })
         call.on("disconnect", () => {
+          this.logProgress("call disconnect")
           update({ callInProgress: false })
           levels.set({ mic: 0, speaker: 0 })
-          // If we're disconnected during the voicemail or call stage, consider the assignment done (backend will too)
-          if ([STAGE_CALL, STAGE_VOICEMAIL].includes(get().stage)) {
-            update({ stage: STAGE_DONE })
+          // If we're disconnected during the voicemail or done step, consider the assignment done (backend will too)
+          if ([CALL_STEP_CALL, CALL_STEP_VOICEMAIL].includes(get().callStep)) {
+            update({ callStep: CALL_STEP_DONE })
           }
           call = null
         })
         call.on("messageReceived", (data) => {
           const {
-            content: { stage, countdown, wordsHeard }
+            content: { callStep, countdown, wordsHeard }
           } = data
-          log(`Got message from twilio`, { stage, countdown, wordsHeard })
-          if (stage) {
-            update({ stage, countdown: countdown && dayjs().add(countdown, "second"), wordsHeard })
+          log(`Got message from twilio`, { callStep, countdown, wordsHeard })
+          const normalizedCountdown = typeof countdown === "number" ? dayjs().add(countdown, "second") : null
+          this.logProgress(
+            `call step: ${callStep}${normalizedCountdown !== null ? ` [countdown=${normalizedCountdown}]` : ""}${wordsHeard ? ` [wordsHeard=${wordsHeard}]` : ""}`
+          )
+          if (callStep) {
+            update({ callStep, countdown: normalizedCountdown, wordsHeard })
           } else {
             warn("Got unknown user message from twilio", data)
           }
         })
         call.on("error", (e) => {
           if ([31401, 31208].includes(e.code)) {
+            this.logProgress("audio error")
             error("There was a problem with your audio. Are you sure your microphone is enabled?", e)
           } else {
+            this.logProgress("unknown error")
             error("An unknown error occured with your call. Try again.")
             warn("Unexpected call error:", e)
           }
         })
       } else {
+        this.logProgress("attempting to make call, but call in progress")
         warn("Call already in progress! Can't call()")
+      }
+    },
+    logProgress(progress) {
+      if (!isPreview) {
+        ;(async () => {
+          if (assignmentId) {
+            const { success } = await post("progress", { progress })
+            if (!success) {
+              warn(`Failed to log progress: ${progress}`)
+            }
+          } else {
+            warn(`No assignmentId, can't log progress!`)
+          }
+        })()
       }
     },
     async updateName(name, gender) {
       const { success } = await post("name", { name, gender })
       if (success) {
+        this.logProgress(`name change: ${name}/${gender}`)
         update({ name, gender })
       } else {
         warn("Error updating name!")
@@ -228,12 +259,16 @@ const createState = () => {
     async finalize() {
       const { success, accepted, approvalCode } = await post("finalize")
       if (success && accepted) {
+        this.logProgress("finalize success")
         update({ approvalCode })
         return true
+      } else {
+        this.logProgress("finalize error")
+        return false
       }
-      return false
     },
     setFailure(failure) {
+      this.logProgress(`failure: ${failure}`)
       update({ failure })
     }
   }
