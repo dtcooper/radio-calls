@@ -174,7 +174,7 @@ const createState = () => {
       device = new Device(token, { closeProtection: true })
       device.on("tokenWillExpire", () => this.refreshToken())
       device.on("error", (e) => {
-        this.logProgress("create device error")
+        this.logProgress("device error")
         error("An unknown error occurred with your call. Try again.")
         warn("device error: ", e)
       })
@@ -234,11 +234,11 @@ const createState = () => {
         })
         call.on("error", (e) => {
           if ([31401, 31208].includes(e.code)) {
-            this.logProgress("audio error")
+            this.logProgress("audio error - mic may not be allowed")
             error("There was a problem with your audio. Are you sure your microphone is enabled?", e)
           } else {
-            this.logProgress("unknown error")
-            error("An unknown error occured with your call. Try again.")
+            this.logProgress("unknown call error")
+            error("An unknown error occurred with your call. Try again.")
             warn("Unexpected call error:", e)
           }
         })

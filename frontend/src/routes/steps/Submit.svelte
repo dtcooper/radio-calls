@@ -51,7 +51,12 @@
   result in a <strong class="underline">REJECTED</strong> assignment!
 </Notice>
 
-<details class="collapse collapse-arrow bg-base-200" bind:open={feedbackExpanded}>
+<details
+  class="collapse collapse-arrow bg-base-200 {feedbackExpanded || feedback
+    ? ''
+    : 'animate-highlight-shadow shadow-base-300'}"
+  bind:open={feedbackExpanded}
+>
   <summary class="collapse-title font-medium hover:bg-base-300">
     <span>Click here to leave additional feedback</span>
     <span class="text-xs font-normal italic sm:text-sm">
