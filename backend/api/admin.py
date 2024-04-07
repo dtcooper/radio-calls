@@ -8,8 +8,10 @@ from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
 from django.db import models
+from django.db.models import F, Func, Value
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
 
@@ -19,6 +21,12 @@ from durationwidget.widgets import TimeDurationWidget
 from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES, SIMULATED_PREFIX
 from .models import HIT, Assignment, User, Worker
 from .utils import short_datetime_str
+
+
+class HITListDisplayMixin:
+    @admin.display(description="HIT")
+    def hit_display(self, obj):
+        return format_html('<a href="{}">{}</a>', reverse("admin:api_hit_change", args=(obj.hit.id,)), obj.hit.name)
 
 
 class BaseModelAdmin(admin.ModelAdmin):
@@ -314,14 +322,7 @@ class WorkerAndAssignmentBaseAdmin(BaseModelAdmin):
         ) or (request.user.is_superuser and settings.DEBUG)
 
 
-class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
-    fields = ("amazon_id", "name", "gender", "location", "ip_address", "created_at")
-    readonly_fields = ("amazon_id", "created_at")
-    list_display = ("amazon_id", "name", "gender", "location")
-    search_fields = ("amazon_id", "name", "location")
-
-
-class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
+class AssignmentAdmin(ExtraButtonsMixin, HITListDisplayMixin, WorkerAndAssignmentBaseAdmin):
     fields = (
         "amazon_id",
         "hit",
@@ -338,19 +339,35 @@ class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
         "call_duration",
         "get_amazon_status",
     )
-    list_display = ("amazon_id", "call_step", "worker", "hit", "call_duration", "left_voicemail")
+    list_display = (
+        "amazon_id",
+        "created_at",
+        "call_step",
+        "worker",
+        "hit",
+        "call_duration",
+        "last_progress",
+        "left_voicemail",
+    )
     readonly_fields = (
         "amazon_id",
         "call_duration",
         "created_at",
         "get_amazon_status",
+        "hit_display",
         "left_voicemail",
         "progress_display",
         "voicemail_duration",
         "voicemail_url",
+        "last_progress",
+        "worker_display",
     )
     list_filter = ("hit", "call_step")
     search_fields = ("amazon_id", "worker__name", "hit__name")
+
+    @admin.display(description="Worker")
+    def worker_display(self, obj):
+        return format_html('<a href="{}">{}</a>', reverse("admin:api_worker_change", args=(obj.worker.id,)), obj.worker)
 
     @admin.display(boolean=True, ordering="voicemail_duration")
     def left_voicemail(self, obj: Assignment):
@@ -361,6 +378,12 @@ class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
             return obj.call_completed_at - obj.call_started_at
         return None
 
+    @admin.display(ordering=Func(F("progress"), Value(1), function="array_length"))
+    def last_progress(self, obj: Assignment):
+        if obj.progress:
+            return f"{obj.progress[-1].split('/', 1)[1]} ({len(obj.progress)} total)"
+        return "(0 total)"
+
     @admin.display(description="progress")
     def progress_display(self, obj: Assignment):
         try:
@@ -369,6 +392,27 @@ class AssignmentAdmin(ExtraButtonsMixin, WorkerAndAssignmentBaseAdmin):
             return format_html("<ol>{}</ol>", format_html_join("\n", "<li>{} &mdash; {}</li>", encoded)) or None
         except Exception:
             return f"Error parsing progress: {obj.progress}"
+
+
+class AssignmentInline(HITListDisplayMixin, admin.TabularInline):
+    model = Assignment
+    fields = ("amazon_id", "hit_display", "created_at", "call_step")
+    readonly_fields = ("created_at", "hit_display")
+    show_change_link = True
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
+    fields = ("amazon_id", "name", "gender", "location", "ip_address", "created_at")
+    readonly_fields = ("amazon_id", "created_at")
+    list_display = ("amazon_id", "name", "gender", "location")
+    search_fields = ("amazon_id", "name", "location")
+    inlines = (AssignmentInline,)
 
 
 admin.site.unregister(Group)

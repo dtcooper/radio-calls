@@ -376,12 +376,10 @@ class Worker(BaseModel):
         fake_gender = "male" if faker.boolean() else "female"
         fake_name = getattr(faker, f"first_name_{fake_gender}")()
         ip_addr = get_ip_addr(request)
-        location = get_location_from_ip_addr(ip_addr)
-        logger.info(f"DEBUG: IP address for client: {ip_addr} / {location}")
         obj, _ = Worker.objects.update_or_create(
             amazon_id=amazon_id,
             create_defaults={"gender": fake_gender, "name": fake_name},
-            defaults={"location": location, "ip_address": ip_addr},
+            defaults={"location": get_location_from_ip_addr(ip_addr), "ip_address": ip_addr},
         )
 
         return obj
@@ -426,7 +424,7 @@ class Assignment(BaseModel):
         get_latest_by = "created_at"
 
     def __str__(self):
-        return f"{self.worker}: {self.hit}"
+        return f"{self.worker} [HIT: {self.hit}]"
 
     def append_progress(self, progress: str, backend=True):
         if backend:
