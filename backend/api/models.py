@@ -426,10 +426,14 @@ class Assignment(BaseModel):
     def __str__(self):
         return f"{self.worker}: {self.hit}"
 
-    def append_progress(self, progress: str):
+    def append_progress(self, progress: str, backend=True):
+        if backend:
+            progress = f"[backend] {progress}"
         zulu_now = datetime.datetime.now(tz=datetime.timezone.utc).strftime(ZULU_STRFTIME)
         encoded_progress = f"{zulu_now}/{progress}"[: self.PROGRESS_MAX_LENGTH]
         self.progress = Func(F("progress"), Value(encoded_progress), function="array_append")
+        self.save(update_fields=("progress",))
+        self.refresh_from_db(fields=("progress",))
 
     def save(self, *args, **kwargs):
         # Reset call when state set to INITIAL

@@ -11,7 +11,6 @@ from django.db import models
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
-from django.utils.formats import date_format as django_date_format
 from django.utils.html import format_html, format_html_join
 
 from admin_extra_buttons.api import ExtraButtonsMixin, button, confirm_action
@@ -19,10 +18,7 @@ from durationwidget.widgets import TimeDurationWidget
 
 from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES, SIMULATED_PREFIX
 from .models import HIT, Assignment, User, Worker
-
-
-def short_datetime_str(dt):
-    return django_date_format(timezone.localtime(dt), "SHORT_DATETIME_FORMAT")
+from .utils import short_datetime_str
 
 
 class BaseModelAdmin(admin.ModelAdmin):

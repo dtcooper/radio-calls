@@ -2,9 +2,7 @@
   import { onMount, tick } from "svelte"
   import { slide } from "svelte/transition"
 
-  import { persisted } from "svelte-persisted-store"
-
-  import { state, levels, debugMode, isPreview } from "./hit"
+  import { state, levels, debugMode, isPreview, darkTheme } from "./hit"
   import Call from "./steps/Call.svelte"
   import ChooseName from "./steps/ChooseName.svelte"
   import Overview from "./steps/Overview.svelte"
@@ -12,7 +10,6 @@
   import TOS from "./steps/TOS.svelte"
   import AudioMeter from "./steps/components/AudioMeter.svelte"
 
-  const darkTheme = persisted("dark-theme", false)
   $: document.documentElement.setAttribute("data-theme", $darkTheme ? "dark" : "light")
   let currentStep = 0
 
@@ -33,7 +30,7 @@
   $: step = steps[currentStep]
 
   const next = async () => {
-    state.logProgress(`step: ${step.codeName} => ${steps[currentStep + 1].codeName}`)
+    state.logProgress(`step: ${step.codeName} > ${steps[currentStep + 1].codeName}`)
     currentStep = currentStep + 1
     await tick() // Allows UI to update before scrolling
     window.scroll({ top: 0, behavior: "smooth" })
@@ -91,6 +88,7 @@
                 on:click={() => {
                   if (canSkip) {
                     currentStep = num
+                    state.logProgress(`skipped to step: ${steps[num].codeName}`)
                   }
                 }}>{title}</svelte:element
               >
@@ -118,12 +116,14 @@
       <svelte:component this={step.component} {next} />
     </main>
 
-    {#if !isPreview}
-      <footer class="bg-base-200 py-0.5 text-center text-xs italic sm:text-sm md:text-base">
-        Question? Comments? Concerns? Email
-        <a href="mailto:david@jew.pizza" target="_blank" class="link-hover link link-accent">david@jew.pizza</a>.
-      </footer>
-    {/if}
+    <!-- Footer disabled for now, for privacy :)
+      {#if !isPreview}
+        <footer class="bg-base-200 py-0.5 text-center text-xs italic sm:text-sm md:text-base">
+          Question? Comments? Concerns? Email
+          <a href="mailto:david@jew.pizza" target="_blank" class="link-hover link link-accent">david@jew.pizza</a>.
+        </footer>
+      {/if}
+    -->
   </div>
 
   {#if $debugMode}

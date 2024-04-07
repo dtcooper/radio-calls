@@ -15,8 +15,8 @@ class ApiConfig(AppConfig):
         self.patch_date_formats()
 
     def patch_date_formats(self):
-        en_formats.SHORT_DATETIME_FORMAT = "n/j/y g:i A"
-        en_formats.DATETIME_FORMAT = "M j Y, g:i A"
+        en_formats.SHORT_DATETIME_FORMAT = "n/j/y g:i:s A"
+        en_formats.DATETIME_FORMAT = "M j Y, g:i:s A"
 
     def create_groups(self, using=None, *args, **kwargs):
         Group = apps.get_model("auth.Group")

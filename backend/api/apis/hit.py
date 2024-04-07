@@ -182,11 +182,10 @@ class ProgressIn(BaseIn):
 
 
 @api.post("progress", response=BaseOut, by_alias=True)
+@transaction.atomic
 def progress(request, progress: ProgressIn):
-    with transaction.atomic():
-        assignment = get_assignment(amazon_id=progress.assignment_id, for_update=True)
-        assignment.append_progress(progress.progress)
-        assignment.save()
+    assignment = get_assignment(amazon_id=progress.assignment_id, for_update=True)
+    assignment.append_progress(progress.progress, backend=False)
     return {"success": True}
 
 
@@ -229,18 +228,21 @@ class FinalizeOut(BaseOut):
 
 
 @api.post("finalize", response=FinalizeOut, by_alias=True)
+@transaction.atomic
 def finalize(request, finalize: BaseIn):
     # Status updating should be atomic
-    with transaction.atomic():
-        assignment = get_assignment(amazon_id=finalize.assignment_id, for_update=True)
+    assignment = get_assignment(amazon_id=finalize.assignment_id, for_update=True)
 
-        # Same as in frontend, if we got here it may be beacuse a call got disconnected abruptly
-        # so a request to finalize should be accepted anyway
-        if assignment.call_step in (Assignment.CallStep.VOICEMAIL, Assignment.CallStep.CALL):
-            assignment.call_step = Assignment.CallStep.DONE
-            assignment.save()
+    # Same as in frontend, if we got here it may be beacuse a call got disconnected abruptly
+    # so a request to finalize should be accepted anyway
+    if assignment.call_step in (Assignment.CallStep.VOICEMAIL, Assignment.CallStep.CALL):
+        assignment.append_progress(f"finalize moving from {assignment.call_step} > {Assignment.CallStep.DONE}")
+        assignment.call_step = Assignment.CallStep.DONE
+        assignment.save()
 
     if assignment.call_step == Assignment.CallStep.DONE:
+        assignment.append_progress("finalize success, approval code granted")
         return {"accepted": True, "approval_code": assignment.hit.approval_code}
     else:
+        assignment.append_progress(f"finalize failure, wasn't in correct call step ({assignment.call_step})")
         return {"accepted": False}

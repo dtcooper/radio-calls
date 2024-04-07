@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import redirect, render
-from django.urls import path
+from django.urls import include, path
 
 from api.apis import hit_api, twilio_api
 
@@ -40,3 +40,6 @@ urlpatterns = [
     path("cmsadmin/mturk-manage/", mturk_manage, name="mturk_manage"),
     path("cmsadmin/", admin.site.urls),
 ]
+
+if settings.DEBUG:
+    urlpatterns.append(path("__debug__/", include("debug_toolbar.urls")))

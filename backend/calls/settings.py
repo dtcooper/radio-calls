@@ -29,6 +29,7 @@ GEOIP2_LITE_CITY_DB_PATH = env("GEOIP2_LITE_CITY_DB_PATH")
 ALLOWED_HOSTS = [DOMAIN_NAME]
 if DEBUG:
     ALLOWED_HOSTS.append("localhost")
+    INTERNAL_IPS = type("c", (), {"__contains__": lambda *a: True})()  # Hack to always show the toolbar
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
@@ -49,7 +50,10 @@ INSTALLED_APPS = [
     "durationwidget",
 ]
 if DEBUG:
-    INSTALLED_APPS.append("django_extensions")
+    INSTALLED_APPS.extend([
+        "debug_toolbar",
+        "django_extensions",
+    ])
 INSTALLED_APPS.extend([
     # Local
     "api",
@@ -65,6 +69,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "api.middleware.SendTwilioUserDefinedMessageAtEndOfRequestMiddleware",
 ]
+if DEBUG:
+    MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
 
 ROOT_URLCONF = "calls.urls"
 

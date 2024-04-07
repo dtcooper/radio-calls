@@ -23,6 +23,7 @@ let workerId = params.get("workerId")
 const turkSubmitTo = params.get("turkSubmitTo") || null
 let dbId = params.get("dbId")
 
+export const darkTheme = persisted("dark-theme", false)
 export const isPreview = assignmentId === "ASSIGNMENT_ID_NOT_AVAILABLE"
 export const debugMode = persisted("debug-mode", false)
 
@@ -86,7 +87,9 @@ const createState = () => {
       $state.callStep === CALL_STEP_DONE || ($state.callStep === CALL_STEP_VOICEMAIL && !$state.callInProgress)
     const canHangUp =
       $state.callInProgress &&
-      (isDebug() || done || ($state.callStep == CALL_STEP_CALL && $state.now.isAfter($state.countdown)))
+      (isDebug() ||
+        [CALL_STEP_DONE, CALL_STEP_VOICEMAIL].includes($state.callStep) ||
+        ($state.callStep == CALL_STEP_CALL && $state.now.isAfter($state.countdown)))
 
     return { ...$state, countdownDuration, canHangUp, done }
   })
@@ -128,8 +131,21 @@ const createState = () => {
         }
 
         if (!isPreview) {
-          this.logProgress("handshake succeeded")
+          this.logProgress("handshake")
           this.createDevice(token)
+          for (const [name, store] of [
+            ["darkTheme", darkTheme],
+            ["debugMode", debugMode]
+          ]) {
+            let changed = false // Don't run on first subscribe
+            store.subscribe((value) => {
+              if (changed) {
+                this.logProgress(`ui change ${name}=${value}`)
+              } else {
+                changed = true
+              }
+            })
+          }
         }
 
         for (const [key, value] of Object.entries(rest)) {
@@ -208,9 +224,10 @@ const createState = () => {
             content: { callStep, countdown, wordsHeard }
           } = data
           log(`Got message from twilio`, { callStep, countdown, wordsHeard })
-          const normalizedCountdown = typeof countdown === "number" ? dayjs().add(countdown, "second") : null
+          const hasCountdown = typeof countdown === "number" || null
+          const normalizedCountdown = hasCountdown && dayjs().add(countdown, "second")
           this.logProgress(
-            `call step: ${callStep}${normalizedCountdown !== null ? ` [countdown=${normalizedCountdown}]` : ""}${wordsHeard ? ` [wordsHeard=${wordsHeard}]` : ""}`
+            `call step: ${callStep}${hasCountdown ? ` [countdown=${countdown}]` : ""}${wordsHeard ? ` [wordsHeard=${wordsHeard}]` : ""}`
           )
           if (callStep) {
             update({ callStep, countdown: normalizedCountdown, wordsHeard })

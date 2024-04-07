@@ -26,7 +26,7 @@
         countdown = [false]
         break
       case CALL_STEP_VERIFIED:
-        callStatus = ["Verified! Connecting.", "text-success animate-pulse"]
+        callStatus = ["Connecting...", "text-success animate-pulse"]
         countdown = [false]
         break
       case CALL_STEP_HOLD:
