@@ -2,16 +2,11 @@ import { Device } from "@twilio/voice-sdk"
 import { persisted } from "svelte-persisted-store"
 import { get as _get, derived, readonly, writable } from "svelte/store"
 
+import { CALL_STEP_CALL, CALL_STEP_DONE, CALL_STEP_INITIAL, CALL_STEP_VOICEMAIL } from "$lib/shared-constants.json"
 import { post as _post } from "$lib/utils"
 import dayjs from "dayjs"
 import { default as dayjsPluginDuration } from "dayjs/plugin/duration"
 import { default as dayjsPluginRelativeTime } from "dayjs/plugin/relativeTime"
-import {
-  CALL_STEP_CALL,
-  CALL_STEP_DONE,
-  CALL_STEP_INITIAL,
-  CALL_STEP_VOICEMAIL
-} from "../../../backend/shared-constants.json"
 
 dayjs.extend(dayjsPluginDuration)
 dayjs.extend(dayjsPluginRelativeTime)

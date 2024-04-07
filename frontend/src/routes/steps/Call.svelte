@@ -4,7 +4,7 @@
   import Notice from "./components/Notice.svelte"
   import { slide } from "svelte/transition"
   import { state, debugMode, scroll } from "../hit"
-  import { CALL_STEP_VOICEMAIL } from "../../../../backend/shared-constants.json"
+  import { CALL_STEP_VOICEMAIL } from "$lib/shared-constants.json"
 
   export let next
 

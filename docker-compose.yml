@@ -21,6 +21,7 @@ services:
     working_dir: /app
     volumes:
       - ./frontend:/app
+      - ./backend/shared-constants.json:/app/src/lib/shared-constants.json
 
   nginx:
     restart: always

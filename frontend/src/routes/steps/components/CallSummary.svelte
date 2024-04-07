@@ -6,7 +6,7 @@
     CALL_STEP_CALL,
     CALL_STEP_VOICEMAIL,
     CALL_STEP_HOLD
-  } from "../../../../../backend/shared-constants.json"
+  } from "$lib/shared-constants.json"
 
   export let overviewOnly = false
 
