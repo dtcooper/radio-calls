@@ -238,9 +238,11 @@ def hit_outgoing_callback_answered(request, assignment_id, call_status: Form[str
         if assignment.call_step in (CALL, VOICEMAIL):
             # Don't message this to client, they can get to final call_step if call is in
             # CALL or VOICEMAIL status anyway, we get here after a hangup.
-            assignment.append_progress("call completed (probably a hang up)")
+            assignment.append_progress("call completed, marked done (probably a hang up)")
             assignment.call_step = DONE
             assignment.save()
+        else:
+            assignment.append_progress("call completed, not marked done")
     return HttpResponse(status=204)
 
 
