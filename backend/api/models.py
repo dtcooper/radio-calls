@@ -374,13 +374,10 @@ class Worker(BaseModel):
     def from_api(cls, request, amazon_id):
         faker = Faker()
         fake_gender = "male" if faker.boolean() else "female"
-        fake_name = getattr(faker, f"first_name_{fake_gender}")()
         ip_addr = get_ip_addr(request)
-        obj, _ = Worker.objects.update_or_create(
-            amazon_id=amazon_id,
-            create_defaults={"gender": fake_gender, "name": fake_name},
-            defaults={"location": get_location_from_ip_addr(ip_addr), "ip_address": ip_addr},
-        )
+        defaults = {"location": get_location_from_ip_addr(ip_addr), "ip_address": ip_addr}
+        create = {"gender": fake_gender, "name": getattr(faker, f"first_name_{fake_gender}")(), **defaults}
+        obj, _ = Worker.objects.update_or_create(amazon_id=amazon_id, create_defaults=create, defaults=defaults)
 
         return obj
 
