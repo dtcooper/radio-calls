@@ -44,10 +44,13 @@ const createState = () => {
   const { subscribe, update: _update } = writable({
     approvalCode: "invalid-approval-code",
     assignmentId: "",
+    callDurationSeconds: 0,
     callInProgress: false,
+    callStep: CALL_STEP_INITIAL,
     countdown: null,
     estimatedBeforeVerifiedDuration: null,
     failure: "",
+    feedback: "",
     gender: "",
     hitId: null,
     isProd: true,
@@ -60,7 +63,6 @@ const createState = () => {
     now: dayjs(),
     ready: false,
     showHost: "",
-    callStep: CALL_STEP_INITIAL,
     submitUrl: "",
     topic: "",
     wordsHeard: "",
@@ -260,6 +262,7 @@ const createState = () => {
       }
     },
     async updateName(name, gender) {
+      name = name.trim()
       const { success } = await post("name", { name, gender })
       if (success) {
         this.logProgress(`name change: ${name}/${gender}`)
@@ -268,11 +271,11 @@ const createState = () => {
         warn("Error updating name!")
       }
     },
-    async finalize() {
-      const { success, accepted, approvalCode } = await post("finalize")
+    async finalize(data) {
+      const { success, accepted, approvalCode, feedback, callDurationSeconds } = await post("finalize", data)
       if (success && accepted) {
         this.logProgress("finalize success")
-        update({ approvalCode })
+        update({ approvalCode, feedback, callDurationSeconds })
         return true
       } else {
         this.logProgress("finalize error")
@@ -280,7 +283,9 @@ const createState = () => {
       }
     },
     setFailure(failure) {
-      this.logProgress(`failure: ${failure}`)
+      if (failure) {
+        this.logProgress(`failure: ${failure}`)
+      }
       update({ failure })
     }
   }

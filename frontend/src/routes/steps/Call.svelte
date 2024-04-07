@@ -4,7 +4,7 @@
   import Notice from "./components/Notice.svelte"
   import { slide } from "svelte/transition"
   import { state, debugMode, scroll } from "../hit"
-  import { CALL_STEP_VOICEMAIL } from "$lib/shared-constants.json"
+  import { CALL_STEP_CALL, CALL_STEP_VOICEMAIL } from "$lib/shared-constants.json"
 
   export let next
 
@@ -37,6 +37,17 @@
   <div transition:slide>
     <Notice>
       We heard the following: <em>"{$state.wordsHeard}"</em> &mdash; which is incorrect. Please try again.
+    </Notice>
+  </div>
+{/if}
+{#if [CALL_STEP_CALL, CALL_STEP_VOICEMAIL].includes($state.callStep)}
+  <div transition:slide>
+    <Notice>
+      <strong>IMPORTANT:</strong>
+      <em
+        >A <strong>silent {$state.callStep === CALL_STEP_VOICEMAIL ? "voicemail" : "call"}</strong>
+        where you do not speak will result in a <strong class="underline">REJECTED</strong> assignment!</em
+      >
     </Notice>
   </div>
 {/if}

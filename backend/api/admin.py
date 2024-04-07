@@ -328,15 +328,17 @@ class AssignmentAdmin(ExtraButtonsMixin, HITListDisplayMixin, WorkerAndAssignmen
         "hit",
         "worker",
         "progress_display",
+        "created_at",
         "call_step",
         "call_started_at",
+        "call_connected_at",
         "call_completed_at",
+        "get_call_duration",
         "words_to_pronounce",
-        "voicemail_duration",
-        "voicemail_url",
-        "created_at",
         "left_voicemail",
-        "call_duration",
+        "voicemail_duration",
+        "voicemail_url_display",
+        "feedback",
         "get_amazon_status",
     )
     list_display = (
@@ -345,20 +347,20 @@ class AssignmentAdmin(ExtraButtonsMixin, HITListDisplayMixin, WorkerAndAssignmen
         "call_step",
         "worker_display",
         "hit_display",
-        "call_duration",
+        "get_call_duration",
         "last_progress",
         "left_voicemail",
     )
     readonly_fields = (
         "amazon_id",
-        "call_duration",
+        "get_call_duration",
         "created_at",
         "get_amazon_status",
         "hit_display",
         "left_voicemail",
         "progress_display",
         "voicemail_duration",
-        "voicemail_url",
+        "voicemail_url_display",
         "last_progress",
         "worker_display",
     )
@@ -369,14 +371,14 @@ class AssignmentAdmin(ExtraButtonsMixin, HITListDisplayMixin, WorkerAndAssignmen
     def worker_display(self, obj):
         return format_html('<a href="{}">{}</a>', reverse("admin:api_worker_change", args=(obj.worker.id,)), obj.worker)
 
+    @admin.display(description="Voicemail")
+    def voicemail_url_display(self, obj: Assignment):
+        if obj.voicemail_url:
+            return format_html('<a href="{}">{}</a>', obj.voicemail_url, obj.voicemail_url)
+
     @admin.display(boolean=True, ordering="voicemail_duration")
     def left_voicemail(self, obj: Assignment):
         return bool(obj.voicemail_url)
-
-    def call_duration(self, obj: Assignment):
-        if obj.call_completed_at is not None and obj.call_started_at is not None:
-            return obj.call_completed_at - obj.call_started_at
-        return None
 
     @admin.display(ordering=Func(F("progress"), Value(1), function="array_length"))
     def last_progress(self, obj: Assignment):

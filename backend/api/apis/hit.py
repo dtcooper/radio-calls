@@ -222,16 +222,24 @@ def name(request, name: NameIn):
     return {"success": True}
 
 
+class FinalizeIn(BaseIn):
+    feedback: str = ""
+
+
 class FinalizeOut(BaseOut):
     accepted: bool
     approval_code: uuid.UUID | None = None
+    feedback: str = ""
+    call_duration_seconds: int = 0
 
 
 @api.post("finalize", response=FinalizeOut, by_alias=True)
 @transaction.atomic
-def finalize(request, finalize: BaseIn):
+def finalize(request, finalize: FinalizeIn):
     # Status updating should be atomic
     assignment = get_assignment(amazon_id=finalize.assignment_id, for_update=True)
+    assignment.feedback = finalize.feedback.strip()
+    assignment.save()
 
     # Same as in frontend, if we got here it may be beacuse a call got disconnected abruptly
     # so a request to finalize should be accepted anyway
@@ -242,7 +250,12 @@ def finalize(request, finalize: BaseIn):
 
     if assignment.call_step == Assignment.CallStep.DONE:
         assignment.append_progress("finalize success, approval code granted")
-        return {"accepted": True, "approval_code": assignment.hit.approval_code}
+        return {
+            "accepted": True,
+            "approval_code": assignment.hit.approval_code,
+            "feedback": assignment.feedback or "[none]",
+            "call_duration_seconds": round(assignment.get_call_duration().total_seconds()),
+        }
     else:
         assignment.append_progress(f"finalize failure, wasn't in correct call step ({assignment.call_step})")
         return {"accepted": False}

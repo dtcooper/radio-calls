@@ -394,8 +394,8 @@ class Assignment(BaseModel):
         INITIAL = CALL_STEP_INITIAL, "Handshake completed"
         VERIFIED = CALL_STEP_VERIFIED, "Verified"
         HOLD = CALL_STEP_HOLD, "Hold loop"
-        CALL = CALL_STEP_CALL, "Call made"
-        VOICEMAIL = CALL_STEP_VOICEMAIL, "HIT complete (voicemail)"
+        CALL = CALL_STEP_CALL, "Call connected"
+        VOICEMAIL = CALL_STEP_VOICEMAIL, "Leaving voicemail"
         DONE = CALL_STEP_DONE, "HIT complete (call)"
 
     hit = models.ForeignKey(HIT, on_delete=models.CASCADE)
@@ -403,6 +403,7 @@ class Assignment(BaseModel):
     progress = ArrayField(models.CharField(max_length=PROGRESS_MAX_LENGTH), default=list)
     call_step = ChoicesCharField("call step", choices=CallStep, default=CallStep.INITIAL)
     call_started_at = models.DateTimeField("call started at", default=None, null=True, blank=True)
+    call_connected_at = models.DateTimeField("call connected at", default=None, null=True, blank=True)
     call_completed_at = models.DateTimeField("call ended time", default=None, null=True, blank=True)
     words_to_pronounce = JSONField(
         schema={
@@ -413,6 +414,7 @@ class Assignment(BaseModel):
             "uniqueItems": True,
         },
     )
+    feedback = models.TextField("additional feedback", default="", blank=True)
     voicemail_duration = models.DurationField("voicemail duration", default=datetime.timedelta(0))
     voicemail_url = models.URLField("voicemail URL", blank=True)
 
@@ -440,10 +442,22 @@ class Assignment(BaseModel):
         elif self.call_started_at is None:
             self.call_started_at = timezone.now()
 
+        if (
+            self.call_step in (self.CallStep.VOICEMAIL, self.CallStep.CALL, self.CallStep.DONE)
+            and self.call_connected_at is None
+        ):
+            self.call_connected_at = timezone.now()
+
         if self.call_step == self.CallStep.DONE and self.call_completed_at is None:
             self.call_completed_at = timezone.now()
 
         super().save(*args, **kwargs)
+
+    @admin.display(description="Call duration")
+    def get_call_duration(self):
+        if self.call_completed_at is not None and self.call_connected_at is not None:
+            return self.call_completed_at - self.call_connected_at
+        return None
 
     @cached_property
     def __amazon_obj(self) -> dict | None:
@@ -469,8 +483,12 @@ class Assignment(BaseModel):
             "worker": worker,
         }
         if reset_to_initial:
-            defaults.update(
-                {"call_step": cls.CallStep.INITIAL, "call_started_at": None, "call_completed_at": None, "progress": []}
-            )
+            defaults.update({
+                "call_step": cls.CallStep.INITIAL,
+                "call_started_at": None,
+                "call_completed_at": None,
+                "call_connected_at": None,
+                "progress": [],
+            })
         obj, _ = cls.objects.update_or_create(amazon_id=amazon_id, defaults=defaults)
         return obj

@@ -66,7 +66,6 @@
 </div>
 
 <div class="bg-base-200">
-  <!-- Main content -->
   <div class="mx-auto flex min-h-screen max-w-screen-lg flex-col rounded-b-2xl bg-base-100">
     <header class="mb-2 px-1 pt-2 text-center text-2xl font-bold sm:px-2 sm:pt-3 sm:text-3xl md:text-4xl">
       <span class="hidden sm:contents">☎️🎉🎙️️📻</span>
