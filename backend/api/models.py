@@ -215,7 +215,7 @@ class HIT(BaseModel):
         )
 
     def __str__(self):
-        return f"{self.name} ({self.topic})"
+        return f"{self.name}"
 
     def clone(self):
         hit = HIT()
@@ -364,7 +364,7 @@ class Worker(BaseModel):
     )
 
     def __str__(self):
-        return f"{self.name} ({self.get_gender_display()})"
+        return f"{self.name} [{self.gender[:1].upper()}"
 
     @property
     def caller_id(self):
