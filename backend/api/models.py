@@ -364,7 +364,7 @@ class Worker(BaseModel):
     )
 
     def __str__(self):
-        return f"{self.name} [{self.gender[:1].upper()}"
+        return f"{self.name} [{self.gender[:1].upper()}]"
 
     @property
     def caller_id(self):
