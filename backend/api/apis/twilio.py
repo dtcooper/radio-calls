@@ -264,8 +264,9 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
             assignment.append_progress(f"hold loop, countdown={countdown}")
             update_assignment_call_step_and_message_client(request, call_sid, assignment, HOLD, countdown=countdown)
             response.say(
-                "You must wait for the host to answer your call for at least another"
-                f" {to_pretty_minutes(countdown)} at which point you can leave a voicemail and submit this assignment."
+                f"You must wait for the host to answer your call for at least another {to_pretty_minutes(countdown)},"
+                " at which point you can leave a voicemail and submit this assignment. NOTE: The host"
+                f" may answer sooner, so you may not have to wait the full {to_pretty_minutes(countdown)}."
             )
             response.play(sound_path("busy-signal"))
             if not settings.DEBUG:
