@@ -32,6 +32,7 @@ from .constants import (
     CALL_STEP_VOICEMAIL,
     ENGLISH_SPEAKING_COUNTRIES,
     LOCATION_UNKNOWN,
+    MTURK_CLIENT_MAX_RESULTS,
     MTURK_ID_LENGTH,
     NUM_WORDS_WORDS_TO_PRONOUNCE,
     QID_ADULT,
@@ -40,11 +41,12 @@ from .constants import (
     QID_MASTERS_SANDBOX,
     QID_NUM_APPROVED,
     QID_PERCENT_APPROVED,
+    SIMULATED_PREFIX,
     WORDS_TO_PRONOUNCE,
     WORKER_NAME_MAX_LENGTH,
     ZULU_STRFTIME,
 )
-from .utils import ChoicesCharField, get_ip_addr, get_location_from_ip_addr, get_mturk_client
+from .utils import ChoicesCharField, get_ip_addr, get_location_from_ip_addr, get_mturk_client, get_mturk_clients
 
 
 logger = logging.getLogger(f"calls.{__name__}")
@@ -355,6 +357,7 @@ class Worker(BaseModel):
 
     name = models.CharField("name", max_length=WORKER_NAME_MAX_LENGTH, blank=True)
     gender = ChoicesCharField("gender", choices=Gender, default=Gender.MALE)
+    blocked = models.BooleanField("blocked", default=False)
     ip_address = models.GenericIPAddressField("IP address", null=True, default=None, blank=True)
     location = models.CharField(
         "location",
@@ -363,12 +366,63 @@ class Worker(BaseModel):
         help_text="Physical location (ie, city and country) where worker is located based on IP address",
     )
 
+    class Meta:
+        permissions = (("block_worker", "Can block workers"),)
+
     def __str__(self):
-        return f"{self.name} [{self.gender[:1].upper()}]"
+        return f"{self.name} [{self.gender[:1].upper()}]{'(blocked)' if self.blocked else ''}"
 
     @property
     def caller_id(self):
         return f"{self.gender[:1].upper()}.{slugify(self.name)}"
+
+    def _block_helper(self, *, block: bool):
+        success = False
+        if self.amazon_id and not self.amazon_id.startswith(SIMULATED_PREFIX):
+            method = f"{'create' if block else 'delete'}_worker_block"
+            kwargs = {"WorkerId": self.amazon_id}
+            if block:
+                kwargs["Reason"] = f"Didn't follow instructions properly. Block created at {timezone.now()}"
+
+            for production, client in get_mturk_clients():
+                try:
+                    response = getattr(client, method)(**kwargs)
+                except Exception:
+                    logger.exception("Error blocking")
+                else:
+                    if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+                        success = True
+                        logger.info(f"{'B' if block else 'Unb'}locked worker {self.amazon_id} in {production=}")
+                        self.blocked = block
+                        self.save(update_fields=("blocked",))
+        return success
+
+    def block(self):
+        return self._block_helper(block=True)
+
+    def unblock(self):
+        return self._block_helper(block=False)
+
+    @classmethod
+    def resync_blocks(cls):
+        blocked_workers = set()
+        for production, client in get_mturk_clients():
+            kwargs = {}
+            while True:
+                response = client.list_worker_blocks(MaxResults=MTURK_CLIENT_MAX_RESULTS, **kwargs)
+                workers = [b["WorkerId"] for b in response["WorkerBlocks"]]
+                logger.info(f"Got {len(workers)} blocked workers from {production=} API")
+                if workers:
+                    kwargs["NextToken"] = response["NextToken"]
+                    blocked_workers.update(workers)
+                if len(workers) < MTURK_CLIENT_MAX_RESULTS:
+                    break
+
+        queryset = Worker.objects.exclude(amazon_id__startswith=SIMULATED_PREFIX)
+        return {
+            "blocked": queryset.filter(amazon_id__in=list(blocked_workers)).update(blocked=True),
+            "unblocked": queryset.exclude(amazon_id__in=list(blocked_workers)).update(blocked=False),
+        }
 
     @classmethod
     def from_api(cls, request, amazon_id):

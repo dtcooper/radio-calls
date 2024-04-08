@@ -1,7 +1,7 @@
 import { sveltekit } from "@sveltejs/kit/vite"
 import { defineConfig } from "vite"
 
-const backendUrlsToProxy = ["api", "backend-static", "cmsadmin"]
+const backendUrlsToProxy = ["api", "backend-static", "cmsadmin", "__debug__"]
 
 export default defineConfig({
   plugins: [sveltekit()],

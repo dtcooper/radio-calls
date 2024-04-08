@@ -67,9 +67,9 @@ def ChoicesCharField(*args, choices, **kwargs):
 
 
 @cache
-def get_mturk_client(*, production=False):
-    if production and not settings.ALLOW_PUBLISH_TO_MTURK_PRODUCTION:
-        raise Exception("Preventing production access when ALLOW_PUBLISH_TO_MTURK_PRODUCTION = False")
+def get_mturk_client(*, production):
+    if production and not settings.ALLOW_MTURK_PRODUCTION_ACCESS:
+        raise Exception("Preventing production access when ALLOW_MTURK_PRODUCTION_ACCESS = False")
 
     kwargs = {}
     if not production:
@@ -82,6 +82,11 @@ def get_mturk_client(*, production=False):
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
         **kwargs,
     )
+
+
+def get_mturk_clients():
+    environments = (True, False) if settings.ALLOW_MTURK_PRODUCTION_ACCESS else (False,)
+    return tuple((env, get_mturk_client(production=env)) for env in environments)
 
 
 def get_ip_addr(request):

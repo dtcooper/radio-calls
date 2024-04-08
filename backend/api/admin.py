@@ -8,7 +8,7 @@ from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
 from django.db import models
-from django.db.models import F, Func, Value
+from django.db.models import Count, F, Func, Value
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -23,22 +23,61 @@ from .models import HIT, Assignment, User, Worker
 from .utils import short_datetime_str
 
 
+ATTR_COLORS = {
+    "success": ("oklch(0.648 0.15 160)", "#000000"),
+    "warning": ("oklch(0.8471 0.199 83.87)", "#000000"),
+    "error": ("oklch(0.7176 0.221 22.18)", "#000000"),
+    "info": ("oklch(0.7206 0.191 231.6)", "#000000"),
+    "pink": ("oklch(0.6971 0.329 342.55)", "oklch(0.9871 0.0106 342.55)"),
+}
+
+
+def attr_color(color):
+    bgcolor, fgcolor = ATTR_COLORS[color]
+    return {"style": f"background-color: {bgcolor}; color: {fgcolor}"}
+
+
 class HITListDisplayMixin:
     @admin.display(description="HIT")
     def hit_display(self, obj):
         return format_html('<a href="{}">{}</a>', reverse("admin:api_hit_change", args=(obj.hit.id,)), obj.hit.name)
 
 
-class BaseModelAdmin(admin.ModelAdmin):
+class BaseModelAdmin(ExtraButtonsMixin, admin.ModelAdmin):
     list_max_show_all = 2500
     list_per_page = 200
     show_facets = admin.ShowFacets.ALWAYS
     save_on_top = True
-
     formfield_overrides = {models.DurationField: {"widget": TimeDurationWidget}}
 
 
+class PrefetchRelatedMixin:
+    prefetch_related = None
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if self.prefetch_related is not None:
+            queryset = queryset.prefetch_related(*self.prefetch_related)
+        return queryset
+
+
+class NumAssignmentsMixin:
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(num_assignments=Count("assignment"))
+
+    @admin.display(description="Assignment count", ordering="num_assignments")
+    def num_assignments(self, obj):
+        url = reverse("admin:api_assignment_changelist")
+        model_name = self.model._meta.model_name
+        querystring = urlencode({f"{model_name}__id__exact": obj.id})
+        return format_html('<a href="{}">{}</a>', f"{url}?{querystring}", obj.num_assignments)
+
+
 class UserAdmin(BaseUserAdmin):
+    list_max_show_all = 2500
+    list_per_page = 200
+    show_facets = admin.ShowFacets.ALWAYS
+    save_on_top = True
     fieldsets = (
         (None, {"fields": ("username", "password")}),
         ("Personal info", {"fields": ("first_name", "last_name", "email")}),
@@ -75,7 +114,7 @@ def has_publish_permission(request, hit, **kwargs):
     return request.user.is_superuser and hit.status == HIT.Status.LOCAL
 
 
-class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
+class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
     FIELDSET_HIT_SETTINGS = ("HIT Settings", {"fields": ("title", "description", "keywords", "duration")})
     FIELDSET_QUALIFICATIONS = (
         "Qualifications",
@@ -123,6 +162,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
                     "submitted_at",
                     "get_amazon_status",
                     "is_running",
+                    "num_assignments",
                     "amazon_id",
                 )
             },
@@ -147,7 +187,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
             },
         ),
     )
-    list_display = ("name", "created_at", "topic", "status", "submitted_at", "is_running")
+    list_display = ("name", "created_at", "topic", "status", "submitted_at", "is_running", "num_assignments")
     readonly_fields = (
         "amazon_id",
         "approval_code",
@@ -156,6 +196,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         "get_cost_estimate",
         "get_amazon_status",
         "is_running",
+        "num_assignments",
         "publish_api_exception",
         "status",
         "submitted_at",
@@ -187,7 +228,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
             initial["show_host"] = request.user.first_name
         return initial
 
-    @admin.display(description="is running?", boolean=True)
+    @admin.display(description="Is running?", boolean=True)
     def is_running(self, obj: HIT):
         if obj.submitted_at:
             return obj.submitted_at + obj.duration >= timezone.now()
@@ -210,7 +251,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         return HttpResponseRedirect(f"/hit/?{urlencode({'dbId': hit.id})}")
 
     @button(
-        html_attrs={"style": "background-color: oklch(0.648 0.15 160); color: #000000"},
+        html_attrs=attr_color("success"),
         permission=lambda request, hit, **kw: request.user.has_perm("api.add_hit"),
     )
     def clone(self, request, pk):
@@ -220,7 +261,7 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
         return redirect("admin:api_hit_change", object_id=new_hit.pk)
 
     @button(
-        html_attrs={"style": "background-color: oklch(0.8471 0.199 83.87); color: #000000"},
+        html_attrs=attr_color("warning"),
         permission=lambda request, hit, **kw: request.user.has_perm("api.publish_sandbox_hit")
         and hit.status == HIT.Status.LOCAL,
     )
@@ -232,8 +273,8 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
             self.message_user(request, f"An error occured while publishing {hit.name} to the Sandbox!", messages.ERROR)
 
     @button(
-        html_attrs={"style": "background-color: oklch(0.7176 0.221 22.18); color: #000000"},
-        permission=lambda request, hit, **kw: settings.ALLOW_PUBLISH_TO_MTURK_PRODUCTION
+        html_attrs=attr_color("error"),
+        permission=lambda request, hit, **kw: settings.ALLOW_MTURK_PRODUCTION_ACCESS
         and request.user.has_perm("api.publish_production_hit")
         and hit.status == HIT.Status.LOCAL,
     )
@@ -311,6 +352,11 @@ class HITAdmin(ExtraButtonsMixin, BaseModelAdmin):
 
 
 class WorkerAndAssignmentBaseAdmin(BaseModelAdmin):
+    actions = ("block_workers", "unblock_workers")
+
+    def has_block_permission(self, request):
+        return request.user.has_perm("api.block_worker")
+
     def has_add_permission(self, request):
         return False
 
@@ -321,8 +367,33 @@ class WorkerAndAssignmentBaseAdmin(BaseModelAdmin):
             and (obj is None or obj.amazon_id.startswith(SIMULATED_PREFIX))
         ) or (request.user.is_superuser and settings.DEBUG)
 
+    @button(
+        html_attrs=attr_color("info"),
+        permission=lambda request, hit, **kw: request.user.has_perm("api.block_worker"),
+        label="Resynchronize blocks",
+    )
+    def resync_blocks(self, request):
+        Worker.resync_blocks()
+        self.message_user(request, "Worker blocks have been resynchronized!")
 
-class AssignmentAdmin(ExtraButtonsMixin, HITListDisplayMixin, WorkerAndAssignmentBaseAdmin):
+    @admin.action(description="Block selected worker(s)", permissions=("block",))
+    def block_workers(self, request, queryset):
+        if self.model == Assignment:
+            queryset = Worker.objects.filter(assignment__id__in=list(queryset.values_list("id", flat=True)))
+        blocks = filter(None, (w.block() for w in queryset))
+        num_blocks = len(list(blocks))
+        self.message_user(request, f"Blocked {num_blocks} worker(s)", messages.WARNING)
+
+    @admin.action(description="Unblock selected worker(s)", permissions=("block",))
+    def unblock_workers(self, request, queryset):
+        if self.model == Assignment:
+            queryset = Worker.objects.filter(assignment__id__in=list(queryset.values_list("id", flat=True)))
+        unblocks = filter(None, (w.unblock() for w in queryset))
+        num_unblocks = len(list(unblocks))
+        self.message_user(request, f"Unblocked {num_unblocks} worker(s)", messages.WARNING)
+
+
+class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssignmentBaseAdmin):
     fields = (
         "amazon_id",
         "hit",
@@ -366,6 +437,7 @@ class AssignmentAdmin(ExtraButtonsMixin, HITListDisplayMixin, WorkerAndAssignmen
     )
     list_filter = ("hit", "call_step")
     search_fields = ("amazon_id", "worker__name", "hit__name")
+    prefetch_related = ("hit", "worker")
 
     @admin.display(description="Worker")
     def worker_display(self, obj):
@@ -396,11 +468,12 @@ class AssignmentAdmin(ExtraButtonsMixin, HITListDisplayMixin, WorkerAndAssignmen
             return f"Error parsing progress: {obj.progress}"
 
 
-class AssignmentInline(HITListDisplayMixin, admin.TabularInline):
+class AssignmentInline(HITListDisplayMixin, PrefetchRelatedMixin, admin.TabularInline):
     model = Assignment
     fields = ("amazon_id", "hit_display", "created_at", "call_step")
     readonly_fields = ("created_at", "hit_display")
     show_change_link = True
+    prefetch_related = ("hit", "worker")
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -409,12 +482,44 @@ class AssignmentInline(HITListDisplayMixin, admin.TabularInline):
         return False
 
 
-class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
-    fields = ("amazon_id", "name", "gender", "location", "ip_address", "created_at")
-    readonly_fields = ("amazon_id", "created_at")
-    list_display = ("amazon_id", "name", "gender", "location")
+class WorkerAdmin(NumAssignmentsMixin, WorkerAndAssignmentBaseAdmin):
+    fields = ("amazon_id", "name", "gender", "num_assignments", "location", "ip_address", "blocked", "created_at")
+    readonly_fields = ("amazon_id", "created_at", "num_assignments", "worker_display", "blocked")
+    list_display = ("amazon_id", "worker_display", "location", "num_assignments", "blocked")
     search_fields = ("amazon_id", "name", "location")
+    list_filter = ("assignment__hit", "gender")
     inlines = (AssignmentInline,)
+
+    def worker_display(self, obj: Worker):
+        return str(obj)
+
+    @button(
+        html_attrs=attr_color("error"),
+        permission=lambda request, hit, **kw: request.user.has_perm("api.block_worker"),
+        label="Block",
+    )
+    def block_worker(self, request, pk):
+        worker = get_object_or_404(Worker, pk=pk)
+        success = worker.block()
+        if success:
+            self.message_user(request, f"Worker {worker.name} was successfully blocked!", messages.WARNING)
+        else:
+            self.message_user(request, f"Could not block {worker.name} (API error or simulated user)", messages.ERROR)
+        return redirect("admin:api_worker_change", object_id=worker.pk)
+
+    @button(
+        html_attrs=attr_color("success"),
+        permission=lambda request, hit, **kw: request.user.has_perm("api.block_worker"),
+        label="Unblock",
+    )
+    def unblock_worker(self, request, pk):
+        worker = get_object_or_404(Worker, pk=pk)
+        success = worker.unblock()
+        if success:
+            self.message_user(request, f"Worker {worker.name} was successfully unblocked!", messages.WARNING)
+        else:
+            self.message_user(request, f"Could not unblock {worker.name} (API error or simulated user)", messages.ERROR)
+        return redirect("admin:api_worker_change", object_id=worker.pk)
 
 
 admin.site.unregister(Group)
