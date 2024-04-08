@@ -36,7 +36,11 @@
 {#if $state.wordsHeard}
   <div transition:slide>
     <Notice>
-      We heard the following: <em>"{$state.wordsHeard}"</em> &mdash; which is incorrect. Please try again.
+      {#if $state.wordsHeard === "<<<SILENCE>>>"}
+        <em class="font-bold">We heard nothing!</em> Are you sure that you have a working microphone? 🎤️🎙️️🎤️
+      {:else}
+        We heard the following: <em>"{$state.wordsHeard}"</em> &mdash; which is incorrect. Please try again.
+      {/if}
     </Notice>
   </div>
 {/if}

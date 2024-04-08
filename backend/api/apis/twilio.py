@@ -157,7 +157,7 @@ def hit_outgoing_verify(
         match = is_subsequence(assignment.words_to_pronounce, words_heard)
         progress_line = (
             f"expected=[{', '.join(assignment.words_to_pronounce)}], actual=[{', '.join(words_heard)}],"
-            f" try_count={try_count}"
+            f" try_count={try_count - 1}"
         )
         logger.info(f"Got words [{match=}]: {progress_line}")
         if match:
@@ -176,6 +176,7 @@ def hit_outgoing_verify(
             response.say("You repeated the words incorrectly. Please try again.")
             response.pause(0.5)
     elif not first_run:
+        send_twilio_message_at_end_of_request(request, call_sid, INITIAL, words_heard="<<<SILENCE>>>")
         assignment.append_progress(f"verify failed - SILENCE, try_count={try_count}")
         response.say("We didn't seem to hear anything. Please check that your microphone is working correctly.")
         response.pause(0.5)
