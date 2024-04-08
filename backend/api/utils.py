@@ -1,9 +1,11 @@
+import datetime
 from functools import cache
 import logging
 import re
 import traceback
 
 import boto3
+from dateutil.parser import parse as dateutil_parse
 import geoip2.database
 
 from django.conf import settings
@@ -50,8 +52,10 @@ def send_twilio_message_at_end_of_request(request, call_sid, call_step, countdow
     request._twilio_user_defined_message = (call_sid, call_step, countdown, words_heard)
 
 
-def short_datetime_str(dt):
-    return django_date_format(timezone.localtime(dt), "SHORT_DATETIME_FORMAT")
+def short_datetime_str(datetime_or_string: datetime.datetime | str):
+    if isinstance(datetime_or_string, str):
+        datetime_or_string = dateutil_parse(datetime_or_string)
+    return django_date_format(timezone.localtime(datetime_or_string), "SHORT_DATETIME_FORMAT")
 
 
 def is_subsequence(x, y):

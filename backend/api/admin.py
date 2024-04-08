@@ -1,8 +1,6 @@
 import datetime
 from urllib.parse import urlencode
 
-from dateutil.parser import parse as dateutil_parse
-
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -468,14 +466,17 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
     @admin.display(ordering=Func(F("progress"), Value(1), function="array_length"))
     def last_progress(self, obj: Assignment):
         if obj.progress:
-            return f"{obj.progress[-1].split('/', 1)[1]} ({len(obj.progress)} total)"
-        return "(0 total)"
+            date, progress = obj.progress[-1].split("/", 1)
+            return format_html(
+                "{} &mdash; {}<br>{}", short_datetime_str(date), progress, f"({len(obj.progress)} total)"
+            )
+        return "0 total"
 
     @admin.display(description="progress")
     def progress_display(self, obj: Assignment):
         try:
             splits = map(lambda s: s.split("/", 1), obj.progress)
-            encoded = ((short_datetime_str(dateutil_parse(dt)), s) for dt, s in splits)
+            encoded = ((short_datetime_str(date), progress) for date, progress in splits)
             return format_html("<ol>{}</ol>", format_html_join("\n", "<li>{} &mdash; {}</li>", encoded)) or None
         except Exception:
             return f"Error parsing progress: {obj.progress}"
