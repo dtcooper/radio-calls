@@ -158,6 +158,7 @@ class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
                     "topic",
                     "show_host",
                     "get_cost_estimate",
+                    "get_unit_cost",
                     "status",
                     "submitted_at",
                     "get_amazon_status",
@@ -194,6 +195,7 @@ class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
         "created_at",
         "created_by",
         "get_cost_estimate",
+        "get_unit_cost",
         "get_amazon_status",
         "is_running",
         "num_assignments",
@@ -319,6 +321,10 @@ class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
         cost_estimate = obj.get_cost_estimate()
         if cost_estimate >= 250:
             warn(f"The cost estimate for this HIT is ${cost_estimate} and exceeds $250. Please verify this is correct!")
+
+        unit_cost = obj.get_unit_cost()
+        if unit_cost > 5:
+            warn(f"The unit cost for this HIT is ${unit_cost} and exceeds $5. Please verify this is correct.")
 
         for check_duration_field in ("min_call_duration", "leave_voicemail_after_duration"):
             if getattr(obj, check_duration_field) + datetime.timedelta(minutes=10) > obj.assignment_duration:

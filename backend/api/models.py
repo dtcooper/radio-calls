@@ -234,14 +234,18 @@ class HIT(BaseModel):
             self.name = self.name.removeprefix(self.CLONE_PREFIX)
         super().save(*args, **kwargs)
 
-    def get_cost_estimate(self):
+    @admin.display(description="Unit cost")
+    def get_unit_cost(self):
         fees = Decimal("0.20")
         if self.assignment_number >= 10:
             fees += Decimal("0.20")
         if self.qualification_masters:
             fees += Decimal("0.05")
-        unit_cost = self.assignment_reward * (1 + fees)
-        return (unit_cost * self.assignment_number).quantize(Decimal("0.01"))
+        return (self.assignment_reward * (1 + fees)).quantize(Decimal("0.01"))
+
+    @admin.display(description="Cost estimate")
+    def get_cost_estimate(self):
+        return self.get_unit_cost() * self.assignment_number
 
     @property
     def is_production(self):
