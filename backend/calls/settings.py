@@ -155,5 +155,5 @@ STATIC_ROOT = "/static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SHELL_PLUS_IMPORTS = [
-    "from api.utils import get_mturk_client, get_ip_addr, get_location_from_ip_addr",
+    "from api.utils import get_mturk_client, get_ip_addr, get_location_from_ip_addr, block_workers",
 ]

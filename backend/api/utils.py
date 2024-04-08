@@ -1,6 +1,7 @@
 from functools import cache
 import logging
 import re
+import traceback
 
 import boto3
 import geoip2.database
@@ -103,3 +104,19 @@ def get_location_from_ip_addr(ip_addr):
         pass
 
     return LOCATION_UNKNOWN
+
+
+# For use in ./manage.py shell
+def block_workers(amazon_ids, production=True):
+    client = get_mturk_client(production=production)
+    for amazon_id in amazon_ids:
+        try:
+            response = client.create_worker_block(
+                WorkerId=amazon_id, Reason=f"Didn't follow instructions properly. Block created at {timezone.now()}"
+            )
+            assert response["ResponseMetadata"]["HTTPStatusCode"] == 200, "Bad response value"
+        except Exception:
+            print(f"Failed to block {amazon_id}")
+            traceback.print_exc()
+        else:
+            print(f"Blocked {amazon_id}")
