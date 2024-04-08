@@ -6,7 +6,7 @@ from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
 from django.db import models
-from django.db.models import Count, F, Func, Value
+from django.db.models import Count, Exists, F, Func, OuterRef, Value
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -17,7 +17,7 @@ from admin_extra_buttons.api import ExtraButtonsMixin, button, confirm_action
 from durationwidget.widgets import TimeDurationWidget
 
 from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES, SIMULATED_PREFIX
-from .models import HIT, Assignment, User, Worker
+from .models import HIT, Assignment, User, Worker, WorkerPageLoad
 from .utils import short_datetime_str
 
 
@@ -371,6 +371,15 @@ class WorkerAndAssignmentBaseAdmin(BaseModelAdmin):
             and (obj is None or obj.amazon_id.startswith(SIMULATED_PREFIX))
         ) or (request.user.is_superuser and settings.DEBUG)
 
+    def get_queryset(self, request):
+        ref_value = OuterRef("worker__amazon_id" if self.model == Assignment else "amazon_id")
+        subquery = WorkerPageLoad.objects.filter(worker_amazon_id=ref_value)
+        return super().get_queryset(request).annotate(did_load_page=Exists(subquery))
+
+    @admin.display(description="Did Load Page?", ordering="did_load_page", boolean=True)
+    def did_load_page(self, obj: Assignment):
+        return bool(obj.did_load_page)
+
     @button(
         html_attrs=attr_color("info"),
         permission=lambda request, hit, **kw: request.user.has_perm("api.block_worker"),
@@ -426,6 +435,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "get_call_duration",
         "last_progress",
         "left_voicemail",
+        "did_load_page",
         "worker_blocked",
     )
     readonly_fields = (
@@ -497,9 +507,19 @@ class AssignmentInline(HITListDisplayMixin, PrefetchRelatedMixin, admin.TabularI
 
 
 class WorkerAdmin(NumAssignmentsMixin, WorkerAndAssignmentBaseAdmin):
-    fields = ("amazon_id", "created_at", "name", "gender", "num_assignments", "location", "ip_address", "blocked")
-    readonly_fields = ("amazon_id", "created_at", "num_assignments", "worker_display", "blocked")
-    list_display = ("amazon_id", "worker_display", "location", "num_assignments", "blocked")
+    fields = (
+        "amazon_id",
+        "created_at",
+        "name",
+        "gender",
+        "num_assignments",
+        "location",
+        "ip_address",
+        "did_load_page",
+        "blocked",
+    )
+    readonly_fields = ("amazon_id", "created_at", "num_assignments", "worker_display", "did_load_page", "blocked")
+    list_display = ("amazon_id", "worker_display", "location", "num_assignments", "did_load_page", "blocked")
     search_fields = ("amazon_id", "name", "location")
     list_filter = ("assignment__hit", "gender", "blocked")
     inlines = (AssignmentInline,)

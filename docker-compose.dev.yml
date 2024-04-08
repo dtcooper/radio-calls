@@ -14,7 +14,10 @@ services:
     environment:
       __NGINX_BACKEND_STATIC_CONF: "# Static files disabled via override in docker-compose.dev.yml"
       __NGINX_FRONTEND_CONF: |
-        location /hit {
+        # Frontend dev proxy (Internal, as it's X-Accel-Redirect proxied through nginx)
+            location /__hit_passthrough__/hit {
+                internal;
+
                 proxy_set_header Host $$http_host;
                 proxy_set_header X-Real-IP $$remote_addr;
                 proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
@@ -26,7 +29,7 @@ services:
                 proxy_set_header Connection $$connection_upgrade;
 
                 # Pass to host running Vite
-                proxy_pass http://host.docker.internal:5173;
+                proxy_pass http://host.docker.internal:5173/hit;
             }
   db:
     restart: "no"

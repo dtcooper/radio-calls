@@ -75,6 +75,8 @@ class BaseModel(models.Model):
     created_at = models.DateTimeField("created at", auto_now_add=True, db_index=True)
 
     class Meta:
+        ordering = ("-created_at", "id")
+        get_latest_by = "created_at"
         abstract = True
 
 
@@ -206,9 +208,8 @@ class HIT(BaseModel):
         help_text="The last contains of the last error (if any) that occurred while publishing this HIT to MTurk.",
     )
 
-    class Meta:
+    class Meta(BaseModel.Meta):
         verbose_name = "HIT"
-        ordering = ("-created_at", "id")
         get_latest_by = "created_at"
         permissions = (
             ("preview_hit", "Can preview HIT (frontend)"),
@@ -353,6 +354,36 @@ class HIT(BaseModel):
             return True
 
 
+class WorkerPageLoad(models.Model):
+    created_at = models.DateTimeField("created at", auto_now_add=True, db_index=True)
+    worker_amazon_id = models.CharField(
+        "Worker Amazon ID",
+        max_length=MTURK_ID_LENGTH,
+        help_text="Worker identifier as used by the Amazon MTurk API.",
+        db_index=True,
+    )
+    assignment_amazon_id = models.CharField(
+        "Assignment Amazon ID",
+        max_length=MTURK_ID_LENGTH,
+        help_text="Assignment identifier as used by the Amazon MTurk API.",
+        null=True,
+        blank=True,
+    )
+    hit_amazon_id = models.CharField(
+        "HIT Amazon ID",
+        max_length=MTURK_ID_LENGTH,
+        help_text="HIT identifier as used by the Amazon MTurk API.",
+        null=True,
+        blank=True,
+    )
+    had_amp_encoded = models.BooleanField(
+        "Had &amp; encoded", default=False, help_text="Request had &amp; encoded. This appears to be a marker of spam."
+    )
+
+    class Meta(BaseModel.Meta):
+        pass
+
+
 class Worker(BaseModel):
     class Gender(models.TextChoices):
         MALE = "male", "Male"
@@ -370,7 +401,7 @@ class Worker(BaseModel):
         help_text="Physical location (ie, city and country) where worker is located based on IP address",
     )
 
-    class Meta:
+    class Meta(BaseModel.Meta):
         permissions = (("block_worker", "Can block workers"),)
 
     def __str__(self):
@@ -475,10 +506,6 @@ class Assignment(BaseModel):
     feedback = models.TextField("additional feedback", default="", blank=True)
     voicemail_duration = models.DurationField("voicemail duration", default=datetime.timedelta(0))
     voicemail_url = models.URLField("voicemail URL", blank=True)
-
-    class Meta:
-        ordering = ("-created_at", "id")
-        get_latest_by = "created_at"
 
     def __str__(self):
         return f"{self.worker} [HIT: {self.hit}]"

@@ -51,8 +51,9 @@ services:
                 access_log off;
             }
 
-            # Frontend static assets
-            location /hit {
+            # Frontend static assets (Internal, as it's X-Accel-Redirect proxied through nginx)
+            location /__hit_passthrough__/hit {
+                internal;
                 add_header Cache-Control "max-age=0, no-cache, no-store, must-revalidate, private";
                 expires 0;
                 alias /frontend/build;
