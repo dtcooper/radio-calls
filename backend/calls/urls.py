@@ -49,9 +49,6 @@ def hit_passthrough(request):
         logger.info(f"Worker {worker_id} loaded page, logging{' (had amp encoded)' if has_amp_encoded else ''}")
         WorkerPageLoad.objects.create(**page_load)
 
-    import json
-
-    return HttpResponse(json.dumps(page_load, indent=2, sort_keys=True), content_type="text/plain")
     return HttpResponse(headers={"X-Accel-Redirect": f"/__hit_passthrough__{request.path}"})
 
 
