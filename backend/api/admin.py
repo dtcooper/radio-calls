@@ -398,6 +398,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "amazon_id",
         "hit",
         "worker",
+        "worker_blocked",
         "progress_display",
         "created_at",
         "call_step",
@@ -421,18 +422,20 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "get_call_duration",
         "last_progress",
         "left_voicemail",
+        "worker_blocked",
     )
     readonly_fields = (
         "amazon_id",
-        "get_call_duration",
         "created_at",
         "get_amazon_status",
+        "get_call_duration",
         "hit_display",
+        "last_progress",
         "left_voicemail",
         "progress_display",
         "voicemail_duration",
         "voicemail_url_display",
-        "last_progress",
+        "worker_blocked",
         "worker_display",
     )
     list_filter = ("hit", "call_step")
@@ -440,8 +443,12 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
     prefetch_related = ("hit", "worker")
 
     @admin.display(description="Worker")
-    def worker_display(self, obj):
+    def worker_display(self, obj: Assignment):
         return format_html('<a href="{}">{}</a>', reverse("admin:api_worker_change", args=(obj.worker.id,)), obj.worker)
+
+    @admin.display(description="Blocked", boolean=True, ordering="worker__blocked")
+    def worker_blocked(self, obj: Assignment):
+        return obj.worker.blocked
 
     @admin.display(description="Voicemail")
     def voicemail_url_display(self, obj: Assignment):
