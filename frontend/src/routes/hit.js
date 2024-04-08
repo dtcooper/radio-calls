@@ -70,7 +70,7 @@ const createState = () => {
   })
 
   const update = (data) => _update(($state) => ({ ...$state, ...data }))
-  const error = (msg) => update({ failure: msg })
+  const showError = (msg) => update({ failure: msg })
   const fatalError = (msg) => update({ failure: msg, ready: false })
 
   setInterval(() => update({ now: dayjs() }), 250) // Up-to-date ish dayjs object for intervals
@@ -175,7 +175,7 @@ const createState = () => {
       device.on("tokenWillExpire", () => this.refreshToken())
       device.on("error", (e) => {
         this.logProgress(`device error ${e.code}`)
-        error("An unknown error occurred with your call. Try again.")
+        showError("An unknown error occurred with your call. Try again.")
         warn("device error: ", e)
       })
     },
@@ -233,12 +233,12 @@ const createState = () => {
           }
         })
         call.on("error", (e) => {
-          if ([31401, 31208].includes(e.code)) {
-            this.logProgress("call audio error - mic may not be allowed")
-            error("There was a problem with your audio. Are you sure your microphone is enabled?", e)
+          if ([31401, 31402, 31208].includes(e.code)) {
+            this.logProgress(`call audio error - mic may not be allowed: ${e.code}`)
+            showError("There was a problem with your audio. Are you sure your microphone is working and enabled?")
           } else {
             this.logProgress(`call error: ${e.code}`)
-            error("An unknown error occurred with your call. Try again.")
+            showError("An unknown error occurred with your call. Try again.")
             warn("Unexpected call error:", e)
           }
         })

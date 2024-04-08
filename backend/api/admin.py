@@ -496,7 +496,7 @@ class AssignmentInline(HITListDisplayMixin, PrefetchRelatedMixin, admin.TabularI
 
 
 class WorkerAdmin(NumAssignmentsMixin, WorkerAndAssignmentBaseAdmin):
-    fields = ("amazon_id", "name", "gender", "num_assignments", "location", "ip_address", "blocked", "created_at")
+    fields = ("amazon_id", "created_at", "name", "gender", "num_assignments", "location", "ip_address", "blocked", "created_at")
     readonly_fields = ("amazon_id", "created_at", "num_assignments", "worker_display", "blocked")
     list_display = ("amazon_id", "worker_display", "location", "num_assignments", "blocked")
     search_fields = ("amazon_id", "name", "location")
