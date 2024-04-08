@@ -336,7 +336,7 @@ class HIT(BaseModel):
             self.publish_api_exception = traceback.format_exc()
             logger.exception(f"Error ocurred while publishing to {'Production' if production else 'the Sandbox'}")
             self.save()
-            return False
+            raise
 
         else:
             if settings.DEBUG:
