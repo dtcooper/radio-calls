@@ -14,7 +14,7 @@ down:
 .PHONY: build
 build: CONTAINERS:=
 build:
-	$(COMPOSE) build --pull $(CONTAINERS)
+	$(COMPOSE) build --pull --build-arg "GIT_REV=$(shell git rev-parse --short=8 HEAD || echo unknown)" --build-arg "BUILD_TIME=$(shell date -u +%FT%TZ)" $(CONTAINERS)
 
 .PHONY: shell
 shell:
@@ -52,7 +52,7 @@ deploy-pull: verify-prod
 deploy-build: verify-prod
 	git pull --ff-only
 	docker compose pull --quiet --ignore-buildable
-	docker compose build --pull
+	make build
 	docker compose down --remove-orphans
 	docker compose up --quiet-pull --remove-orphans --no-build --detach
 	docker system prune --force

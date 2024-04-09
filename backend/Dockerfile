@@ -49,3 +49,9 @@ COPY . /app/
 
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD []
+
+ARG GIT_REV=unknown \
+    BUILD_TIME=2000-01-01T00:00:00Z  # Some random parsable default
+
+ENV GIT_REV="${GIT_REV}" \
+    BUILD_TIME="${BUILD_TIME}"

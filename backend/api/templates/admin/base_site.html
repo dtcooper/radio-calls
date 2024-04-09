@@ -6,3 +6,17 @@
   {% endif %}
   {{ block.super }}
 {% endblock %}
+
+
+{% block footer %}
+<div id="footer">
+  <hr/>
+  <div class="container pull-left">
+    <h5 style="text-align: center;">
+      {% now 'Y' as year %}
+      <a href="https://github.com/dtcooper/radio-calls" target="_blank">Radio Calls</a>,
+      version: {{ GIT_REV }}, build time: {{ BUILD_TIME|date:"SHORT_DATETIME_FORMAT" }}
+    </h5>
+  </div>
+</div>
+{% endblock %}

@@ -11,6 +11,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEV_MODE", default=False)
 DOMAIN_NAME = env("DOMAIN_NAME")
+GIT_REV = env("GIT_REV", default="unknown")
+BUILD_TIME = env("BUILD_TIME", default="2000-01-01T00:00:00Z")
 
 TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN")
@@ -85,6 +87,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "api.context_processors.build_vars",
             ],
         },
     },
