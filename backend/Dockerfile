@@ -20,7 +20,9 @@ ARG DEV_MODE=0
 RUN if [ "$DEV_MODE" -a "$DEV_MODE" != '0' ]; then \
         echo "alias ls='ls --color=auto'" >> /root/.bashrc \
         && echo "alias rs='./manage.py runserver'" >> /root/.bashrc \
+        && echo "alias rsp='ALLOW_MTURK_PRODUCTION_ACCESS=1 ./manage.py runserver'" >> /root/.bashrc \
         && echo "alias sp='./manage.py shell_plus'" >> /root/.bashrc \
+        && echo "alias spp='ALLOW_MTURK_PRODUCTION_ACCESS=1 ./manage.py shell_plus'" >> /root/.bashrc \
         && echo '. /etc/bash_completion' >> /root/.bashrc \
         && apt-get update \
         && apt-get upgrade -y \
