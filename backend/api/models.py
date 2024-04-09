@@ -159,7 +159,7 @@ class HIT(BaseModel):
     )
     leave_voicemail_after_duration = models.DurationField(
         "duration to leave a voicemail after",
-        default=datetime.timedelta(minutes=15),
+        default=datetime.timedelta(minutes=10),
         validators=call_duration_validators,
         help_text='After this amount of time of being on "hold" the worker can submit the assignment with a voicemail.',
     )
@@ -490,6 +490,7 @@ class Assignment(BaseModel):
     call_started_at = models.DateTimeField("call started at", default=None, null=True, blank=True)
     call_connected_at = models.DateTimeField("call connected at", default=None, null=True, blank=True)
     call_completed_at = models.DateTimeField("call ended time", default=None, null=True, blank=True)
+    user_agent = models.CharField("user agent", max_length=1024, blank=True)
     words_to_pronounce = JSONField(
         schema={
             "type": "array",
@@ -556,12 +557,13 @@ class Assignment(BaseModel):
         return self.__amazon_obj["AssignmentStatus"] if self.__amazon_obj else "Not submitted"
 
     @classmethod
-    def from_api(cls, amazon_id, hit, worker, reset_to_initial=False):
+    def from_api(cls, amazon_id, hit, worker, user_agent, reset_to_initial=False):
         defaults = {
             "call_started_at": None,
             "hit": hit,
             "words_to_pronounce": generate_words_to_pronounce(),
             "worker": worker,
+            "user_agent": user_agent,
         }
         if reset_to_initial:
             defaults.update({

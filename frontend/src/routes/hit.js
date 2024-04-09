@@ -108,7 +108,13 @@ const createState = () => {
         if (isPreview) {
           url += "/preview"
         }
-        const { success, ...data } = await post(url, { hitId, workerId, dbId, isPreview })
+        const { success, ...data } = await post(url, {
+          hitId,
+          workerId,
+          dbId,
+          isPreview,
+          userAgent: navigator.userAgent
+        })
         if (!success) {
           fatalError(`Couldn't initialize! ${data.error}`)
           this.logProgress("Handshake failed!")

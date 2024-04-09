@@ -108,6 +108,7 @@ class HandshakeIn(Schema):
     worker_id: str | None = None
     hit_id: str | None = None
     is_preview: bool = False
+    user_agent: str | None = None
 
 
 class HandshakePreviewOut(BaseOut):
@@ -163,7 +164,13 @@ def handshake(request, handshake: HandshakeIn):
         raise HttpError(400, "Assignment ID invalid")
 
     # Reset to initial state for simulated workers only
-    assignment = Assignment.from_api(amazon_id=assignment_id, hit=hit, worker=worker, reset_to_initial=reset_to_initial)
+    assignment = Assignment.from_api(
+        amazon_id=assignment_id,
+        hit=hit,
+        worker=worker,
+        user_agent=handshake.user_agent or "",
+        reset_to_initial=reset_to_initial,
+    )
 
     return {
         **handshake_out,

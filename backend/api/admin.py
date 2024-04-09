@@ -429,6 +429,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "voicemail_url_display",
         "feedback",
         "get_amazon_status",
+        "user_agent",
     )
     list_display = (
         "amazon_id",
@@ -456,6 +457,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "voicemail_url_display",
         "worker_blocked",
         "worker_display",
+        "user_agent",
     )
     list_filter = ("hit", "call_step", "worker__blocked")
     search_fields = ("amazon_id", "worker__name", "hit__name", "worker__amazon_id", "hit__amazon_id")
