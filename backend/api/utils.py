@@ -2,7 +2,6 @@ import datetime
 from functools import cache
 import logging
 import re
-import traceback
 
 import boto3
 from dateutil.parser import parse as dateutil_parse
@@ -16,7 +15,7 @@ from django.utils.formats import date_format as django_date_format
 from ninja.parser import Parser
 from ninja.renderers import BaseRenderer
 
-from .constants import LOCATION_UNKNOWN
+from .constants import LOCATION_UNKNOWN, SIMULATED_PREFIX
 
 
 underscore_converter_re = re.compile(r"(?<!^)(?=[A-Z])")
@@ -110,17 +109,30 @@ def get_location_from_ip_addr(ip_addr):
     return LOCATION_UNKNOWN
 
 
-# For use in ./manage.py shell
-def block_workers(amazon_ids, production=True):
-    client = get_mturk_client(production=production)
-    for amazon_id in amazon_ids:
-        try:
-            response = client.create_worker_block(
-                WorkerId=amazon_id, Reason=f"Didn't follow instructions properly. Block created at {timezone.now()}"
-            )
-            assert response["ResponseMetadata"]["HTTPStatusCode"] == 200, "Bad response value"
-        except Exception:
-            print(f"Failed to block {amazon_id}")
-            traceback.print_exc()
-        else:
-            print(f"Blocked {amazon_id}")
+def block_or_unblock_worker(amazon_id, *, block=False):
+    success = False
+    verb = "block" if block else "unblock"
+    if amazon_id and not amazon_id.startswith(SIMULATED_PREFIX):
+        method = f"{'create' if block else 'delete'}_worker_block"
+        kwargs = {"WorkerId": amazon_id}
+        if block:
+            kwargs["Reason"] = f"Didn't follow instructions properly. Block created at {timezone.now()}."
+
+        for production, client in get_mturk_clients():
+            environment = "production" if production else "sandbox"
+            try:
+                response = getattr(client, method)(**kwargs)
+            except Exception:
+                logger.exception(f"Error while {verb}ing worker {amazon_id} in {environment}")
+            else:
+                code = response["ResponseMetadata"]["HTTPStatusCode"]
+                if code == 200:
+                    success = True  # At least one environment succeeded
+                    logger.info(f"{verb.capitalize()}ed worker {amazon_id} in {environment}")
+                else:
+                    logger.info(f"Bad response code {code} while {verb}ing worker {amazon_id} in {environment}")
+    return success
+
+
+def block_or_unblock_workers(amazon_ids, *, block=False):
+    return [block_or_unblock_worker(amazon_id, block=block) for amazon_id in amazon_ids]

@@ -18,7 +18,7 @@ from durationwidget.widgets import TimeDurationWidget
 
 from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES, SIMULATED_PREFIX
 from .models import HIT, Assignment, User, Worker, WorkerPageLoad
-from .utils import short_datetime_str
+from .utils import block_or_unblock_workers, short_datetime_str
 
 
 ATTR_COLORS = {
@@ -33,43 +33,6 @@ ATTR_COLORS = {
 def attr_color(color):
     bgcolor, fgcolor = ATTR_COLORS[color]
     return {"style": f"background-color: {bgcolor}; color: {fgcolor}"}
-
-
-class HITListDisplayMixin:
-    @admin.display(description="HIT")
-    def hit_display(self, obj):
-        return format_html('<a href="{}">{}</a>', reverse("admin:api_hit_change", args=(obj.hit.id,)), obj.hit.name)
-
-
-class BaseModelAdmin(ExtraButtonsMixin, admin.ModelAdmin):
-    date_hierarchy = "created_at"
-    list_max_show_all = 2500
-    list_per_page = 200
-    show_facets = admin.ShowFacets.ALWAYS
-    save_on_top = True
-    formfield_overrides = {models.DurationField: {"widget": TimeDurationWidget}}
-
-
-class PrefetchRelatedMixin:
-    prefetch_related = None
-
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        if self.prefetch_related is not None:
-            queryset = queryset.prefetch_related(*self.prefetch_related)
-        return queryset
-
-
-class NumAssignmentsMixin:
-    def get_queryset(self, request):
-        return super().get_queryset(request).annotate(num_assignments=Count("assignment"))
-
-    @admin.display(description="Assignment count", ordering="num_assignments")
-    def num_assignments(self, obj):
-        url = reverse("admin:api_assignment_changelist")
-        model_name = self.model._meta.model_name
-        querystring = urlencode({f"{model_name}__id__exact": obj.id})
-        return format_html('<a href="{}">{}</a>', f"{url}?{querystring}", obj.num_assignments)
 
 
 class UserAdmin(BaseUserAdmin):
@@ -107,6 +70,43 @@ class UserAdmin(BaseUserAdmin):
 
     def has_change_permission(self, request, obj=None):
         return request.user.is_superuser
+
+
+class HITListDisplayMixin:
+    @admin.display(description="HIT")
+    def hit_display(self, obj):
+        return format_html('<a href="{}">{}</a>', reverse("admin:api_hit_change", args=(obj.hit.id,)), obj.hit.name)
+
+
+class PrefetchRelatedMixin:
+    prefetch_related = None
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if self.prefetch_related is not None:
+            queryset = queryset.prefetch_related(*self.prefetch_related)
+        return queryset
+
+
+class NumAssignmentsMixin:
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(num_assignments=Count("assignment"))
+
+    @admin.display(description="Assignment count", ordering="num_assignments")
+    def num_assignments(self, obj):
+        url = reverse("admin:api_assignment_changelist")
+        model_name = self.model._meta.model_name
+        querystring = urlencode({f"{model_name}__id__exact": obj.id})
+        return format_html('<a href="{}">{}</a>', f"{url}?{querystring}", obj.num_assignments)
+
+
+class BaseModelAdmin(ExtraButtonsMixin, admin.ModelAdmin):
+    date_hierarchy = "created_at"
+    list_max_show_all = 2500
+    list_per_page = 200
+    show_facets = admin.ShowFacets.ALWAYS
+    save_on_top = True
+    formfield_overrides = {models.DurationField: {"widget": TimeDurationWidget}}
 
 
 def has_publish_permission(request, hit, **kwargs):
@@ -468,9 +468,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
     def last_progress(self, obj: Assignment):
         if obj.progress:
             date, progress = obj.progress[-1].split("/", 1)
-            return format_html(
-                "{} &mdash; {}<br>{}", short_datetime_str(date), progress, f"({len(obj.progress)} total)"
-            )
+            return format_html("{}<br>{}<br>{}", short_datetime_str(date), progress, f"({len(obj.progress)} total)")
         return "0 total"
 
     @admin.display(description="progress")
@@ -546,18 +544,47 @@ class WorkerAdmin(NumAssignmentsMixin, WorkerAndAssignmentBaseAdmin):
         return redirect("admin:api_worker_change", object_id=worker.pk)
 
 
+class HasAssociatedWorkerListFilter(admin.SimpleListFilter):
+    title = "start_date"
+    parameter_name = "start_date"
+
+    def lookups(self, request, model_admin):
+        return (("with_associated", "Has associated worker"), ("without_associated", "No associated worker"))
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == "with_associated":
+            queryset = queryset.filter(worker_id__isnull=False)
+        elif value == "without_associated":
+            queryset = queryset.filter(worker_id__isnull=True)
+        return queryset
+
+
 class WorkerPageLoadAdmin(BaseModelAdmin):
     fields = list_display = readonly_fields = (
         "created_at",
+        "worker_display",
         "had_amp_encoded",
         "assignment_display",
         "hit_display",
         "has_associated_worker",
     )
-    list_filter = ("had_amp_encoded",)
+    list_filter = ("had_amp_encoded", HasAssociatedWorkerListFilter)
+    actions = ("block_workers", "unblock_workers")
 
-    def view(self, obj: WorkerPageLoad):
-        return "View"
+    @admin.action(description="Block selected worker(s)", permissions=("block",))
+    def block_workers(self, request, queryset):
+        queryset = queryset.values_list("worker_amazon_id", flat=True)
+        blocks = filter(None, block_or_unblock_workers(queryset, block=True))
+        num_blocks = len(list(blocks))
+        self.message_user(request, f"Blocked {num_blocks} worker(s)", messages.WARNING)
+
+    @admin.action(description="Unblock selected worker(s)", permissions=("block",))
+    def unblock_workers(self, request, queryset):
+        queryset = queryset.values_list("worker_amazon_id", flat=True)
+        unblocks = filter(None, block_or_unblock_workers(queryset, block=False))
+        num_unblocks = len(list(unblocks))
+        self.message_user(request, f"Unblocked {num_unblocks} worker(s)", messages.WARNING)
 
     def _display_helper(self, obj: WorkerPageLoad, field):
         id_value = getattr(obj, f"{field}_id")

@@ -46,7 +46,14 @@ from .constants import (
     WORKER_NAME_MAX_LENGTH,
     ZULU_STRFTIME,
 )
-from .utils import ChoicesCharField, get_ip_addr, get_location_from_ip_addr, get_mturk_client, get_mturk_clients
+from .utils import (
+    ChoicesCharField,
+    block_or_unblock_worker,
+    get_ip_addr,
+    get_location_from_ip_addr,
+    get_mturk_client,
+    get_mturk_clients,
+)
 
 
 logger = logging.getLogger(f"calls.{__name__}")
@@ -415,24 +422,10 @@ class Worker(BaseModel):
         return f"{self.gender[:1].upper()}.{slugify(self.name)}"
 
     def _block_helper(self, *, block: bool):
-        success = False
-        if self.amazon_id and not self.amazon_id.startswith(SIMULATED_PREFIX):
-            method = f"{'create' if block else 'delete'}_worker_block"
-            kwargs = {"WorkerId": self.amazon_id}
-            if block:
-                kwargs["Reason"] = f"Didn't follow instructions properly. Block created at {timezone.now()}"
-
-            for production, client in get_mturk_clients():
-                try:
-                    response = getattr(client, method)(**kwargs)
-                except Exception:
-                    logger.exception("Error blocking")
-                else:
-                    if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
-                        success = True
-                        logger.info(f"{'B' if block else 'Unb'}locked worker {self.amazon_id} in {production=}")
-                        self.blocked = block
-                        self.save(update_fields=("blocked",))
+        success = block_or_unblock_worker(self.amazon_id, block=block)
+        if success:
+            self.blocked = block
+            self.save(update_fields=("blocked",))
         return success
 
     def block(self):
