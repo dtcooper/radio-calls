@@ -42,6 +42,7 @@ class HITListDisplayMixin:
 
 
 class BaseModelAdmin(ExtraButtonsMixin, admin.ModelAdmin):
+    date_hierarchy = "created_at"
     list_max_show_all = 2500
     list_per_page = 200
     show_facets = admin.ShowFacets.ALWAYS
@@ -546,9 +547,14 @@ class WorkerAdmin(NumAssignmentsMixin, WorkerAndAssignmentBaseAdmin):
 
 
 class WorkerPageLoadAdmin(BaseModelAdmin):
-    fields = ("worker_display", "had_amp_encoded", "assignment_display", "hit_display", "has_associated_worker")
-    list_display = ("view",) + fields
-    readonly_fields = ("has_associated_worker", "worker_display", "assignment_display", "hit_display", "view")
+    fields = list_display = readonly_fields = (
+        "created_at",
+        "had_amp_encoded",
+        "assignment_display",
+        "hit_display",
+        "has_associated_worker",
+    )
+    list_filter = ("had_amp_encoded",)
 
     def view(self, obj: WorkerPageLoad):
         return "View"
