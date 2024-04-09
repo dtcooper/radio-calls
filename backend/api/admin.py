@@ -104,8 +104,11 @@ class NumAssignmentsMixin:
     @admin.display(description="Worker assignment count", ordering="num_assignments")
     def num_assignments(self, obj):
         url = reverse("admin:api_assignment_changelist")
-        querystring = urlencode({"worker__id__exact": obj.worker_id if self.model == Assignment else obj.id})
-        return format_html('<a href="{}">{}</a>', f"{url}?{querystring}", obj.num_assignments)
+        if self.model == HIT:
+            query = {"hit__id__exact": obj.id}
+        else:
+            query = {"worker__id__exact": obj.worker_id if self.model == Assignment else obj.id}
+        return format_html('<a href="{}">{}</a>', f"{url}?{urlencode(query)}", obj.num_assignments)
 
 
 class BaseModelAdmin(ExtraButtonsMixin, admin.ModelAdmin):
