@@ -235,7 +235,9 @@ const createState = () => {
         call.on("error", (e) => {
           if ([31401, 31402, 31208].includes(e.code)) {
             this.logProgress(`call audio error - mic may not be allowed: ${e.code}`)
-            showError("There was a problem with your audio. Are you sure your microphone is working and enabled?")
+            showError(
+              "There was a problem with your audio. Are you sure your microphone is working and enabled? Are you sure the web browser has permission to use your microphone? If the problem persists, try another web browser next time. We recommend Chrome or Firefox."
+            )
           } else {
             this.logProgress(`call error: ${e.code}`)
             showError("An unknown error occurred with your call. Try again.")
