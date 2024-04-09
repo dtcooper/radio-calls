@@ -7,11 +7,11 @@ const backendUrlsToProxy = ["api", "backend-static", "cmsadmin", "__debug__"]
 const addVersionString = () => {
   try {
     const indexPath = "build/index.html"
-    if (execSync(indexPath)) {
+    if (existsSync(indexPath)) {
       const gitDir = `${__dirname}/../.git`
       let version = "unknown"
       if (existsSync(gitDir)) {
-        version = execSync(`git --git-dir=${gitDir} --short=8 rev-parse HEAD`, { encoding: "utf-8" }).trim()
+        version = execSync(`git --git-dir=${gitDir} rev-parse --short=8 HEAD`, { encoding: "utf-8" }).trim()
       }
       const html = readFileSync(indexPath, { encoding: "utf-8" })
       const newHtml = html.replace(">>>VERSION<<<", version).replace(">>>BUILD_TIME<<<", new Date())
@@ -19,7 +19,7 @@ const addVersionString = () => {
       writeFileSync(indexPath, newHtml, { encoding: "utf-8" })
     }
   } catch (e) {
-    console.warn("Error getting version during build", e)
+    console.warn("Error getting version/build date during build", e)
   }
 }
 
