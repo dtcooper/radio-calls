@@ -40,13 +40,13 @@ def hit_passthrough(request):
     for field in ("worker", "assignment", "hit"):
         value = request.GET.get(f"{field}Id")
         if value is None and (value := request.GET.get(f"amp;{field}Id")) is not None:
-            page_load["has_amp_encoded"] = True
+            page_load["had_amp_encoded"] = True
         if value is not None:
             page_load[f"{field}_amazon_id"] = value
 
     if "worker_amazon_id" in page_load:
-        worker_id, has_amp_encoded = page_load["worker_amazon_id"], "has_amp_encoded" in page_load
-        logger.info(f"Worker {worker_id} loaded page, logging{' (had amp encoded)' if has_amp_encoded else ''}")
+        worker_id, had_amp_encoded = page_load["worker_amazon_id"], "had_amp_encoded" in page_load
+        logger.info(f"Worker {worker_id} loaded page, logging{' (had amp encoded)' if had_amp_encoded else ''}")
         WorkerPageLoad.objects.create(**page_load)
 
     return HttpResponse(headers={"X-Accel-Redirect": f"/__hit_passthrough__{request.path}"})
