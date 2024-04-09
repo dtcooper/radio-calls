@@ -143,7 +143,7 @@ def handshake(request, handshake: HandshakeIn):
     can_preview = request.user.has_perm("api.preview_hit")
 
     worker_id = None
-    simulated_worker = False
+    reset_to_initial = False
     if handshake.worker_id is not None:
         worker_id = handshake.worker_id
     elif can_preview:
@@ -158,12 +158,12 @@ def handshake(request, handshake: HandshakeIn):
         assignment_id = handshake.assignment_id
     elif can_preview:
         assignment_id = f"{SIMULATED_PREFIX}user:{request.user.id}/worker:{worker.id}/hit:{hit.id}"
-        simulated_worker = True
+        reset_to_initial = settings.DEBUG  # Only reset to initial in development
     if assignment_id is None:
         raise HttpError(400, "Assignment ID invalid")
 
     # Reset to initial state for simulated workers only
-    assignment = Assignment.from_api(amazon_id=assignment_id, hit=hit, worker=worker, reset_to_initial=simulated_worker)
+    assignment = Assignment.from_api(amazon_id=assignment_id, hit=hit, worker=worker, reset_to_initial=reset_to_initial)
 
     return {
         **handshake_out,

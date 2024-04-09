@@ -126,7 +126,7 @@ def hit_outgoing(request, assignment_id: Form[str], call_sid: Form[str], cheat: 
         assignment.append_progress("call initiated")
         send_twilio_message_at_end_of_request(request, call_sid, INITIAL)
         response.say("First, we'll test your speaker and microphone and your ability to speak English.")
-        response.pause(0.5)
+        response.pause(1)
         response.redirect(url("hit_outgoing_verify", assignment, first_run=1))
     return response
 
@@ -174,18 +174,18 @@ def hit_outgoing_verify(
             # Send back speech result for UI (no need to update status)
             send_twilio_message_at_end_of_request(request, call_sid, INITIAL, words_heard=speech_result)
             response.say("You repeated the words incorrectly. Please try again.")
-            response.pause(0.5)
+            response.pause(1)
     elif not first_run:
         send_twilio_message_at_end_of_request(request, call_sid, INITIAL, words_heard="<<<SILENCE>>>")
         assignment.append_progress(f"verify failed - SILENCE, try_count={try_count}")
         response.say("We didn't seem to hear anything. Please check that your microphone is working correctly.")
-        response.pause(0.5)
+        response.pause(1)
 
     if first_run:
         response.say("After the tone, please repeat the following fruits.")
     else:
         response.say("Repeat the following fruits. When you are done, stay silent.")
-    response.pause(0.5)
+    response.pause(1)
     response.say(". ".join(w.title() for w in assignment.words_to_pronounce))
 
     assignment.append_progress("recording verify speech")
@@ -282,7 +282,7 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
                 " press the 'finish voicemail' button, or stay silent for a few moments. If you provide a silent"
                 " voicemail, your assignment will be rejected."
             )
-            response.pause(0.5)
+            response.pause(1)
             response.say("At the tone, please record your message.")
             response.redirect(url("hit_outgoing_voicemail", assignment))
 
