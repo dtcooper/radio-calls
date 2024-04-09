@@ -17,7 +17,8 @@ services:
     restart: on-failure
     image: node:21.7-alpine
     env_file: .env
-    command: sh -c "npm install && npm run build"
+    # Allow backend some time to start, so we don't have CPU thrashing
+    command: sh -c "sleep 15 && npm install && npm run build"
     working_dir: /app
     volumes:
       - ./frontend:/app

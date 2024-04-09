@@ -15,6 +15,11 @@ cd "$(dirname "$0")"
 
 wait-for-it --timeout 0 --service db:5432
 
+if [ -z "$DEV_MODE" ]; then
+    # Do this in the background
+    ./manage.py collectstatic --noinput &
+fi
+
 ./manage.py migrate
 
 if [ "$DEV_MODE" ]; then
@@ -31,7 +36,6 @@ if [ "$#" = 0 ]; then
     if [ "$DEV_MODE" ]; then
         exec ./manage.py runserver
     else
-        ./manage.py collectstatic --noinput
         exec gunicorn
     fi
 else
