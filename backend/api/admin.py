@@ -6,7 +6,7 @@ from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
 from django.db import models
-from django.db.models import Count, F, Func, OuterRef, Value
+from django.db.models import Count, F, Func, OuterRef, Subquery, Value
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -90,9 +90,18 @@ class PrefetchRelatedMixin:
 
 class NumAssignmentsMixin:
     def get_queryset(self, request):
-        return super().get_queryset(request).annotate(num_assignments=Count("assignment"))
+        if self.model == Assignment:
+            annotation = Subquery(
+                Assignment.objects.filter(worker_id=OuterRef("worker_id"))
+                .values("worker_id")
+                .annotate(count=Count("*"))
+                .values("count")[:1]
+            )
+        else:
+            annotation = Count("assignment")
+        return super().get_queryset(request).annotate(num_assignments=annotation)
 
-    @admin.display(description="Assignment count", ordering="num_assignments")
+    @admin.display(description="Worker assignment count", ordering="num_assignments")
     def num_assignments(self, obj):
         url = reverse("admin:api_assignment_changelist")
         model_name = self.model._meta.model_name
@@ -356,7 +365,7 @@ class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
             )
 
 
-class WorkerAndAssignmentBaseAdmin(BaseModelAdmin):
+class WorkerAndAssignmentBaseAdmin(NumAssignmentsMixin, BaseModelAdmin):
     actions = ("block_workers", "unblock_workers")
 
     def has_block_permission(self, request):
@@ -411,6 +420,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "call_connected_at",
         "call_completed_at",
         "get_call_duration",
+        "num_assignments",
         "words_to_pronounce",
         "left_voicemail",
         "voicemail_duration",
@@ -426,6 +436,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "hit_display",
         "get_call_duration",
         "last_progress",
+        "num_assignments",
         "left_voicemail",
         "worker_blocked",
     )
@@ -438,6 +449,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "last_progress",
         "left_voicemail",
         "progress_display",
+        "num_assignments",
         "voicemail_duration",
         "voicemail_url_display",
         "worker_blocked",
@@ -495,7 +507,7 @@ class AssignmentInline(HITListDisplayMixin, PrefetchRelatedMixin, admin.TabularI
         return False
 
 
-class WorkerAdmin(NumAssignmentsMixin, WorkerAndAssignmentBaseAdmin):
+class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
     fields = (
         "amazon_id",
         "created_at",
