@@ -380,6 +380,9 @@ class WorkerPageLoad(models.Model):
         "Had &amp; encoded", default=False, help_text="Request had &amp; encoded. This appears to be a marker of spam."
     )
 
+    def __str__(self):
+        return f"{self.worker_amazon_id}{' (amp encoded)' if self.had_amp_encoded else ''}"
+
     class Meta(BaseModel.Meta):
         pass
 

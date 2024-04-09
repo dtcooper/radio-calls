@@ -6,7 +6,7 @@ from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
 from django.db import models
-from django.db.models import Count, Exists, F, Func, OuterRef, Value
+from django.db.models import Count, F, Func, OuterRef, Value
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -371,15 +371,6 @@ class WorkerAndAssignmentBaseAdmin(BaseModelAdmin):
             and (obj is None or obj.amazon_id.startswith(SIMULATED_PREFIX))
         ) or (request.user.is_superuser and settings.DEBUG)
 
-    def get_queryset(self, request):
-        ref_value = OuterRef("worker__amazon_id" if self.model == Assignment else "amazon_id")
-        subquery = WorkerPageLoad.objects.filter(worker_amazon_id=ref_value)
-        return super().get_queryset(request).annotate(did_load_page=Exists(subquery))
-
-    @admin.display(description="Did Load Page?", ordering="did_load_page", boolean=True)
-    def did_load_page(self, obj: Assignment):
-        return bool(obj.did_load_page)
-
     @button(
         html_attrs=attr_color("info"),
         permission=lambda request, hit, **kw: request.user.has_perm("api.block_worker"),
@@ -435,7 +426,6 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "get_call_duration",
         "last_progress",
         "left_voicemail",
-        "did_load_page",
         "worker_blocked",
     )
     readonly_fields = (
@@ -515,11 +505,10 @@ class WorkerAdmin(NumAssignmentsMixin, WorkerAndAssignmentBaseAdmin):
         "num_assignments",
         "location",
         "ip_address",
-        "did_load_page",
         "blocked",
     )
-    readonly_fields = ("amazon_id", "created_at", "num_assignments", "worker_display", "did_load_page", "blocked")
-    list_display = ("amazon_id", "worker_display", "location", "num_assignments", "did_load_page", "blocked")
+    readonly_fields = ("amazon_id", "created_at", "num_assignments", "worker_display", "blocked")
+    list_display = ("amazon_id", "worker_display", "location", "num_assignments", "blocked")
     search_fields = ("amazon_id", "name", "location")
     list_filter = ("assignment__hit", "gender", "blocked")
     inlines = (AssignmentInline,)
@@ -556,8 +545,66 @@ class WorkerAdmin(NumAssignmentsMixin, WorkerAndAssignmentBaseAdmin):
         return redirect("admin:api_worker_change", object_id=worker.pk)
 
 
+class WorkerPageLoadAdmin(BaseModelAdmin):
+    fields = ("worker_display", "had_amp_encoded", "assignment_display", "hit_display", "has_associated_worker")
+    list_display = ("view",) + fields
+    readonly_fields = ("has_associated_worker", "worker_display", "assignment_display", "hit_display", "view")
+
+    def view(self, obj: WorkerPageLoad):
+        return "View"
+
+    def _display_helper(self, obj: WorkerPageLoad, field):
+        id_value = getattr(obj, f"{field}_id")
+        amazon_id = getattr(obj, f"{field}_amazon_id")
+        if id_value:
+            return format_html("<a href={}>{}</a>", reverse(f"admin:api_{field}_change", args=(id_value,)), amazon_id)
+        else:
+            return amazon_id
+
+    @admin.display(description="Worker", ordering="worker_amazon_id")
+    def worker_display(self, obj: WorkerPageLoad):
+        return self._display_helper(obj, "worker")
+
+    @admin.display(description="Assignment", ordering="assignment_amazon_id")
+    def assignment_display(self, obj: WorkerPageLoad):
+        return self._display_helper(obj, "assignment")
+
+    @admin.display(description="HIT", ordering="hit_amazon_id")
+    def hit_display(self, obj: WorkerPageLoad):
+        return self._display_helper(obj, "hit")
+
+    @admin.display(boolean=True)
+    def has_associated_worker(self, obj: WorkerPageLoad):
+        return obj.worker_id is not None
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(**{
+                f"{m._meta.model_name}_id": m.objects.filter(
+                    amazon_id=OuterRef(f"{m._meta.model_name}_amazon_id")
+                ).values("id")[:1]
+                for m in (Worker, Assignment, HIT)
+            })
+        )
+
+    def has_block_permission(self, request):
+        return request.user.has_perm("api.block_worker")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 admin.site.unregister(Group)
 admin.site.register(User, UserAdmin)
 admin.site.register(HIT, HITAdmin)
 admin.site.register(Worker, WorkerAdmin)
 admin.site.register(Assignment, AssignmentAdmin)
+admin.site.register(WorkerPageLoad, WorkerPageLoadAdmin)
