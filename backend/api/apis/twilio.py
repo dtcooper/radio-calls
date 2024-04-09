@@ -268,8 +268,9 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
                 " at which point you can leave a voicemail and submit this assignment. NOTE: The host"
                 f" may answer sooner, so you may not have to wait the full {to_pretty_minutes(countdown)}."
             )
-            response.play(sound_path("busy-signal"))
-            if not settings.DEBUG:
+            if settings.DEBUG:
+                response.play(sound_path("busy-signal"))  # Only play in dev, confusing for workers
+            else:
                 response.play(sound_path(f"hold-music-{random.randint(1, HOLD_MUSIC_TRACKS)}"))
             response.say("Trying to connect again now.")
             response.redirect(url("hit_outgoing_call", assignment))

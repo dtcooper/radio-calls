@@ -35,7 +35,7 @@ export const scroll = (elemOrId) => {
 const post = (endpoint, data) => _post(endpoint, { assignmentId, ...data }, isDebug())
 
 // Separate store for levels because this gets written to a lot
-const levelsFuzzAmount = 1.25
+const levelsFuzzAmount = 1.35
 const levels = writable({ speaker: 0, mic: 0 })
 const readonlyLevels = readonly(levels)
 export { readonlyLevels as levels }
