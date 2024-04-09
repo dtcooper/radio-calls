@@ -104,8 +104,7 @@ class NumAssignmentsMixin:
     @admin.display(description="Worker assignment count", ordering="num_assignments")
     def num_assignments(self, obj):
         url = reverse("admin:api_assignment_changelist")
-        model_name = self.model._meta.model_name
-        querystring = urlencode({f"{model_name}__id__exact": obj.id})
+        querystring = urlencode({"worker__id__exact": obj.worker_id if self.model == Assignment else obj.id})
         return format_html('<a href="{}">{}</a>', f"{url}?{querystring}", obj.num_assignments)
 
 
@@ -456,7 +455,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "worker_display",
     )
     list_filter = ("hit", "call_step", "worker__blocked")
-    search_fields = ("amazon_id", "worker__name", "hit__name")
+    search_fields = ("amazon_id", "worker__name", "hit__name", "worker__amazon_id", "hit__amazon_id")
     prefetch_related = ("hit", "worker")
 
     @admin.display(description="Worker")
