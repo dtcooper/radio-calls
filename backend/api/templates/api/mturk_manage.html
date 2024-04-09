@@ -3564,15 +3564,17 @@
 
   <div id="login">
     <form action="file://">
+      <!-- BEGIN: changes related to radio-calls -->
       <input id="login-aws-accessKeyId" placeholder="YOUR_ACCESS_ID" type="text" value="{{ AWS_ACCESS_KEY_ID }}">
       <input id="login-aws-secretAccessKey" placeholder="YOUR_SECRET_ACCESS_KEY" type="password" value="{{ AWS_SECRET_ACCESS_KEY }}">
       <input id="login-aws-region" value="us-east-1" type="hidden">
       <select id="login-aws-endpoint">
         <optgroup label="Endpoint">
-          <option value="https://mturk-requester-sandbox.us-east-1.amazonaws.com">Sandbox</option>
-          <option value="https://mturk-requester.us-east-1.amazonaws.com">Production</option>
+          <option value="https://mturk-requester-sandbox.us-east-1.amazonaws.com"{% if not IS_PRODUCTION %} selected{% endif %}>Sandbox</option>
+          <option value="https://mturk-requester.us-east-1.amazonaws.com"{% if IS_PRODUCTION %} selected{% endif %}>Production</option>
         </optgroup>
       </select>
+      <!-- END: changes related to radio-calls -->
       <select id="login-time-format">
         <optgroup label="Time Format">
           <option value="3" id="login-time-zone">Local</option>

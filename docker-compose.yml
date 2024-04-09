@@ -67,6 +67,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
+      PGUSER: postgres
       POSTGRES_PASSWORD: postgres
       TZ: "${TZ}"
 

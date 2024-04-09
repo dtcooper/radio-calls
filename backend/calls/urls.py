@@ -27,6 +27,7 @@ def mturk_manage(request):
             request,
             "api/mturk_manage.html",
             {
+                "IS_PRODUCTION": settings.ALLOW_MTURK_PRODUCTION_ACCESS,
                 "AWS_ACCESS_KEY_ID": settings.AWS_ACCESS_KEY_ID,
                 "AWS_SECRET_ACCESS_KEY": settings.AWS_SECRET_ACCESS_KEY,
             },
