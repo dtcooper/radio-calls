@@ -518,7 +518,7 @@ class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
         "blocked",
     )
     readonly_fields = ("amazon_id", "created_at", "num_assignments", "worker_display", "blocked")
-    list_display = ("amazon_id", "worker_display", "location", "num_assignments", "blocked")
+    list_display = ("amazon_id", "created_at", "worker_display", "location", "num_assignments", "blocked")
     search_fields = ("amazon_id", "name", "location")
     list_filter = ("assignment__hit", "gender", "blocked")
     inlines = (AssignmentInline,)
