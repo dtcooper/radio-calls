@@ -206,7 +206,7 @@ class HIT(BaseModel):
         help_text="Worker qualification. Limit workers to these countries. Leave blank to allow any and all countries.",
     )
     qualification_adult = models.BooleanField(
-        "adult qualification", default=False, help_text="Worker qualification. Enable to require workers ."
+        "adult qualification", default=False, help_text="Worker qualification. Enable to require workers to be over 18."
     )
     publish_api_exception = models.TextField(
         "error details",
@@ -364,13 +364,13 @@ class HIT(BaseModel):
 class WorkerPageLoad(models.Model):
     created_at = models.DateTimeField("created at", auto_now_add=True, db_index=True)
     worker_amazon_id = models.CharField(
-        "Worker Amazon ID",
+        "worker Amazon ID",
         max_length=MTURK_ID_LENGTH,
         help_text="Worker identifier as used by the Amazon MTurk API.",
         db_index=True,
     )
     assignment_amazon_id = models.CharField(
-        "Assignment Amazon ID",
+        "assignment Amazon ID",
         max_length=MTURK_ID_LENGTH,
         help_text="Assignment identifier as used by the Amazon MTurk API.",
         null=True,
@@ -384,7 +384,7 @@ class WorkerPageLoad(models.Model):
         blank=True,
     )
     had_amp_encoded = models.BooleanField(
-        "Had &amp; encoded", default=False, help_text="Request had &amp; encoded. This appears to be a marker of spam."
+        "had &amp; encoded", default=False, help_text="Request had &amp; encoded. This appears to be a marker of spam."
     )
 
     def __str__(self):
@@ -404,6 +404,9 @@ class Worker(BaseModel):
     gender = ChoicesCharField("gender", choices=Gender, default=Gender.MALE)
     blocked = models.BooleanField("blocked", default=False)
     ip_address = models.GenericIPAddressField("IP address", null=True, default=None, blank=True)
+    is_good_worker = models.BooleanField(
+        "good worker", default=False, help_text='Mark worker as "good", and ignore any accidental block attempts.'
+    )
     location = models.CharField(
         "location",
         max_length=384,
@@ -422,10 +425,12 @@ class Worker(BaseModel):
         return f"{self.gender[:1].upper()}.{slugify(self.name)}"
 
     def _block_helper(self, *, block: bool):
-        success = block_or_unblock_worker(self.amazon_id, block=block)
-        if success:
-            self.blocked = block
-            self.save(update_fields=("blocked",))
+        success = False
+        if not block or not self.is_good_worker:
+            success = block_or_unblock_worker(self.amazon_id, block=block)
+            if success:
+                self.blocked = block
+                self.save(update_fields=("blocked",))
         return success
 
     def block(self):

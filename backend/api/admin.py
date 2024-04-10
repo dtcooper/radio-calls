@@ -6,7 +6,7 @@ from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
 from django.db import models
-from django.db.models import Count, F, Func, OuterRef, Subquery, Value
+from django.db.models import Count, Exists, F, Func, OuterRef, Subquery, Value
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -385,7 +385,7 @@ class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
 
 
 class WorkerAndAssignmentBaseAdmin(NumAssignmentsMixin, BaseModelAdmin):
-    actions = ("block_workers", "unblock_workers")
+    actions = ("mark_good_workers", "unmark_good_workers", "block_workers", "unblock_workers")
 
     def has_block_permission(self, request):
         return request.user.has_perm("api.block_worker")
@@ -409,21 +409,34 @@ class WorkerAndAssignmentBaseAdmin(NumAssignmentsMixin, BaseModelAdmin):
         Worker.resync_blocks()
         self.message_user(request, "Worker blocks have been resynchronized!")
 
-    @admin.action(description="Block selected worker(s)", permissions=("block",))
-    def block_workers(self, request, queryset):
+    def _get_worker_queryset(self, queryset):
         if self.model == Assignment:
             queryset = Worker.objects.filter(assignment__id__in=list(queryset.values_list("id", flat=True)))
+        return queryset
+
+    @admin.action(description="Block selected worker(s)", permissions=("block",))
+    def block_workers(self, request, queryset):
+        queryset = self._get_worker_queryset(queryset)
         blocks = filter(None, (w.block() for w in queryset))
         num_blocks = len(list(blocks))
         self.message_user(request, f"Blocked {num_blocks} worker(s)", messages.WARNING)
 
     @admin.action(description="Unblock selected worker(s)", permissions=("block",))
     def unblock_workers(self, request, queryset):
-        if self.model == Assignment:
-            queryset = Worker.objects.filter(assignment__id__in=list(queryset.values_list("id", flat=True)))
+        queryset = self._get_worker_queryset(queryset)
         unblocks = filter(None, (w.unblock() for w in queryset))
         num_unblocks = len(list(unblocks))
         self.message_user(request, f"Unblocked {num_unblocks} worker(s)", messages.WARNING)
+
+    @admin.action(description="Mark as good worker(s)", permissions=("change",))
+    def mark_good_workers(self, request, queryset):
+        num_marked = self._get_worker_queryset(queryset).update(is_good_worker=True)
+        self.message_user(request, f"{num_marked} worker(s) marked as good", messages.SUCCESS)
+
+    @admin.action(description="Unmark as good worker(s)", permissions=("change",))
+    def unmark_good_workers(self, request, queryset):
+        num_unmarked = self._get_worker_queryset(queryset).update(is_good_worker=False)
+        self.message_user(request, f"{num_unmarked} worker(s) unmarked as good", messages.WARNING)
 
 
 class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssignmentBaseAdmin):
@@ -431,6 +444,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "amazon_id",
         "hit",
         "worker",
+        "is_good_worker",
         "worker_blocked",
         "progress_display",
         "created_at",
@@ -454,10 +468,11 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "call_step",
         "worker_display",
         "hit_display",
+        "left_voicemail",
         "get_call_duration",
         "last_progress",
         "num_assignments",
-        "left_voicemail",
+        "is_good_worker",
         "worker_blocked",
     )
     readonly_fields = (
@@ -466,6 +481,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "get_amazon_status",
         "get_call_duration",
         "hit_display",
+        "is_good_worker",
         "last_progress",
         "left_voicemail",
         "progress_display",
@@ -476,9 +492,13 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "worker_display",
         "user_agent",
     )
-    list_filter = ("hit", "call_step", "worker__blocked")
+    list_filter = ("hit", "call_step", "worker__blocked", "worker__is_good_worker")
     search_fields = ("amazon_id", "worker__name", "hit__name", "worker__amazon_id", "hit__amazon_id")
     prefetch_related = ("hit", "worker")
+
+    @admin.display(description="Good worker", boolean=True, ordering="worker__is_good_worker")
+    def is_good_worker(self, obj: Assignment):
+        return obj.worker.is_good_worker
 
     @admin.display(description="Worker")
     def worker_display(self, obj: Assignment):
@@ -531,6 +551,7 @@ class AssignmentInline(HITListDisplayMixin, PrefetchRelatedMixin, admin.TabularI
 class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
     fields = (
         "amazon_id",
+        "is_good_worker",
         "created_at",
         "name",
         "gender",
@@ -540,10 +561,30 @@ class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
         "blocked",
     )
     readonly_fields = ("amazon_id", "created_at", "num_assignments", "worker_display", "blocked")
-    list_display = ("amazon_id", "created_at", "worker_display", "location", "num_assignments", "blocked")
+    editable_fields = ("is_good_worker",)  # Only fields we're allowed to edit
+    list_display = (
+        "amazon_id",
+        "is_good_worker",
+        "created_at",
+        "worker_display",
+        "location",
+        "num_assignments",
+        "blocked",
+    )
     search_fields = ("amazon_id", "name", "location")
-    list_filter = ("assignment__hit", "gender", "blocked")
+    list_filter = ("assignment__hit", "gender", "blocked", "is_good_worker")
     inlines = (AssignmentInline,)
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = super().get_readonly_fields(request, obj)
+        if False or settings.DEBUG:
+            return readonly_fields
+        else:
+            # Mark all fields EXCEPT editable fields as readonly when not debugging
+            return (set(readonly_fields) | {f.name for f in self.model._meta.get_fields()}) - set(self.editable_fields)
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.has_perm("api.change_worker")
 
     def worker_display(self, obj: Worker):
         return str(obj)
@@ -578,11 +619,11 @@ class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
 
 
 class HasAssociatedWorkerListFilter(admin.SimpleListFilter):
-    title = "Has associated worker"
+    title = "has associated worker"
     parameter_name = "has_associated"
 
     def lookups(self, request, model_admin):
-        return (("yes", "Has associated worker"), ("no", "No associated worker"))
+        return (("yes", "Yes"), ("no", "No"))
 
     def queryset(self, request, queryset):
         value = self.value()
@@ -590,6 +631,22 @@ class HasAssociatedWorkerListFilter(admin.SimpleListFilter):
             queryset = queryset.filter(worker_id__isnull=False)
         elif value == "no":
             queryset = queryset.filter(worker_id__isnull=True)
+        return queryset
+
+
+class IsGoodWorkerListFilter(admin.SimpleListFilter):
+    title = "good worker"
+    parameter_name = "is_good_worker"
+
+    def lookups(self, request, model_admin):
+        return (("yes", "Yes"), ("no", "No"))
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == "yes":
+            queryset = queryset.filter(is_good_worker=True)
+        elif value == "no":
+            queryset = queryset.filter(is_good_worker=False)
         return queryset
 
 
@@ -601,13 +658,14 @@ class WorkerPageLoadAdmin(BaseModelAdmin):
         "assignment_display",
         "hit_display",
         "has_associated_worker",
+        "is_good_worker",
     )
-    list_filter = ("had_amp_encoded", HasAssociatedWorkerListFilter)
+    list_filter = ("had_amp_encoded", HasAssociatedWorkerListFilter, IsGoodWorkerListFilter)
     actions = ("block_workers", "unblock_workers")
 
     @admin.action(description="Block selected worker(s)", permissions=("block",))
     def block_workers(self, request, queryset):
-        queryset = queryset.values_list("worker_amazon_id", flat=True)
+        queryset = queryset.filter(is_good_worker=False).values_list("worker_amazon_id", flat=True)
         blocks = filter(None, block_or_unblock_workers(queryset, block=True))
         num_blocks = len(list(blocks))
         self.message_user(request, f"Blocked {num_blocks} worker(s)", messages.WARNING)
@@ -626,6 +684,10 @@ class WorkerPageLoadAdmin(BaseModelAdmin):
             return format_html("<a href={}>{}</a>", reverse(f"admin:api_{field}_change", args=(id_value,)), amazon_id)
         else:
             return amazon_id
+
+    @admin.display(description="Good worker", boolean=True, ordering="is_good_worker")
+    def is_good_worker(self, obj: WorkerPageLoad):
+        return obj.is_good_worker
 
     @admin.display(description="Worker", ordering="worker_amazon_id")
     def worker_display(self, obj: WorkerPageLoad):
@@ -647,12 +709,17 @@ class WorkerPageLoadAdmin(BaseModelAdmin):
         return (
             super()
             .get_queryset(request)
-            .annotate(**{
-                f"{m._meta.model_name}_id": m.objects.filter(
-                    amazon_id=OuterRef(f"{m._meta.model_name}_amazon_id")
-                ).values("id")[:1]
-                for m in (Worker, Assignment, HIT)
-            })
+            .annotate(
+                is_good_worker=Exists(
+                    Worker.objects.filter(amazon_id=OuterRef("worker_amazon_id"), is_good_worker=True)
+                ),
+                **{
+                    f"{m._meta.model_name}_id": m.objects.filter(
+                        amazon_id=OuterRef(f"{m._meta.model_name}_amazon_id")
+                    ).values("id")[:1]
+                    for m in (Worker, Assignment, HIT)
+                },
+            )
         )
 
     def has_block_permission(self, request):
