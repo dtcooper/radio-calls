@@ -109,7 +109,7 @@ def get_location_from_ip_addr(ip_addr):
     return LOCATION_UNKNOWN
 
 
-def block_or_unblock_worker(amazon_id, *, block=False):
+def block_or_unblock_worker(amazon_id, *, block=True):
     success = False
     verb = "block" if block else "unblock"
     if amazon_id and not amazon_id.startswith(SIMULATED_PREFIX):
@@ -134,5 +134,5 @@ def block_or_unblock_worker(amazon_id, *, block=False):
     return success
 
 
-def block_or_unblock_workers(amazon_ids, *, block=False):
+def block_or_unblock_workers(amazon_ids, *, block=True):
     return [block_or_unblock_worker(amazon_id, block=block) for amazon_id in amazon_ids]

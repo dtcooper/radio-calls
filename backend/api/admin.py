@@ -561,17 +561,17 @@ class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
 
 
 class HasAssociatedWorkerListFilter(admin.SimpleListFilter):
-    title = "start_date"
-    parameter_name = "start_date"
+    title = "Has associated worker"
+    parameter_name = "has_associated"
 
     def lookups(self, request, model_admin):
-        return (("with_associated", "Has associated worker"), ("without_associated", "No associated worker"))
+        return (("yes", "Has associated worker"), ("no", "No associated worker"))
 
     def queryset(self, request, queryset):
         value = self.value()
-        if value == "with_associated":
+        if value == "yes":
             queryset = queryset.filter(worker_id__isnull=False)
-        elif value == "without_associated":
+        elif value == "no":
             queryset = queryset.filter(worker_id__isnull=True)
         return queryset
 
