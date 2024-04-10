@@ -201,15 +201,26 @@ class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
             },
         ),
     )
-    list_display = ("name", "created_at", "topic", "status", "submitted_at", "is_running", "num_assignments")
+    list_display = (
+        "name",
+        "created_at",
+        "topic",
+        "status",
+        "submitted_at",
+        "is_running",
+        "num_assignments",
+        "assignment_reward",
+        "get_unit_cost",
+        "get_cost_estimate",
+    )
     readonly_fields = (
         "amazon_id",
         "approval_code",
         "created_at",
         "created_by",
+        "get_amazon_status",
         "get_cost_estimate",
         "get_unit_cost",
-        "get_amazon_status",
         "is_running",
         "num_assignments",
         "publish_api_exception",
@@ -484,13 +495,13 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "is_good_worker",
         "last_progress",
         "left_voicemail",
-        "progress_display",
         "num_assignments",
+        "progress_display",
+        "user_agent",
         "voicemail_duration",
         "voicemail_url_display",
         "worker_blocked",
         "worker_display",
-        "user_agent",
     )
     list_filter = ("hit", "call_step", "worker__blocked", "worker__is_good_worker")
     search_fields = ("amazon_id", "worker__name", "hit__name", "worker__amazon_id", "hit__amazon_id")
@@ -560,7 +571,7 @@ class WorkerAdmin(WorkerAndAssignmentBaseAdmin):
         "ip_address",
         "blocked",
     )
-    readonly_fields = ("amazon_id", "created_at", "num_assignments", "worker_display", "blocked")
+    readonly_fields = ("amazon_id", "blocked", "created_at", "num_assignments", "worker_display")
     editable_fields = ("is_good_worker",)  # Only fields we're allowed to edit
     list_display = (
         "amazon_id",
