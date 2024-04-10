@@ -120,7 +120,7 @@ def hit_outgoing(request, assignment_id: Form[str], call_sid: Form[str], cheat: 
         )
 
     if cheated or assignment.call_step != INITIAL:
-        assignment.append_progress("call initiated (skipping verify)")
+        assignment.append_progress("call initiated (skipping verify, since it's already done)")
         response.redirect(url("hit_outgoing_call", assignment))
     else:
         assignment.append_progress("call initiated")

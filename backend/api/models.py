@@ -34,7 +34,7 @@ from .constants import (
     LOCATION_UNKNOWN,
     MTURK_CLIENT_MAX_RESULTS,
     MTURK_ID_LENGTH,
-    NUM_WORDS_WORDS_TO_PRONOUNCE,
+    NUM_WORDS_TO_PRONOUNCE,
     QID_ADULT,
     QID_COUNTRY,
     QID_MASTERS_PRODUCTION,
@@ -473,7 +473,7 @@ class Worker(BaseModel):
 
 
 def generate_words_to_pronounce():
-    return random.sample(WORDS_TO_PRONOUNCE, NUM_WORDS_WORDS_TO_PRONOUNCE)
+    return random.sample(WORDS_TO_PRONOUNCE, NUM_WORDS_TO_PRONOUNCE)
 
 
 class Assignment(BaseModel):
@@ -500,8 +500,8 @@ class Assignment(BaseModel):
         schema={
             "type": "array",
             "items": {"type": "string"},
-            "minItems": NUM_WORDS_WORDS_TO_PRONOUNCE,
-            "maxItems": NUM_WORDS_WORDS_TO_PRONOUNCE,
+            "minItems": NUM_WORDS_TO_PRONOUNCE,
+            "maxItems": NUM_WORDS_TO_PRONOUNCE,
             "uniqueItems": True,
         },
     )

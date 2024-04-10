@@ -13,7 +13,7 @@ from django.http import Http404
 from ninja import NinjaAPI, Schema as BaseSchema
 from ninja.errors import AuthenticationError, HttpError, ValidationError
 
-from ..constants import ESTIMATED_BEFORE_VERIFIED_DURATION, SIMULATED_PREFIX
+from ..constants import ESTIMATED_BEFORE_VERIFIED_DURATION, NUM_WORDS_TO_PRONOUNCE, SIMULATED_PREFIX
 from ..models import HIT, WORKER_NAME_MAX_LENGTH, Assignment, Worker
 
 
@@ -132,6 +132,7 @@ class HandshakeOut(HandshakePreviewOut):
     gender: str
     hit_id: str | None
     name_max_length: int = WORKER_NAME_MAX_LENGTH
+    num_words_to_pronounce: int = NUM_WORDS_TO_PRONOUNCE
     name: str
     token: str
     worker_id: str

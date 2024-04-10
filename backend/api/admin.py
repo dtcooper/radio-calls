@@ -670,6 +670,7 @@ class WorkerPageLoadAdmin(BaseModelAdmin):
         "hit_display",
         "has_associated_worker",
         "is_good_worker",
+        "blocked",
     )
     list_filter = ("had_amp_encoded", HasAssociatedWorkerListFilter, IsGoodWorkerListFilter)
     actions = ("block_workers", "unblock_workers")
@@ -716,14 +717,18 @@ class WorkerPageLoadAdmin(BaseModelAdmin):
     def has_associated_worker(self, obj: WorkerPageLoad):
         return obj.worker_id is not None
 
+    @admin.display(boolean=True)
+    def blocked(self, obj: WorkerPageLoad):
+        return obj.blocked
+
     def get_queryset(self, request):
+        associated_worker_subquery = Worker.objects.filter(amazon_id=OuterRef("worker_amazon_id"))
         return (
             super()
             .get_queryset(request)
             .annotate(
-                is_good_worker=Exists(
-                    Worker.objects.filter(amazon_id=OuterRef("worker_amazon_id"), is_good_worker=True)
-                ),
+                is_good_worker=Exists(associated_worker_subquery.filter(is_good_worker=True)),
+                blocked=Exists(associated_worker_subquery.filter(blocked=True)),
                 **{
                     f"{m._meta.model_name}_id": m.objects.filter(
                         amazon_id=OuterRef(f"{m._meta.model_name}_amazon_id")

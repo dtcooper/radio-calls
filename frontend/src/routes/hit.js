@@ -61,6 +61,7 @@ const createState = () => {
     name: "",
     nameMaxLength: 0,
     now: dayjs(),
+    numWordsToPronounce: 0,
     ready: false,
     showHost: "",
     submitUrl: "",

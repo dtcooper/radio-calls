@@ -33,13 +33,15 @@
   beforehand. We'll be testing it first.
 </p>
 
-{#if $state.wordsHeard}
+{#if $state.callInProgress && $state.wordsHeard}
   <div transition:slide>
     <Notice>
       {#if $state.wordsHeard === "<<<SILENCE>>>"}
         <em class="font-bold">We heard nothing!</em> Are you sure that you have a working microphone? 🎤️🎙️️🎤️
       {:else}
-        We heard the following: <em>"{$state.wordsHeard}"</em> &mdash; which is incorrect. Please try again.
+        We heard the following: <em>"{$state.wordsHeard}"</em> &mdash; which is incorrect. We're expecting
+        <strong>{$state.numWordsToPronounce} words</strong>, and
+        <strong>all of them are fruits</strong>. Please listen and try again!
       {/if}
     </Notice>
   </div>
