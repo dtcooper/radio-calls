@@ -503,7 +503,7 @@ class AssignmentAdmin(HITListDisplayMixin, PrefetchRelatedMixin, WorkerAndAssign
         "worker_blocked",
         "worker_display",
     )
-    list_filter = ("hit", "call_step", "worker__blocked", "worker__is_good_worker", "left_voicemail")
+    list_filter = ("hit", "call_step", "worker__blocked", "worker__is_good_worker")
     search_fields = ("amazon_id", "worker__name", "hit__name", "worker__amazon_id", "hit__amazon_id")
     prefetch_related = ("hit", "worker")
 
