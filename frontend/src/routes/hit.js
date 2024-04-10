@@ -136,6 +136,7 @@ const createState = () => {
         if (!isPreview) {
           this.logProgress("handshake")
           this.createDevice(token)
+          this.installUnhandledErrorHandler()
           for (const [name, store] of [
             ["darkTheme", darkTheme],
             ["debugMode", debugMode]
@@ -295,6 +296,21 @@ const createState = () => {
         this.logProgress(`failure: ${failure}`)
       }
       update({ failure })
+    },
+    installUnhandledErrorHandler() {
+      window.addEventListener("error", (event) => {
+        this.logProgress(`client JS error (error): ${event.type}: ${event.message}`)
+      })
+      window.addEventListener("unhandledrejection", (event) => {
+        this.logProgress(`client JS error (unhandledrejection): ${event?.reason?.toString() || event?.message}`)
+      })
+      window._testUnhandlerErrorHandler = () => {
+        ;(async () => {
+          await new Promise((accept) => setTimeout(accept, 25))
+          throw new Error("test rejection")
+        })()
+        throw new Error("test error")
+      }
     }
   }
 }

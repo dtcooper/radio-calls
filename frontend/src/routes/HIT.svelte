@@ -100,10 +100,13 @@
 
         {#if import.meta.env.DEV}
           <div class="flex justify-center">
-            <div
-              class="animate-pulse rounded-xl bg-error px-2 py-0.5 font-mono text-[10px] font-bold italic text-error-content shadow-error"
-            >
-              <span class="underline">WARNING</span>: Running in dev environment!
+            <div class="tooltip tooltip-top tooltip-error" data-tip="Click to test JS error reporting">
+              <button
+                class="animate-pulse rounded-xl bg-error px-2 py-0.5 font-mono text-[10px] font-bold italic text-error-content shadow-error"
+                on:click={() => window._testUnhandlerErrorHandler()}
+              >
+                <span class="underline">WARNING</span>: Running in dev environment!
+              </button>
             </div>
           </div>
         {/if}
