@@ -72,8 +72,12 @@ def ChoicesCharField(*args, choices, **kwargs):
 
 @cache
 def get_mturk_client(*, production):
-    if production and not settings.ALLOW_MTURK_PRODUCTION_ACCESS:
-        raise Exception("Preventing production access when ALLOW_MTURK_PRODUCTION_ACCESS = False")
+    if production:
+        if settings.DEBUG and settings.ALLOW_MTURK_PRODUCTION_ACCESS:
+            logger.warning("Allowing production access as ALLOW_MTURK_PRODUCTION_ACCESS = True")
+
+        if not settings.ALLOW_MTURK_PRODUCTION_ACCESS:
+            raise Exception("Preventing production access when ALLOW_MTURK_PRODUCTION_ACCESS = False")
 
     kwargs = {}
     if not production:

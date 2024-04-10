@@ -98,6 +98,16 @@
           {step.emoji} Step {currentStep + 1} of {steps.length} &mdash; <span class="text-info">{step.title}</span>
         </div>
 
+        {#if import.meta.env.DEV}
+          <div class="flex justify-center">
+            <div
+              class="animate-pulse rounded-xl bg-error px-2 py-0.5 font-mono text-[10px] font-bold italic text-error-content shadow-error"
+            >
+              <span class="underline">WARNING</span>: Running in dev environment!
+            </div>
+          </div>
+        {/if}
+
         <hr class="mx-3 mt-1 h-px border-neutral" />
 
         {#if step.component === Call}

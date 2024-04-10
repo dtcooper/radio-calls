@@ -38,6 +38,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 AUTH_USER_MODEL = "api.User"
 
 INSTALLED_APPS = [
+    "admin_notice",  # Needs to come before django.contrib.admin
     # Django
     "django.contrib.admin",
     "django.contrib.auth",
@@ -87,6 +88,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "admin_notice.context_processors.notice",
                 "api.context_processors.build_vars",
             ],
         },
@@ -156,6 +158,10 @@ STATIC_URL = "backend-static/"
 STATIC_ROOT = "/static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+ADMIN_NOTICE_TEXT = "Development Environment" if DEBUG else "WARNING: Production Environment"
+ADMIN_NOTICE_TEXT_COLOR = "#000000" if DEBUG else "#ffffff"
+ADMIN_NOTICE_BACKGROUND = "#73e33c" if DEBUG else "#ff0000"
 
 SHELL_PLUS_IMPORTS = [
     (

@@ -18,7 +18,7 @@ from durationwidget.widgets import TimeDurationWidget
 
 from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES, SIMULATED_PREFIX
 from .models import HIT, Assignment, User, Worker, WorkerPageLoad
-from .utils import block_or_unblock_workers, short_datetime_str
+from .utils import block_or_unblock_workers, get_mturk_client, short_datetime_str
 
 
 ATTR_COLORS = {
@@ -125,6 +125,9 @@ def has_publish_permission(request, hit, **kwargs):
 
 
 class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
+    change_form_template = "admin/api/hit/change_form.html"
+    change_list_template = "admin/api/hit/change_list.html"
+
     FIELDSET_HIT_SETTINGS = ("HIT Settings", {"fields": ("title", "description", "keywords", "duration")})
     FIELDSET_QUALIFICATIONS = (
         "Qualifications",
@@ -239,6 +242,20 @@ class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
         if request.user.first_name:
             initial["show_host"] = request.user.first_name
         return initial
+
+    def add_balance_to_context(self, extra_context=None):
+        extra_context = extra_context or {}
+        client = get_mturk_client(production=settings.ALLOW_MTURK_PRODUCTION_ACCESS)
+        extra_context["balance"] = client.get_account_balance()["AvailableBalance"]
+        return extra_context
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = self.add_balance_to_context(extra_context)
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = self.add_balance_to_context(extra_context)
+        return super().changelist_view(request, extra_context=extra_context)
 
     @admin.display(description="Is running?", boolean=True)
     def is_running(self, obj: HIT):
