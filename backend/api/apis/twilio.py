@@ -145,14 +145,14 @@ def hit_outgoing_verify(
     response = VoiceResponse()
 
     if try_count > NUM_VERIFY_TRIES:
-        assignment.append_progress(f"verified hangup - tried {NUM_VERIFY_TRIES} times")
+        assignment.append_progress(f"verify hangup - tried {NUM_VERIFY_TRIES} times")
         response.say(
             "We didn't seem to hear anything. Please check that your microphone is working correctly and call again."
         )
         response.hangup()
         return response
 
-    if speech_result:
+    if speech_result and speech_result.strip():
         words_heard = normalize_words(speech_result)
         match = is_subsequence(assignment.words_to_pronounce, words_heard)
         progress_line = (
