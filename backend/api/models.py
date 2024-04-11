@@ -176,7 +176,7 @@ class HIT(BaseModel):
         validators=duration_validators,
         help_text="Amount of time worker has to complete an individual assignment.",
     )
-    assignment_number = models.PositiveIntegerField("maximum number of assignments", validators=min_max(1, 500))
+    assignment_number = models.PositiveIntegerField("maximum number of assignments", validators=min_max(1, 1000))
     assignment_reward = models.DecimalField(
         "assignment reward",
         max_digits=4,
