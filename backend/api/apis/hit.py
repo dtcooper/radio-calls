@@ -224,7 +224,7 @@ def name(request, name: NameIn):
         raise HttpError(400, "Empty name!")
 
     worker = assignment.worker
-    assignment.append_progress(f"name change {worker.name} => {new_name}")
+    assignment.append_progress(f"name change {worker.name}/{worker.gender} => {new_name}/{name.gender}")
     worker.name = new_name
     worker.gender = name.gender
     worker.save()
