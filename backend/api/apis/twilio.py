@@ -299,7 +299,7 @@ def hit_outgoing_voicemail(request, assignment_id, call_sid: Form[str]):
     response = VoiceResponse()
     response.record(
         timeout=10,
-        maxLength=150,  # 2.5 minutes
+        maxLength=60 * 4,  # 4 minutes
         action=url("hit_outgoing_completed", assignment),
         recording_status_callback=url("hit_outgoing_callback_voicemail", assignment),
     )
