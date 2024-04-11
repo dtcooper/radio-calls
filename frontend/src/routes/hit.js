@@ -203,10 +203,10 @@ const createState = () => {
     async call(cheat = false) {
       if (!call) {
         this.logProgress(`making call${cheat ? " (cheating)" : ""}`)
-        call = await device.connect({ params: { assignmentId, cheat: cheat } })
-
         // Fake initial state until we hear otherwise from server
-        update({ callInProgress: true, state: CALL_STEP_INITIAL })
+        update({ wordsHeard: "", callStep: CALL_STEP_INITIAL })
+        call = await device.connect({ params: { assignmentId, cheat: cheat } })
+        update({ callInProgress: true })
 
         call.on("volume", (inputVolume, outputVolume) => {
           levels.set({
