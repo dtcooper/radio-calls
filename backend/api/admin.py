@@ -236,7 +236,6 @@ class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
         "description",
         "duration",
         "keywords",
-        "name",
         "qualification_adult",
         "qualification_approval_rate",
         "qualification_countries",
