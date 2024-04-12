@@ -16,10 +16,10 @@ down:
 build: CONTAINERS:=
 build:
 	$(COMPOSE) build --pull --build-arg "GIT_REV=$(shell git rev-parse --short=8 HEAD || echo unknown)" --build-arg "BUILD_TIME=$(shell date -u +%FT%TZ)" $(CONTAINERS)
-	@if [ -z $(DEV_MODE) ]; then \
-		echo $(COMPOSE) run --rm frontend-build ; \
-		$(COMPOSE) run --rm frontend-build ; \
-	fi
+
+.PHONY: frontend-build
+frontend-build:
+	$(COMPOSE) run --rm frontend-build
 
 .PHONY: shell
 shell:
@@ -49,6 +49,7 @@ verify-prod:
 deploy-pull: verify-prod
 	git pull --ff-only
 	docker compose pull --quiet
+	make frontend-build
 	docker compose down --remove-orphans
 	docker compose up --quiet-pull --remove-orphans --no-build --detach
 	docker system prune --force --all
@@ -58,6 +59,7 @@ deploy-build: verify-prod
 	git pull --ff-only
 	docker compose pull --quiet --ignore-buildable
 	make build
+	make frontend-build
 	docker compose down --remove-orphans
 	docker compose up --quiet-pull --remove-orphans --no-build --detach
 	docker system prune --force
