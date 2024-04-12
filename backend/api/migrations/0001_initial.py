@@ -295,7 +295,7 @@ class Migration(migrations.Migration):
                     models.PositiveIntegerField(
                         validators=[
                             django.core.validators.MinValueValidator(1),
-                            django.core.validators.MaxValueValidator(500),
+                            django.core.validators.MaxValueValidator(1000),
                         ],
                         verbose_name="maximum number of assignments",
                     ),
