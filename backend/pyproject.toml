@@ -16,7 +16,7 @@ django-durationwidget = {git = "https://github.com/tanwirahmad/django-durationwi
 django-environ = "^0.11.2"
 django-jsonform = "^2.22.0"
 django-ninja = "^1.1.0"
-faker = "^24.8.0"
+faker = "^24.9.0"
 geoip2 = "^4.8.0"
 gunicorn = "^21.2.0"
 psycopg = {extras = ["binary"], version = "^3.1.18"}
