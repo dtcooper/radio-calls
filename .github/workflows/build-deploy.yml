@@ -22,7 +22,8 @@ jobs:
         name: Set variables
         shell: bash
         run: |
-          echo "SHA_SHORT=$(git rev-parse --short=8 HEAD)" >> "$GITHUB_ENV"
+          echo "GIT_REV=$(git rev-parse --short=8 HEAD)" >> "$GITHUB_ENV"
+          echo "BUILD_TIME=$(date -u +%FT%TZ)" >> "$GITHUB_ENV"
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -44,9 +45,12 @@ jobs:
           pull: true
           platforms: linux/amd64
           context: ./backend/
+          build-args: |
+            GIT_REV=${{ env.GIT_REV }}
+            BUILD_TIME=${{ env.BUILD_TIME }}
           tags: |
             ghcr.io/dtcooper/radio-calls-backend:latest
-            ghcr.io/dtcooper/radio-calls-backend:${{ env.SHA_SHORT }}
+            ghcr.io/dtcooper/radio-calls-backend:${{ env.GIT_REV }}
       # -
       #   name: Deploy
       #   uses: appleboy/ssh-action@master
