@@ -1,6 +1,7 @@
 import datetime
 from urllib.parse import urlencode
 
+from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -117,7 +118,10 @@ class BaseModelAdmin(ExtraButtonsMixin, admin.ModelAdmin):
     list_per_page = 200
     show_facets = admin.ShowFacets.ALWAYS
     save_on_top = True
-    formfield_overrides = {models.DurationField: {"widget": TimeDurationWidget}}
+    formfield_overrides = {
+        models.DurationField: {"widget": TimeDurationWidget},
+        models.CharField: {"widget": forms.TextInput(attrs={"style": "width: 75%"})},
+    }
 
 
 def has_publish_permission(request, hit, **kwargs):

@@ -1,6 +1,7 @@
 <script>
   import { onMount, onDestroy } from "svelte"
   import { state, isPreview } from "../hit"
+  import Notice from "./components/Notice.svelte"
   import NextButton from "./components/NextButton.svelte"
   import TopicSummary from "./components/CallSummary.svelte"
 
@@ -22,6 +23,18 @@
   This is a <strong>funny</strong> and <strong>enjoyable</strong> assignment 😂😂😂 where you'll use your web browser to
   call 📞 a <em>live</em> radio show / podcast. 📻
 </p>
+
+<Notice class="animate-highlight-shadow shadow-warning" --highlight-amount="8px">
+  <p>It has come to our attention that <strong>our requester approval rating is low</strong>. 😭</p>
+  <p>
+    This is due to our <em>higher paying HITs</em> and a <strong class="italic">large amount of spam</strong> on Mechanical
+    Turk. 🚮
+  </p>
+  <p>
+    Rest assured, if you <strong>complete the assignment correctly,</strong>
+    <em>you <span class="underline">will be <strong>approved</strong></span>!</em> 😁✅😁
+  </p>
+</Notice>
 
 <p>The goal is to have a conversation and talk to the host(s) of the radio show about the following topic,</p>
 
@@ -53,7 +66,7 @@
   like! 👍
 </p>
 
-<NextButton {next} {highlight} disabled={isPreview} class="btn-accent">
+<NextButton {next} {highlight} disabled={isPreview}>
   {#if isPreview}
     You're previewing this assignment.
     <span class="hidden sm:contents">Press ACCEPT to start.</span>

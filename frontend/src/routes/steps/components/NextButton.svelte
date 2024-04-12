@@ -2,7 +2,7 @@
   export let next
   export let disabled = false
   export let highlight = true
-  let classes = "btn-success"
+  let classes = "btn-accent"
   export { classes as class }
 </script>
 

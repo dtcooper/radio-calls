@@ -305,7 +305,7 @@ const createState = () => {
       window.addEventListener("unhandledrejection", (event) => {
         this.logProgress(`client JS error (unhandledrejection): ${event?.reason?.toString() || event?.message}`)
       })
-      window._testUnhandlerErrorHandler = () => {
+      window._testUnhandledErrorHandler = () => {
         ;(async () => {
           await new Promise((accept) => setTimeout(accept, 25))
           throw new Error("test rejection")

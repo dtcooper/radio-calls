@@ -42,7 +42,7 @@
 <!-- Dark mode and debug toggles -->
 {#if $state.isStaff}
   <div
-    class="tooltip tooltip-right fixed left-1 top-1 z-20"
+    class="tooltip tooltip-right fixed left-1 top-1 z-30"
     class:tooltip-info={!$darkTheme}
     data-tip="Enable {$debugMode ? 'regular' : 'debug'} mode"
   >
@@ -54,7 +54,7 @@
   </div>
 {/if}
 <div
-  class="tooltip tooltip-left right-1 top-1 z-20 {$state.isStaff ? 'fixed' : 'absolute'}"
+  class="tooltip tooltip-left right-1 top-1 z-30 {$state.isStaff ? 'fixed' : 'absolute'}"
   class:tooltip-info={!$darkTheme}
   data-tip="Enable {$darkTheme ? 'light' : 'dark'} theme"
 >
@@ -64,13 +64,24 @@
     >
   </button>
 </div>
-
 <div class="bg-base-200">
   <div class="mx-auto flex min-h-screen max-w-screen-lg flex-col rounded-b-2xl bg-base-100">
-    <header class="mb-2 px-1 pt-2 text-center text-2xl font-bold sm:px-2 sm:pt-3 sm:text-3xl md:text-4xl">
-      <span class="hidden sm:contents">☎️🎉🎙️️📻</span>
-      <span class="font-mono italic underline">Call a Radio Show</span>
-      📻🎙️️🎉☎️
+    <header class="z-20 mb-2 px-1 pt-2 text-center text-2xl font-bold sm:px-2 sm:pt-3 sm:text-3xl md:text-4xl">
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <svelte:element
+        this={import.meta.env.DEV ? "button" : "div"}
+        class={import.meta.env.DEV ? "tooltip tooltip-bottom tooltip-error bg-error text-error-content" : ""}
+        data-tip="[dev] Click to test JS error reporting"
+        on:click={() => {
+          if (import.meta.env.DEV) {
+            window._testUnhandledErrorHandler()
+          }
+        }}
+      >
+        <span class="hidden sm:contents">☎️🎉🎙️️📻</span>
+        <span class="font-mono italic underline">Call a Radio Show</span>
+        📻🎙️️🎉☎️
+      </svelte:element>
     </header>
 
     {#if steps.length > 1}
@@ -97,19 +108,6 @@
         <div class="px-1 pb-0.5 pt-2 text-center font-bold sm:px-2 md:hidden">
           {step.emoji} Step {currentStep + 1} of {steps.length} &mdash; <span class="text-info">{step.title}</span>
         </div>
-
-        {#if import.meta.env.DEV}
-          <div class="flex justify-center">
-            <div class="tooltip tooltip-top tooltip-error" data-tip="Click to test JS error reporting">
-              <button
-                class="animate-pulse rounded-xl bg-error px-2 py-0.5 font-mono text-[10px] font-bold italic text-error-content shadow-error"
-                on:click={() => window._testUnhandlerErrorHandler()}
-              >
-                <span class="underline">WARNING</span>: Running in dev environment!
-              </button>
-            </div>
-          </div>
-        {/if}
 
         <hr class="mx-3 mt-1 h-px border-neutral" />
 

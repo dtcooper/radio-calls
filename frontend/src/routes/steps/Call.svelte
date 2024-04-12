@@ -35,9 +35,10 @@
 
 {#if $state.callInProgress && $state.wordsHeard}
   <div transition:slide>
-    <Notice>
+    <Notice type="error">
       {#if $state.wordsHeard === "<<<SILENCE>>>"}
-        <em class="font-bold">We heard nothing!</em> Are you sure that you have a working microphone? 🎤️🎙️️🎤️
+        <em class="font-bold">We heard nothing!</em> Are you sure that you have a working microphone with the level turned
+        up? 🎤️🎙️️🎤️
       {:else}
         We heard the following: <em>"{$state.wordsHeard}"</em> &mdash; which is incorrect. We're expecting
         <strong>{$state.numWordsToPronounce} words</strong>, and
@@ -48,12 +49,18 @@
 {/if}
 {#if [CALL_STEP_CALL, CALL_STEP_VOICEMAIL].includes($state.callStep)}
   <div transition:slide>
-    <Notice>
-      <strong>IMPORTANT:</strong>
-      <em
-        >A <strong>silent {$state.callStep === CALL_STEP_VOICEMAIL ? "voicemail" : "call"}</strong>
-        where you do not speak will result in a <strong class="underline">REJECTED</strong> assignment!</em
-      >
+    <Notice type="info">
+      <p>
+        <strong>IMPORTANT:</strong>
+        <em>
+          A <strong>silent {$state.callStep === CALL_STEP_VOICEMAIL ? "voicemail" : "call"}</strong>
+          where you do not speak will result in a <strong class="underline">REJECTED</strong> assignment!
+        </em>
+      </p>
+      <p>
+        As long as you <strong>speak</strong> 🗣 and <strong>discuss the topic</strong>, your assignment will be
+        <strong class="underline">APPROVED!</strong> 😁✅😁
+      </p>
     </Notice>
   </div>
 {/if}

@@ -46,9 +46,15 @@
 
 <p>You have successfully completed the assignment! Click the button below to submit.</p>
 
-<Notice warning={false}>
-  <strong>REMEMBER:</strong> A <strong>silent call</strong> or <strong>voicemail</strong> where you did not speak will
-  result in a <strong class="underline">REJECTED</strong> assignment!
+<Notice type="notice">
+  <p>
+    <strong>REMEMBER:</strong> A <strong>silent call</strong> or <strong>voicemail</strong> where you did not speak will
+    result in a <strong class="underline">REJECTED</strong> assignment!
+  </p>
+  <p>
+    As long as you <strong>spoke</strong> 🗣 and <strong>discussed the topic</strong>, your assignment will be
+    <strong class="underline">APPROVED!</strong> 😁✅😁
+  </p>
 </Notice>
 
 <details
@@ -79,7 +85,7 @@
   </div>
 </details>
 
-<NextButton class="btn-accent" next={() => submit()} disabled={submitting}>Click here to submit! 💘</NextButton>
+<NextButton next={() => submit()} disabled={submitting}>Click here to submit! 💘</NextButton>
 
 <form bind:this={form} method="post" action={$state.submitUrl} class="hidden">
   <input type="hidden" name="name" value="{$state.name} [{$state.gender.substr(0, 1).toUpperCase()}]" />

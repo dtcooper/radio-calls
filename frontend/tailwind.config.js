@@ -19,7 +19,7 @@ export default {
             boxShadow: `0 0 0 0px var(--highlight-color, var(--tw-shadow-color, #000000))`
           },
           "90%": {
-            boxShadow: `0 0 0 15px rgba(0, 0, 0, 0)`
+            boxShadow: `0 0 0 var(--highlight-amount, 15px) rgba(0, 0, 0, 0)`
           },
           "100%": {
             boxShadow: `0 0 0 0px rgba(0, 0, 0, 0)`
