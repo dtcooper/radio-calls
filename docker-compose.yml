@@ -13,7 +13,7 @@ services:
     depends_on:
       - db
 
-  frontend:
+  frontend-build:
     restart: on-failure
     image: node:21.7
     environment:
@@ -22,6 +22,8 @@ services:
     working_dir: /app/frontend
     volumes:
       - .:/app
+    profiles:
+      - build
 
   nginx:
     restart: always

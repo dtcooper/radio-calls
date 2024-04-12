@@ -1,10 +1,11 @@
 COMPOSE:=docker compose
 SHELL:=/bin/bash
+DEV_MODE=$(shell source .env; [ "$$DEV_MODE" -a "$$DEV_MODE" != 0 ] && echo '1')
 
 .PHONY: up
 up: CONTAINERS:=
 up: .env
-	$(COMPOSE) up --remove-orphans$(shell source .env; if [ -z "$$DEV_MODE" -o "$$DEV_MODE" = 0 ]; then echo " -d"; fi) $(CONTAINERS) || true
+	echo $(COMPOSE) up --remove-orphans$([ -z "$$DEV_MODE" ] && echo ' -d') $(CONTAINERS) || true
 
 .PHONY: down
 down: CONTAINERS:=
@@ -15,6 +16,10 @@ down:
 build: CONTAINERS:=
 build:
 	$(COMPOSE) build --pull --build-arg "GIT_REV=$(shell git rev-parse --short=8 HEAD || echo unknown)" --build-arg "BUILD_TIME=$(shell date -u +%FT%TZ)" $(CONTAINERS)
+	@if [ -z $(DEV_MODE) ]; then \
+		echo $(COMPOSE) run --rm frontend-build ; \
+		$(COMPOSE) run --rm frontend-build ; \
+	fi
 
 .PHONY: shell
 shell:
@@ -35,7 +40,7 @@ lint-format:
 
 .PHONY: verify-prod
 verify-prod:
-	@if [ "$(shell source .env; [ "$$DEV_MODE" -a "$$DEV_MODE" != 0 ] && echo "1")" ]; then \
+	@if [ $(DEV_MODE) ]; then \
 		echo "Won't run with DEV_MODE = 1" ; \
 		exit 1 ; \
 	fi
