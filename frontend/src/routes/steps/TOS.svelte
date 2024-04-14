@@ -57,7 +57,7 @@
     <br />Pretend you're a <strong class="text-success">real caller</strong> of the show.
   </TOSTerm>
   <TOSTerm bind:term index={nextIndex()} {numTerms}>
-    <p>You have good internet connectivity, since it will be needed to complete this assignment. 🌎💻🔌</p>
+    <p>You have <strong>good internet connectivity</strong>, it will be needed to complete this assignment. 🌎💻🔌</p>
     <p>
       <strong class="text-error">Getting disconnected will prevent you from submitting the assignment!</strong>
       😩😩😩
