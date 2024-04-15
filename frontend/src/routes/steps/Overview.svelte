@@ -24,7 +24,11 @@
   call 📞 a <em>live</em> radio show / podcast. 📻
 </p>
 
-<Notice class="animate-highlight-shadow shadow-warning" --highlight-amount="8px">
+<Notice
+  type="info"
+  class="animate-highlight-shadow bg-warning text-warning-content shadow-warning"
+  --highlight-amount="9px"
+>
   <p>It has come to our attention that <strong>our requester approval rating is low</strong>. 😭</p>
   <p>
     This is due to our <em>higher paying HITs</em> and a <strong class="italic">large amount of spam</strong> on Mechanical
