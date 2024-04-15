@@ -14,8 +14,13 @@ down:
 
 .PHONY: build
 build: CONTAINERS:=
+build: EXTRA_BUILD_ARGS:=
 build:
-	$(COMPOSE) build --pull --build-arg "GIT_REV=$(shell git rev-parse --short=8 HEAD || echo unknown)" --build-arg "BUILD_TIME=$(shell date -u +%FT%TZ)" $(CONTAINERS)
+	$(COMPOSE) build --pull $(EXTRA_BUILD_ARGS) --build-arg "GIT_REV=$(shell git rev-parse --short=8 HEAD || echo unknown)" --build-arg "BUILD_TIME=$(shell date -u +%FT%TZ)" $(CONTAINERS)
+
+.PHONY: build-nocache
+build-nocache:
+	make build "EXTRA_BUILD_ARGS=--no-cache"
 
 .PHONY: frontend-build
 frontend-build:
