@@ -5,7 +5,7 @@ DEV_MODE=$(shell source .env; [ "$$DEV_MODE" -a "$$DEV_MODE" != 0 ] && echo '1')
 .PHONY: up
 up: CONTAINERS:=
 up: .env
-	echo $(COMPOSE) up --remove-orphans$([ -z "$$DEV_MODE" ] && echo ' -d') $(CONTAINERS) || true
+	$(COMPOSE) up --remove-orphans$([ -z "$$DEV_MODE" ] && echo ' -d') $(CONTAINERS) || true
 
 .PHONY: down
 down: CONTAINERS:=
