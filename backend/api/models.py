@@ -216,7 +216,7 @@ class HIT(BaseModel):
     )
 
     class Meta(BaseModel.Meta):
-        verbose_name = "HIT"
+        verbose_name = "MTurk HIT"
         get_latest_by = "created_at"
         permissions = (
             ("preview_hit", "Can preview HIT (frontend)"),
@@ -391,7 +391,7 @@ class WorkerPageLoad(models.Model):
         return f"{self.worker_amazon_id}{' (amp encoded)' if self.had_amp_encoded else ''}"
 
     class Meta(BaseModel.Meta):
-        pass
+        verbose_name = "MTurk worker page load"
 
 
 class Worker(BaseModel):
@@ -415,6 +415,7 @@ class Worker(BaseModel):
     )
 
     class Meta(BaseModel.Meta):
+        verbose_name = "MTurk worker"
         permissions = (("block_worker", "Can block workers"),)
 
     def __str__(self):
@@ -478,6 +479,9 @@ def generate_words_to_pronounce():
 
 class Assignment(BaseModel):
     PROGRESS_MAX_LENGTH = 256
+
+    class Meta(BaseModel.Meta):
+        verbose_name = "MTurk assignment"
 
     class CallStep(models.TextChoices):
         # Update HIT.js

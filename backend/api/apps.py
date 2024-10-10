@@ -8,7 +8,7 @@ from django.db.models import signals
 class ApiConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "api"
-    verbose_name = "Mechanical Turk"
+    verbose_name = "Radio Calls"
 
     def ready(self):
         signals.post_migrate.connect(self.create_groups, sender=self)
