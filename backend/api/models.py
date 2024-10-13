@@ -661,8 +661,11 @@ class Caller(BaseCallModel):
 
 class Voicemail(BaseCallModel):
     caller = models.ForeignKey(Caller, on_delete=models.SET_NULL, null=True, blank=True)
-    duration = models.DurationField("voicemail duration", default=datetime.timedelta(0))
-    url = models.URLField("voicemail URL")
+    duration = models.DurationField("duration", default=datetime.timedelta(0))
+    url = models.URLField("URL")
 
     class Meta(BaseCallModel.Meta):
         verbose_name = "phone voicemail"
+
+    def __str__(self):
+        return f"Voicemail from {self.caller or 'unknown caller'} ({self.duration})"

@@ -753,17 +753,24 @@ class WorkerPageLoadAdmin(BaseModelAdmin):
         return False
 
 
+PLAYER_HTML = '<audio controls src="{}" style="height: 28px" />'
+
+
 class TopicAdmin(BaseModelAdmin):
     change_form_template = "admin/api/topic/change_form.html"
     change_list_template = "admin/api/topic/change_list.html"
-    list_display = ("name", "is_active", "created_at", "created_by")
-    fields = ("name", "is_active", "recording", "created_by", "created_at")
-    readonly_fields = ("created_by", "created_at")
+    list_display = ("name", "is_active", "recording_player", "created_at", "created_by")
+    fields = ("name", "is_active", "recording", "recording_player", "created_by", "created_at")
+    readonly_fields = ("recording_player", "created_by", "created_at")
 
     def save_model(self, request, obj: HIT, form, change):
         if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+    @admin.display(description="Player")
+    def recording_player(self, obj):
+        return format_html(PLAYER_HTML, obj.recording.url)
 
     @staticmethod
     def topic_extra_context():
@@ -779,11 +786,38 @@ class TopicAdmin(BaseModelAdmin):
 
 
 class CallerAdmin(BaseModelAdmin):
-    list_display = ("__str__", "wants_calls")
+    list_display = ("number", "name_display", "wants_calls", "location", "created_at")
+    fields = ("name", "number", "wants_calls", "location", "created_at")
+    readonly_fields = (
+        "name_display",
+        "created_at",
+    )
+    ordering = ("name",)
+
+    @admin.display(description="Name", ordering="name")
+    def name_display(self, obj):
+        return obj.name or "Unnamed"
 
 
 class VoicemailAdmin(BaseModelAdmin):
-    pass
+    empty_value_display = "Unknown caller"
+    list_display = ("caller", "url_player", "duration", "created_at")
+    fields = ("caller", "url_player", "url_link", "duration", "created_at")
+    readonly_fields = ("caller", "url_link", "url_player", "duration", "created_at")
+
+    @admin.display(description="Player")
+    def url_player(self, obj):
+        return format_html(PLAYER_HTML, obj.url)
+
+    @admin.display(description="URL link")
+    def url_link(self, obj):
+        return format_html('<a href="{}" target="_blank">External link</a>', obj.url)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 admin.site.unregister(Group)

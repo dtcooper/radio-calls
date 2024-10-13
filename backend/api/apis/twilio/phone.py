@@ -1,13 +1,13 @@
+import datetime
 import logging
 import random
 from urllib.parse import urlencode
-import datetime
 
 import phonenumbers
 
 from django.conf import settings
-from django.urls import reverse
 from django.http import HttpResponse
+from django.urls import reverse
 
 from constance import config
 from ninja import Form
@@ -29,8 +29,18 @@ def url_for(name, **params):
     return url
 
 
+def get_caller_from_session(request) -> None | Caller:
+    if caller_id := request.session.get("caller_id"):
+        try:
+            return Caller.objects.get(id=caller_id)
+        except Caller.DoesNotExist:
+            pass
+    return None
+
+
 @api.post("sip/outgoing")
 def sip_outgoing(request, caller: Form[str]):
+    # Entrypoint for SIP calls
     response = VoiceResponse()
     caller = caller.removeprefix("sip:").split("@")[0]
     if caller in (settings.TWILIO_SIP_HOST_USERNAME, settings.TWILIO_SIP_PICKUP_USERNAME):
@@ -72,9 +82,11 @@ def dialed_incoming(
     twilio_caller = caller
     caller = None
 
+    # If the call is simulated, take the outgoing sip address as the caller id
     if twilio_caller.startswith(f"sip:{settings.TWILIO_SIP_SIMULATE_USERNAME}@") and called.startswith("sip:"):
         twilio_caller = called.removeprefix("sip:").split("@")[0]
 
+    # Make sure the phone number is valid
     try:
         phonenumbers.parse(twilio_caller)
     except phonenumbers.NumberParseException:
@@ -84,102 +96,98 @@ def dialed_incoming(
         caller, _ = Caller.objects.get_or_create(number=twilio_caller, defaults={"location": location})
         logger.info(f"Got incoming phone call from: {caller}")
 
-
-    taking_calls = config.TAKING_CALLS
     request.session.update({
-        "taking_calls": taking_calls,
         "caller_id_display": caller.caller_id if caller else "unknown",
         "caller_id": caller and caller.id,
-        "entered_busy_loop_once": False,
-        "gather_run_number": 1,
     })
 
     response.play("dialed/welcome")
-    if taking_calls:
+    if config.TAKING_CALLS:
         response.play("dialed/taking-calls/welcome")
-        topic = Topic.get_active()
-        if topic is not None:
+        if topic := Topic.get_active():
             response.play("dialed/topic-intro")
-            response.play(topic.recording.url, full_path=True)
+            response.play(topic.recording.url)
+        redirect_url = "dialed_incoming_gather_taking_calls"
     else:
         response.play("dialed/no-calls/welcome")
+        redirect_url = "dialed_incoming_gather_no_calls"
 
-    response.redirect(url_for("dialed_incoming_gather"))
-
+    response.redirect(url_for(redirect_url))
     return response
 
 
-# First menu
-@api.post("dialed/incoming/gather")
-def dialed_incoming_gather(request, digits: Form[str] = None):
-    response = VoiceResponse()
-    taking_calls = request.session["taking_calls"]
-    # Increment every time we don't pass digits
-    run_number = request.session["gather_run_number"] = 1 if digits else request.session["gather_run_number"] + 1
-
-    topic = Topic.get_active()
-
-    try:
-        caller = Caller.objects.get(id=request.session["caller_id"])
-    except Caller.DoesNotExist:
-        caller = None
-
-    # Taking calls flow
-    #  1. Connect show (or just directly connect after 3 runs)
-    #  2. Repeat topic (if it exists)
-    if taking_calls:
-        # 1 = connects to show (or connects on empty 4th run)
-        if digits == "1" or (run_number >= 4 and not digits):
-            response.redirect(url_for("dialed_incoming_call"))
-            return response
-
-        # 2 = repeats topics
-        if topic and digits == "2":
-            response.play("dialed/topic-intro")
-            response.play(topic.recording.url, full_path=True)
-
-    else:
-        # Not taking calls flow
-        # Pound (#) - voicemail
-        # 1 - subscribe
-        # 9 - unsubscribe
-
-        if digits == "*":
-            response.redirect(url_for("voicemail"))
-            return response
-
-        if caller and not caller.wants_calls and digits == "1":
+def process_subscribe_or_unsubscribe(response, caller, digits):
+    if caller:
+        if caller.wants_calls and digits == "1":
             response.play("dialed/subscribed")
             caller.wants_calls = True
             caller.save()
-
-        elif caller and caller.wants_calls and digits == "9":
+            return True
+        elif caller.wants_calls and digits == "9":
             response.play("dialed/unsubscribed")
             caller.wants_calls = False
             caller.save()
+            return True
+    return False
 
-    if not taking_calls and not caller:
+
+@api.post("dialed/incoming/gather/taking-calls")
+def dialed_incoming_gather_taking_calls(request, digits: Form[str] = None, run_number: int = 1):
+    response = VoiceResponse()
+    # Reset run to 1 every time we get digits
+    if digits:
+        run_number = 1
+    topic = Topic.get_active()
+
+    # 1 = connects to show (or connects on empty 4th run)
+    if digits == "1" or (run_number >= 4 and not digits):
+        response.redirect(url_for("dialed_incoming_call"))
+        return response
+
+    # 2 = repeats topics
+    if topic and digits == "2":
+        response.play("dialed/topic-intro")
+        response.play(topic.recording.url)
+
+    gather = response.gather(
+        action=url_for("dialed_incoming_gather_taking_calls", run_number=run_number + 1),
+        num_digits=1,
+        action_on_empty_result=True,
+        timeout=3,
+        finish_on_key="",
+    )
+    gather.play(f"dialed/taking-calls/greeting/opt-1-call{'-final' if run_number >= 3 else ''}")
+    if topic is not None:
+        gather.play("dialed/taking-calls/greeting/opt-2-topic")
+    gather.play("dialed/opt-pound-repeat")
+    gather.play("dialed/taking-calls/greeting/opt-hangup")
+    return response
+
+
+@api.post("dialed/incoming/gather/no-calls")
+def dialed_incoming_gather_no_callers(request, digits: Form[str] = None):
+    response = VoiceResponse()
+    caller = get_caller_from_session(request)
+
+    if digits == "*":
+        response.redirect(url_for("voicemail"))
+        return response
+
+    process_subscribe_or_unsubscribe(response, caller, digits)
+
+    if not caller:
         response.play("dialed/no-calls/blocked-caller-id")
 
     gather = response.gather(num_digits=1, action_on_empty_result=True, finish_on_key="")
 
-    if taking_calls:
-        gather.play(f"dialed/taking-calls/greeting/opt-1-call{'-final' if run_number >= 3 else ''}")
-        if topic is not None:
-            gather.play("dialed/taking-calls/greeting/opt-2-topic")
-        gather.play("dialed/opt-pound-repeat")
-        gather.play("dialed/taking-calls/greeting/opt-hangup")
+    if caller:
+        if caller.wants_calls:
+            gather.play("dialed/opt-9-unsubscribe")
+        else:
+            gather.play("dialed/no-calls/greeting/opt-1-subscribe")
 
-    else:
-        if caller:
-            if caller.wants_calls:
-                gather.play("dialed/opt-9-unsubscribe")
-            else:
-                gather.play("dialed/no-calls/greeting/opt-1-subscribe")
-
-        gather.play("dialed/opt-star-voicemail")
-        gather.play("dialed/opt-pound-repeat")
-
+    gather.play("dialed/opt-star-voicemail")
+    gather.play("dialed/opt-pound-repeat")
     return response
 
 
@@ -202,7 +210,7 @@ def dialed_incoming_call_done(request, dial_call_status: Form[str], dial_sip_res
         response.redirect(url_for("dialed_incoming_call_busy_gather"))
 
     elif dial_call_status == "no-answer" or manually_rejected:
-        response.say("rejected or offline")
+        response.play("dialed/taking-calls/rejected-voicemail")
         response.redirect(url_for("voicemail"))
 
     elif dial_call_status == "completed":
@@ -228,47 +236,35 @@ def dialed_incoming_call_busy_gather(request, digits: Form[str] = None):
     except Caller.DoesNotExist:
         caller = None
 
-    if caller and not caller.wants_calls and digits == "1":
-        response.play("dialed/subscribed")
-        caller.wants_calls = True
-        caller.save()
-
-    elif caller and caller.wants_calls and digits == "9":
-        response.play("dialed/unsubscribed")
-        caller.wants_calls = False
-        caller.save()
-
-    elif not digits:
+    if process_subscribe_or_unsubscribe(response, caller, digits) or not digits:
         response.play("dialed/taking-calls/busy/opt-hold")
 
         gather = response.gather(num_digits=1, timeout=0, finish_on_key="")
         if caller:
             if caller.wants_calls:
+                gather.play("dialed/opt-star-voicemail")
                 gather.play("dialed/opt-9-unsubscribe")
             else:
                 gather.play("dialed/taking-calls/busy/opt-1-subscribe")
-        gather.play("dialed/opt-star-voicemail")
+                gather.play("dialed/opt-star-voicemail")
         gather.play("dialed/opt-pound-repeat")
 
-        if request.session["entered_busy_loop_once"]:
-            if topic := Topic.get_active():
-                gather.play("dialed/topic-intro")
-                gather.play(topic.recording.url, full_path=True)
+        if topic := Topic.get_active():
+            gather.play("dialed/topic-intro")
+            gather.play(topic.recording.url)
 
         gather.play("dialed/hold-music-throw")
         gather.play(random.choice(HOLD_MUSIC_TRACKS))
 
-    request.session["entered_busy_loop_once"] = True
     response.redirect(url_for("dialed_incoming_call"))
     return response
 
 
 @api.post("voicemail")
-def voicemail(request):
+def voicemail(request, tried_again: bool = False):
     response = VoiceResponse()
     topic = Topic.get_active()
 
-    tried_again = request.session.get("voicemail_tried_again", False)
     if tried_again:
         response.play("dialed/voicemail-erased")
 
@@ -276,17 +272,17 @@ def voicemail(request):
         response.play("dialed/voicemail-intro-no-topic")
     else:
         response.play("dialed/voicemail-intro-topic")
-        response.play(topic.recording.url, full_path=True)
+        response.play(topic.recording.url)
     response.play("dialed/voicemail-instructions")
 
     response.record(
+        action=url_for("voicemail", tried_again=True),
         timeout=15,
         maxLength=60 * 5,  # 5 minutes
         recording_status_callback=url_for("voicemail_callback", caller_id=request.session["caller_id"]),
         finish_on_key="#",
     )
 
-    request.session["voicemail_tried_again"] = True
     return response
 
 

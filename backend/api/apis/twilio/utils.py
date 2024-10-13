@@ -45,9 +45,11 @@ class TwilioParser(Parser):
 
 
 class SkipTwilioPlayMixin:
-    def play(self, url, *args, full_path=False, **kwargs):
-        full_url = url
-        if not full_path:
+    def play(self, url, *args, **kwargs):
+        is_media = url.startswith(settings.MEDIA_URL)
+        if is_media:
+            full_url = url
+        else:
             full_url = f"api/twilio/sounds/{url}.mp3"
             if not finders.find(full_url):
                 logger.warning(f"Couldn't find path for <Play /> verb: {full_url}!")
@@ -56,7 +58,7 @@ class SkipTwilioPlayMixin:
             full_url = static(full_url)
 
         if settings.DEBUG and config.SKIP_TWILIO_PLAY:
-            super().say(re.sub(r"[\W\s]+", " ", Path(url).stem if full_path else url).strip().lower())
+            super().say(re.sub(r"[\W\s]+", " ", Path(url).stem if is_media else url).strip().lower())
             super().pause(1)
         else:
             super().play(full_url, *args, **kwargs)
@@ -85,7 +87,7 @@ def twilio_auth(request):
             logger.warning("Request not properly signed from Twilio, but allowing it since DEBUG = True")
             authorized = True
         logger.info(f"Got request to {request.get_full_path()}... POST:\n{pprint.pformat(dict(request.POST))}")
-        logger.info(f"Session...{'\n' + pprint.pformat(dict(request.session)) if dict(request.session) else '<none>'}")
+        logger.info(f"Session:{'\n' + pprint.pformat(dict(request.session)) if dict(request.session) else ' <none>'}")
 
     return authorized
 
