@@ -28,7 +28,7 @@ services:
 
   nginx:
     restart: always
-    image: jonasal/nginx-certbot:5.2-alpine
+    image: jonasal/nginx-certbot:5.4-alpine
     depends_on:
       - backend
     volumes:
@@ -69,7 +69,7 @@ services:
 
   db:
     restart: always
-    image: pgautoupgrade/pgautoupgrade:16-alpine
+    image: pgautoupgrade/pgautoupgrade:17-alpine
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
