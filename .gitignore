@@ -1,9 +1,11 @@
-/backend/static
+__pycache__
 .DS_Store
 .env
-__pycache__
+/backend/media
+/backend/static
 /frontend/.svelte-kit
 /frontend/build
 /frontend/package
 docker-compose.override.yml
 node_modules
+/scratch/

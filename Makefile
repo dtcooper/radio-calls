@@ -1,11 +1,11 @@
 COMPOSE:=docker compose
 SHELL:=/bin/bash
-DEV_MODE=$(shell source .env; [ "$$DEV_MODE" -a "$$DEV_MODE" != 0 ] && echo '1')
+DEBUG=$(shell source .env; [ "$$DEBUG" -a "$$DEBUG" != 0 ] && echo '1')
 
 .PHONY: up
 up: CONTAINERS:=
 up: .env
-	$(COMPOSE) up --remove-orphans$([ -z "$$DEV_MODE" ] && echo ' -d') $(CONTAINERS) || true
+	$(COMPOSE) up --remove-orphans$([ -z "$$DEBUG" ] && echo ' -d') $(CONTAINERS) || true
 
 .PHONY: down
 down: CONTAINERS:=
@@ -45,8 +45,8 @@ lint-format:
 
 .PHONY: verify-prod
 verify-prod:
-	@if [ $(DEV_MODE) ]; then \
-		echo "Won't run with DEV_MODE = 1" ; \
+	@if [ $(DEBUG) ]; then \
+		echo "Won't run with DEBUG = 1" ; \
 		exit 1 ; \
 	fi
 
@@ -68,3 +68,11 @@ deploy-build: verify-prod
 	docker compose down --remove-orphans
 	docker compose up --quiet-pull --remove-orphans --no-build --detach
 	docker system prune --force
+
+.PHONY: check-env
+check-env:
+	@for f in .env .env.sample ; do \
+		sed 's/^#//' "$$f" | sed 's/^\([A-Z_]*\)=.*/\1/' > "/tmp/diff-$$f" ; \
+	done ; \
+	colordiff -u /tmp/diff-.env.sample /tmp/diff-.env ; \
+	rm /tmp/diff-.env*

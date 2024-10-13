@@ -15,13 +15,14 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
-from django.db.models import F, Func, Value
+from django.db.models import F, Func, Q, Value
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.text import slugify
 
 from django_countries.fields import CountryField
 from django_jsonform.models.fields import JSONField
+from phonenumber_field.modelfields import PhoneNumberField
 
 from .constants import (
     CALL_STEP_CALL,
@@ -71,7 +72,7 @@ class User(AbstractUser):
         super().__init__(*args, **kwargs)
 
 
-class BaseModel(models.Model):
+class BaseAmazonModel(models.Model):
     amazon_id = models.CharField(
         "Amazon ID",
         max_length=MTURK_ID_LENGTH,
@@ -95,7 +96,7 @@ duration_validators = min_max(datetime.timedelta(seconds=30), datetime.timedelta
 call_duration_validators = min_max(datetime.timedelta(seconds=30), datetime.timedelta(minutes=60))
 
 
-class HIT(BaseModel):
+class HIT(BaseAmazonModel):
     CLONE_PREFIX = "Clone of "
     CLONE_FIELDS = (
         "approval_delay",
@@ -215,7 +216,7 @@ class HIT(BaseModel):
         help_text="The last contains of the last error (if any) that occurred while publishing this HIT to MTurk.",
     )
 
-    class Meta(BaseModel.Meta):
+    class Meta(BaseAmazonModel.Meta):
         verbose_name = "MTurk HIT"
         get_latest_by = "created_at"
         permissions = (
@@ -390,11 +391,11 @@ class WorkerPageLoad(models.Model):
     def __str__(self):
         return f"{self.worker_amazon_id}{' (amp encoded)' if self.had_amp_encoded else ''}"
 
-    class Meta(BaseModel.Meta):
+    class Meta(BaseAmazonModel.Meta):
         verbose_name = "MTurk worker page load"
 
 
-class Worker(BaseModel):
+class Worker(BaseAmazonModel):
     class Gender(models.TextChoices):
         MALE = "male", "Male"
         FEMALE = "female", "Female"
@@ -414,7 +415,7 @@ class Worker(BaseModel):
         help_text="Physical location (ie, city and country) where worker is located based on IP address",
     )
 
-    class Meta(BaseModel.Meta):
+    class Meta(BaseAmazonModel.Meta):
         verbose_name = "MTurk worker"
         permissions = (("block_worker", "Can block workers"),)
 
@@ -477,10 +478,10 @@ def generate_words_to_pronounce():
     return random.sample(WORDS_TO_PRONOUNCE, NUM_WORDS_TO_PRONOUNCE)
 
 
-class Assignment(BaseModel):
+class Assignment(BaseAmazonModel):
     PROGRESS_MAX_LENGTH = 256
 
-    class Meta(BaseModel.Meta):
+    class Meta(BaseAmazonModel.Meta):
         verbose_name = "MTurk assignment"
 
     class CallStep(models.TextChoices):
@@ -584,3 +585,84 @@ class Assignment(BaseModel):
             })
         obj, _ = cls.objects.update_or_create(amazon_id=amazon_id, defaults=defaults)
         return obj
+
+
+class BaseCallModel(models.Model):
+    created_at = models.DateTimeField("created at", auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at", "id")
+        get_latest_by = "created_at"
+        abstract = True
+
+
+class Topic(BaseCallModel):
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    is_active = models.BooleanField("active", help_text="Whether this topic currently active.", default=True)
+    name = models.CharField("name", max_length=100, help_text="Topic name (for internal cataloguing).")
+    recording = models.FileField(
+        "recording",
+        upload_to="topics/",
+        help_text=(
+            'Add your recorded topic here. The prompt for it is: "Here\'s what we\'re currently talking about:" or "The'
+            ' current topic is:"'
+        ),
+    )
+
+    class Meta(BaseCallModel.Meta):
+        verbose_name = "phone call topic"
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_active:
+            Topic.objects.update(is_active=Q(id=self.id))
+
+    @classmethod
+    def get_active(cls):
+        return cls.objects.filter(is_active=True).order_by("created_by").last()
+
+
+class Caller(BaseCallModel):
+    name = models.CharField(max_length=100, blank=True, help_text="Optional name for caller")
+    wants_calls = models.BooleanField("wants to be called", help_text="Caller wants solicited calls", default=False)
+    number = PhoneNumberField(unique=True)
+    location = models.CharField("location", max_length=1024, default=LOCATION_UNKNOWN)
+
+    class Meta(BaseCallModel.Meta):
+        verbose_name = "phone caller"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        if not self.location or (not self.number.is_valid() and self.location != LOCATION_UNKNOWN):
+            self.location = LOCATION_UNKNOWN
+            super().save(*args, **kwargs)
+
+    def __str__(self):
+        s = str(self.number)
+        if self.location != LOCATION_UNKNOWN:
+            s = f"{s} in {self.location}"
+        if self.name:
+            s = f"{self.name} {s}"
+        return s
+
+    @property
+    def caller_id(self):
+        s = str(self.number)
+        if self.name:
+            s = f"{slugify(self.name).replace("-", ".")}.{s}"
+        if self.location and self.location != LOCATION_UNKNOWN:
+            s = f"{s}.{self.location.replace(',', '').replace(' ', '.')}"
+        return s.lower()
+
+
+class Voicemail(BaseCallModel):
+    caller = models.ForeignKey(Caller, on_delete=models.SET_NULL, null=True, blank=True)
+    duration = models.DurationField("voicemail duration", default=datetime.timedelta(0))
+    url = models.URLField("voicemail URL")
+
+    class Meta(BaseCallModel.Meta):
+        verbose_name = "phone voicemail"

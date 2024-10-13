@@ -7,22 +7,22 @@ if [ -z "$SECRET_KEY" ]; then
     exit 1
 fi
 
-if [ "$DEV_MODE" = '0' ]; then
-    DEV_MODE=
+if [ "$DEBUG" = '0' ]; then
+    DEBUG=
 fi
 
 cd "$(dirname "$0")"
 
 wait-for-it --timeout 0 --service db:5432
 
-if [ -z "$DEV_MODE" ]; then
+if [ -z "$DEBUG" ]; then
     # Do this in the background
     ./manage.py collectstatic --noinput &
 fi
 
 ./manage.py migrate
 
-if [ "$DEV_MODE" ]; then
+if [ "$DEBUG" ]; then
     if [ "$(./manage.py shell -c 'from api.models import User; print("" if User.objects.exists() else "1")')" = 1 ]; then
         DJANGO_SUPERUSER_PASSWORD=calls ./manage.py createsuperuser --noinput --username calls --email ''
     fi
@@ -33,7 +33,7 @@ if [ "$DEV_MODE" ]; then
 fi
 
 if [ "$#" = 0 ]; then
-    if [ "$DEV_MODE" ]; then
+    if [ "$DEBUG" ]; then
         exec ./manage.py runserver
     else
         exec gunicorn

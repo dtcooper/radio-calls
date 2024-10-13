@@ -1,12 +1,13 @@
 import logging
 
 from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.urls import include, path, re_path
 
-from api.apis import hit_api, twilio_api
+from api.apis import hit_api, twilio_mturk_api, twilio_phone_api
 from api.models import WorkerPageLoad
 
 
@@ -62,10 +63,12 @@ urlpatterns = [
     path("", index),
     re_path("^hit/", hit_passthrough, name="hit_passthrough"),
     path("api/hit/", hit_api.urls),
-    path("api/twilio/", twilio_api.urls),
+    path("api/mturk/", twilio_mturk_api.urls),
+    path("api/phone/", twilio_phone_api.urls),
     path("cmsadmin/mturk-manage/", mturk_manage, name="mturk_manage"),
     path("cmsadmin/", admin.site.urls),
 ]
 
 if settings.DEBUG:
+    urlpatterns.extend(static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT))
     urlpatterns.append(path("__debug__/", include("debug_toolbar.urls")))

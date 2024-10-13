@@ -1,31 +1,26 @@
 import datetime
 import logging
-import pprint
 import random
 from urllib.parse import urlencode
-
-from twilio.request_validator import RequestValidator
-from twilio.twiml.voice_response import VoiceResponse
 
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse
-from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
 
-from ninja import Form, NinjaAPI
+from ninja import Form
 
-from ..constants import NUM_VERIFY_TRIES
-from ..models import Assignment
-from ..utils import TwilioParser, TwiMLRenderer, is_subsequence, normalize_words, send_twilio_message_at_end_of_request
+from ...constants import NUM_VERIFY_TRIES
+from ...models import Assignment
+from ...utils import is_subsequence, normalize_words_to_list
+from .utils import VoiceResponse, create_ninja_api, send_twilio_message_at_end_of_request
 
 
-validator = RequestValidator(settings.TWILIO_AUTH_TOKEN)
 logger = logging.getLogger(f"calls.{__name__}")
 
 # This is what Blink uses (unused, but here for reference)
-# SIP_BUSY_CODE = 486
+# SIP_BUSY_CODE = 486 (pressed busy) or 487 (didn't answer)
 # SIP_REJECT_CODE = 603
 # SIP_DONE_CODE = 200
 
@@ -38,28 +33,9 @@ VERIFIED = Assignment.CallStep.VERIFIED
 VOICEMAIL = Assignment.CallStep.VOICEMAIL
 
 
-def sound_path(name):
-    return static(f"api/twilio/sounds/{name}.mp3")
-
-
 def to_pretty_minutes(timedelta):
     minutes = round(max(timedelta.total_seconds() / 60, 0))
     return f"{minutes} minute{'s' if minutes != 1 else ''}"
-
-
-def twilio_auth(request):
-    authorized = False
-    signature = request.headers.get("X-Twilio-Signature")
-    if signature:
-        authorized = validator.validate(request.build_absolute_uri(), request.POST, signature)
-
-    if settings.DEBUG:
-        if not authorized:
-            logger.warning("Request not properly signed from Twilio, but allowing it since DEBUG = True")
-            authorized = True
-        logger.info(f"Got request to {request.path}...\n{pprint.pformat(dict(request.POST))}")
-
-    return authorized
 
 
 def get_assignment_atomic(id) -> Assignment:
@@ -81,27 +57,18 @@ def update_assignment_call_step_and_message_client(
     send_twilio_message_at_end_of_request(request, call_sid, call_step, countdown)
 
 
-def url(name, assignment=None, **params):
+def url_for(name, assignment=None, **params):
     kwargs = {}
     if assignment is not None:
         kwargs["assignment_id"] = assignment.id
 
-    url = reverse(f"twilio:{name}", kwargs=kwargs)
+    url = reverse(f"twilio_mturk:{name}", kwargs=kwargs)
     if params:
         url = f"{url}?{urlencode(params)}"
     return url
 
 
-api = NinjaAPI(
-    renderer=TwiMLRenderer(), parser=TwilioParser(), urls_namespace="twilio", auth=twilio_auth, docs_url=None
-)
-
-
-@api.post("sip/incoming")
-def sip_incoming(request):
-    response = VoiceResponse()
-    response.say("Nothing implemented for now!")
-    return response
+api = create_ninja_api("mturk")
 
 
 @api.post("hit/outgoing")
@@ -121,13 +88,13 @@ def hit_outgoing(request, assignment_id: Form[str], call_sid: Form[str], cheat: 
 
     if cheated or assignment.call_step != INITIAL:
         assignment.append_progress("call initiated (skipping verify, since it's already done)")
-        response.redirect(url("hit_outgoing_call", assignment))
+        response.redirect(url_for("hit_outgoing_call", assignment))
     else:
         assignment.append_progress("call initiated")
         send_twilio_message_at_end_of_request(request, call_sid, INITIAL)
         response.say("First, we'll test your speaker and microphone and your ability to speak English.")
         response.pause(1)
-        response.redirect(url("hit_outgoing_verify", assignment, first_run=1))
+        response.redirect(url_for("hit_outgoing_verify", assignment, first_run=1))
     return response
 
 
@@ -153,7 +120,7 @@ def hit_outgoing_verify(
         return response
 
     if speech_result and speech_result.strip():
-        words_heard = normalize_words(speech_result)
+        words_heard = normalize_words_to_list(speech_result)
         match = is_subsequence(assignment.words_to_pronounce, words_heard)
         progress_line = (
             f"expected=[{', '.join(assignment.words_to_pronounce)}], actual=[{', '.join(words_heard)}],"
@@ -167,7 +134,7 @@ def hit_outgoing_verify(
                 "That is correct! Well done. You are now being connected to the radio show. The show is hosted by"
                 f" {assignment.hit.show_host}. The topic of conversation is: {assignment.hit.topic}."
             )
-            response.redirect(url("hit_outgoing_call", assignment))
+            response.redirect(url_for("hit_outgoing_call", assignment))
             return response
         else:
             assignment.append_progress(f"verify failed - {progress_line}")
@@ -191,14 +158,14 @@ def hit_outgoing_verify(
     assignment.append_progress("recording verify speech")
     gather = response.gather(
         action_on_empty_result=True,
-        action=url("hit_outgoing_verify", assignment, try_count=try_count + 1),
+        action=url_for("hit_outgoing_verify", assignment, try_count=try_count + 1),
         hints=", ".join(assignment.words_to_pronounce),
         input="speech",
         speech_model="experimental_conversations",
         timeout=4,
         max_speech_time=10,
     )
-    gather.play(sound_path("beep"))
+    gather.play("beep")
     return response
 
 
@@ -216,12 +183,12 @@ def hit_outgoing_call(request, assignment_id, call_sid: Form[str]):
     response = VoiceResponse()
     dial = response.dial(
         answer_on_bridge=True,
-        action=url("hit_outgoing_call_done", assignment),
+        action=url_for("hit_outgoing_call_done", assignment),
         caller_id=assignment.worker.caller_id,
     )
     dial.sip(
         f"{settings.TWILIO_SIP_HOST_USERNAME}@{settings.TWILIO_SIP_DOMAIN}",
-        status_callback=url("hit_outgoing_callback_answered", assignment),
+        status_callback=url_for("hit_outgoing_callback_answered", assignment),
         status_callback_event="answered completed",
     )
     return response
@@ -255,7 +222,7 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
     response = VoiceResponse()
 
     if dial_call_status == "completed":
-        response.redirect(url("hit_outgoing_completed", assignment))
+        response.redirect(url_for("hit_outgoing_completed", assignment))
 
     elif dial_call_status in ("no-answer", "busy"):
         countdown = (assignment.hit.leave_voicemail_after_duration + assignment.call_started_at) - timezone.now()
@@ -269,11 +236,11 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
                 f" may answer sooner, so you may not have to wait the full {to_pretty_minutes(countdown)}."
             )
             if settings.DEBUG:
-                response.play(sound_path("busy-signal"))  # Only play in dev, confusing for workers
+                response.play("busy-signal")  # Only play in dev, confusing for workers
             else:
-                response.play(sound_path(f"hold-music-{random.randint(1, HOLD_MUSIC_TRACKS)}"))
+                response.play(f"hold-music-{random.randint(1, HOLD_MUSIC_TRACKS)}")
             response.say("Trying to connect again now.")
-            response.redirect(url("hit_outgoing_call", assignment))
+            response.redirect(url_for("hit_outgoing_call", assignment))
         else:
             assignment.append_progress("finished hold loop, allowing voicemail")
             update_assignment_call_step_and_message_client(request, call_sid, assignment, VERIFIED)
@@ -285,7 +252,7 @@ def hit_outgoing_call_done(request, assignment_id, call_sid: Form[str], dial_cal
             )
             response.pause(1)
             response.say("At the tone, please record your message.")
-            response.redirect(url("hit_outgoing_voicemail", assignment))
+            response.redirect(url_for("hit_outgoing_voicemail", assignment))
 
     return response
 
@@ -300,10 +267,10 @@ def hit_outgoing_voicemail(request, assignment_id, call_sid: Form[str]):
     response.record(
         timeout=10,
         maxLength=60 * 4,  # 4 minutes
-        action=url("hit_outgoing_completed", assignment),
-        recording_status_callback=url("hit_outgoing_callback_voicemail", assignment),
+        action=url_for("hit_outgoing_completed", assignment),
+        recording_status_callback=url_for("hit_outgoing_callback_voicemail", assignment),
     )
-    response.redirect(url("hit_outgoing_voicemail", assignment))
+    response.redirect(url_for("hit_outgoing_voicemail", assignment))
     return response
 
 
@@ -328,6 +295,6 @@ def hit_outgoing_completed(request, assignment_id, call_sid: Form[str]):
 
     response = VoiceResponse()
     response.say("You have successfully completed this assignment. Thanks!")
-    response.play(sound_path("fun-music"))
+    response.play("fun-music")
     response.hangup()
     return response

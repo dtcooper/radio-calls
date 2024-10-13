@@ -9,7 +9,7 @@ env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = env("SECRET_KEY")
-DEBUG = env.bool("DEV_MODE", default=False)
+DEBUG = env.bool("DEBUG", default=False)
 DOMAIN_NAME = env("DOMAIN_NAME")
 GIT_REV = env("GIT_REV", default="unknown")
 BUILD_TIME = env("BUILD_TIME", default="2000-01-01T00:00:00Z")
@@ -17,7 +17,9 @@ BUILD_TIME = env("BUILD_TIME", default="2000-01-01T00:00:00Z")
 TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN")
 TWILIO_SIP_DOMAIN = env("TWILIO_SIP_DOMAIN")
-TWILIO_SIP_HOST_USERNAME = env("TWILIO_SIP_HOST_USERNAME")
+TWILIO_SIP_HOST_USERNAME = env("TWILIO_SIP_HOST_USERNAME", default="host")
+TWILIO_SIP_PICKUP_USERNAME = env("TWILIO_SIP_PICKUP_USERNAME", default="pickup")
+TWILIO_SIP_SIMULATE_USERNAME = env("TWILIO_SIP_SIMULATE_USERNAME", default="simulate")
 TWILIO_TWIML_APP_SID = env("TWILIO_TWIML_APP_SID")
 TWILIO_API_KEY = env("TWILIO_API_KEY")
 TWILIO_API_SECRET = env("TWILIO_API_SECRET")
@@ -43,14 +45,15 @@ INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
-    "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Third Party
     "admin_extra_buttons",
+    "constance",
     "django_countries",
     "django_jsonform",
     "durationwidget",
+    "phonenumber_field",
 ]
 if DEBUG:
     INSTALLED_APPS.extend([
@@ -154,14 +157,29 @@ USE_I18N = True
 
 USE_TZ = True
 
-STATIC_URL = "backend-static/"
+STATIC_URL = "static/"
 STATIC_ROOT = "/static/"
+MEDIA_URL = "media/"
+MEDIA_ROOT = "/media/"
+
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 ADMIN_NOTICE_TEXT = "Development Environment" if DEBUG else "WARNING: Production Environment"
 ADMIN_NOTICE_TEXT_COLOR = "#000000" if DEBUG else "#ffffff"
 ADMIN_NOTICE_BACKGROUND = "#73e33c" if DEBUG else "#ff0000"
+
+CONSTANCE_BACKEND = "constance.backends.database.DatabaseBackend"
+
+CONSTANCE_CONFIG = {
+    "TAKING_CALLS": (True, "Are hosts currently taking calls?"),
+}
+
+if DEBUG:
+    CONSTANCE_CONFIG.update({
+        "SKIP_TWILIO_PLAY": (False, "[DEBUG only] Skip Twilio <Play /> verb, just use <Say /> verb instead)"),
+    })
 
 SHELL_PLUS_IMPORTS = [
     (

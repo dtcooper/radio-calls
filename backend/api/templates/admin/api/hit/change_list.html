@@ -1,5 +1,5 @@
 {% extends 'admin_extra_buttons/change_list.html' %}
 
 {% block content_title %}
-  <h1>{{ title }}{% if balance %}<small>[Balance: ${{ balance }}]</small>{% endif %}</h1>
+  <h1>{{ title }}{% if active_topic %} <small>[Active topic: {{ active_topic }}]</small>{% endif%}</h1>
 {% endblock %}

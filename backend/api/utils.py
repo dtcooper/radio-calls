@@ -12,43 +12,12 @@ from django.db import models
 from django.utils import timezone
 from django.utils.formats import date_format as django_date_format
 
-from ninja.parser import Parser
-from ninja.renderers import BaseRenderer
-
 from .constants import LOCATION_UNKNOWN, SIMULATED_PREFIX
 
 
 underscore_converter_re = re.compile(r"(?<!^)(?=[A-Z])")
 depunctuate_words_re = re.compile(r"[^a-z]+")
 logger = logging.getLogger(f"calls.{__name__}")
-
-
-class TwiMLRenderer(BaseRenderer):
-    media_type = "text/xml"
-
-    # Accepts twilio's VoiceReponse
-    def render(self, request, data, *, response_status):
-        response = str(data)
-
-        if settings.DEBUG:
-            import xml.dom.minidom  # No need to import in production
-
-            response = xml.dom.minidom.parseString(response).toprettyxml(indent=" " * 4)
-            logger.info(f"Responding to {request.path} with\n{response}")
-
-        return response
-
-
-class TwilioParser(Parser):
-    # Converts PascalCase and camelCase to Pythonic underscores
-    def parse_querydict(self, data, list_fields, request):
-        result = super().parse_querydict(data, list_fields, request)
-        return {underscore_converter_re.sub("_", k).lower(): v for k, v in result.items()}
-
-
-def send_twilio_message_at_end_of_request(request, call_sid, call_step, countdown=None, words_heard=None):
-    # Happens after request is processed via middle so any transactions aren't blocked
-    request._twilio_user_defined_message = (call_sid, call_step, countdown, words_heard)
 
 
 def short_datetime_str(datetime_or_string: datetime.datetime | str):
@@ -62,7 +31,7 @@ def is_subsequence(x, y):
     return all(any(x_item == y_item for y_item in y_iter) for x_item in x)
 
 
-def normalize_words(s):
+def normalize_words_to_list(s):
     return depunctuate_words_re.sub(" ", s.lower()).split()
 
 

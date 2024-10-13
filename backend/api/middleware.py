@@ -6,13 +6,12 @@ from twilio.rest import Client as TwilioClient
 from django.conf import settings
 
 
-twilio_client = TwilioClient(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-
-
 logger = logging.getLogger(f"calls.{__name__}")
 
 
 class SendTwilioUserDefinedMessageAtEndOfRequestMiddleware:
+    twilio_client = TwilioClient(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -26,7 +25,7 @@ class SendTwilioUserDefinedMessageAtEndOfRequestMiddleware:
                 countdown = max(round(countdown.total_seconds()), 0)
 
             try:
-                twilio_client.calls(call_sid).user_defined_messages.create(
+                self.twilio_client.calls(call_sid).user_defined_messages.create(
                     content=json.dumps({"callStep": call_step, "countdown": countdown, "wordsHeard": words_heard})
                 )
             except Exception:

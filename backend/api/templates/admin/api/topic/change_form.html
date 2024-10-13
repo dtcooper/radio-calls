@@ -1,0 +1,93 @@
+{% extends 'admin_extra_buttons/change_form.html' %}
+
+{% block content_title %}
+<h1>
+  {{ title }}
+  {% if active_topic %}
+    <small>[Active topic: <a href="{% url 'admin:api_topic_change' object_id=active_topic.id %}">{{ active_topic.name }}</a>]</small>
+  {% endif%}
+</h1>
+{% endblock %}
+
+{# Uncomment after integrating ffmpeg to trim + convert to mp3 #}
+{% comment %}
+{% block extrahead %}
+  {{ block.super }}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const fileInput = document.getElementById('id_recording')
+      const btnGroup = document.createElement("p")
+
+      const audio = document.createElement("audio")
+      audio.controls = true
+
+      const uploaded = document.querySelector(".field-recording .file-upload a")
+      if (uploaded) {
+        audio.src = uploaded.href
+      } else {
+        audio.disabled = true
+        // Make sure it renders properly by adding a container
+        const container = document.createElement("p")
+        fileInput.after(container)
+        fileInput.remove()
+        container.append(fileInput)
+      }
+
+      const recordBtn = document.createElement('button')
+      const stopBtn = document.createElement('button')
+
+      recordBtn.textContent = "Record audio"
+      recordBtn.classList.add("button")
+      recordBtn.style.marginRight = "5px"
+      stopBtn.textContent = "Stop recording"
+      stopBtn.classList.add("button")
+      stopBtn.disabled = true
+      recordBtn.style.padding = stopBtn.style.padding = "6px 8px"
+      recordBtn.type = stopBtn.type = "button"
+
+      fileInput.after(btnGroup)
+      btnGroup.after(audio)
+      btnGroup.append(recordBtn)
+      btnGroup.append(stopBtn)
+
+      let mediaRecorder
+      let audioChunks = []
+
+      recordBtn.onclick = async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=pcm' })
+
+        mediaRecorder.ondataavailable = event => {
+          audioChunks.push(event.data)
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' })
+          const timestamp = new Date().toISOString().replace(/\.\d+Z$/, '').replace(/[\-T:]/g, '')
+          const file = new File([audioBlob], `recorded-audio-${timestamp}.webm`, { type: 'audio/webm' })
+
+          // Create a DataTransfer object and add the file to it
+          const dataTransfer = new DataTransfer()
+          dataTransfer.items.add(file)
+          fileInput.files = dataTransfer.files
+          audio.src = URL.createObjectURL(audioBlob)
+          audio.disabled = false
+
+          audioChunks = []
+        };
+
+        mediaRecorder.start()
+        recordBtn.disabled = true
+        stopBtn.disabled = false
+      }
+
+      // Stop recording
+      stopBtn.addEventListener('click', () => {
+        mediaRecorder.stop()
+        recordBtn.disabled = false
+        stopBtn.disabled = true
+      });
+    })
+  </script>
+{% endblock %}
+{% endcomment %}

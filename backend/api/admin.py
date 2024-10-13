@@ -18,7 +18,7 @@ from admin_extra_buttons.api import ExtraButtonsMixin, button, confirm_action
 from durationwidget.widgets import TimeDurationWidget
 
 from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES, SIMULATED_PREFIX
-from .models import HIT, Assignment, User, Worker, WorkerPageLoad
+from .models import HIT, Assignment, Caller, Topic, User, Voicemail, Worker, WorkerPageLoad
 from .utils import block_or_unblock_workers, get_mturk_client, short_datetime_str
 
 
@@ -348,7 +348,6 @@ class HITAdmin(NumAssignmentsMixin, BaseModelAdmin):
     def save_model(self, request, obj: HIT, form, change):
         if not change:
             obj.created_by = request.user
-
         super().save_model(request, obj, form, change)
 
     def run_hit_warning_messages(self, request, obj: HIT):
@@ -754,9 +753,45 @@ class WorkerPageLoadAdmin(BaseModelAdmin):
         return False
 
 
+class TopicAdmin(BaseModelAdmin):
+    change_form_template = "admin/api/topic/change_form.html"
+    change_list_template = "admin/api/topic/change_list.html"
+    list_display = ("name", "is_active", "created_at", "created_by")
+    fields = ("name", "is_active", "recording", "created_by", "created_at")
+    readonly_fields = ("created_by", "created_at")
+
+    def save_model(self, request, obj: HIT, form, change):
+        if not change:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    @staticmethod
+    def topic_extra_context():
+        return {"active_topic": Topic.get_active()}
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = self.topic_extra_context()
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
+    def changelist_view(self, request, extra_context=None):
+        extra_context = self.topic_extra_context()
+        return super().changelist_view(request, extra_context=extra_context)
+
+
+class CallerAdmin(BaseModelAdmin):
+    list_display = ("__str__", "wants_calls")
+
+
+class VoicemailAdmin(BaseModelAdmin):
+    pass
+
+
 admin.site.unregister(Group)
-admin.site.register(User, UserAdmin)
-admin.site.register(HIT, HITAdmin)
-admin.site.register(Worker, WorkerAdmin)
 admin.site.register(Assignment, AssignmentAdmin)
+admin.site.register(Caller, CallerAdmin)
+admin.site.register(HIT, HITAdmin)
+admin.site.register(Topic, TopicAdmin)
+admin.site.register(User, UserAdmin)
+admin.site.register(Worker, WorkerAdmin)
 admin.site.register(WorkerPageLoad, WorkerPageLoadAdmin)
+admin.site.register(Voicemail, VoicemailAdmin)

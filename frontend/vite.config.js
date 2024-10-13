@@ -3,7 +3,7 @@ import { execSync } from "child_process"
 import { existsSync, readFileSync, writeFileSync } from "fs"
 import { defineConfig } from "vite"
 
-const backendUrlsToProxy = ["api", "backend-static", "cmsadmin", "__debug__"]
+const backendUrlsToProxy = ["api", "static", "cmsadmin", "__debug__"]
 const addVersionString = () => {
   try {
     const indexPath = "build/index.html"

@@ -1,0 +1,10 @@
+{% extends 'admin_extra_buttons/change_list.html' %}
+
+{% block content_title %}
+<h1>
+  {{ title }}
+  {% if active_topic %}
+    <small>[Active topic: <a href="{% url 'admin:api_topic_change' object_id=active_topic.id %}">{{ active_topic.name }}</a>]</small>
+  {% endif%}
+</h1>
+{% endblock %}
