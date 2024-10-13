@@ -5,7 +5,7 @@ DEBUG=$(shell source .env; [ "$$DEBUG" -a "$$DEBUG" != 0 ] && echo '1')
 .PHONY: up
 up: CONTAINERS:=
 up: .env
-	$(COMPOSE) up --remove-orphans$([ -z "$$DEBUG" ] && echo ' -d') $(CONTAINERS) || true
+	$(COMPOSE) up --remove-orphans$(shell [ -z "$(DEBUG)" -o "$(DEBUG)" = 0 ] && echo ' -d') $(CONTAINERS) || true
 
 .PHONY: down
 down: CONTAINERS:=

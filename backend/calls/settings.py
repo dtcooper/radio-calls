@@ -33,7 +33,7 @@ GEOIP2_LITE_CITY_DB_PATH = env("GEOIP2_LITE_CITY_DB_PATH")
 ALLOWED_HOSTS = [DOMAIN_NAME]
 if DEBUG:
     ALLOWED_HOSTS.append("localhost")
-    INTERNAL_IPS = type("c", (), {"__contains__": lambda *a: True})()  # Hack to always show the toolbar
+    DEBUG_TOOLBAR_CONFIG = {"SHOW_TOOLBAR_CALLBACK": lambda req: req.user.is_superuser}
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
