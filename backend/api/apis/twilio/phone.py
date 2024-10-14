@@ -116,9 +116,9 @@ def dialed_incoming(
     return response
 
 
-def process_subscribe_or_unsubscribe(response, caller, digits):
+def process_subscribe_or_unsubscribe_digits(response, caller, digits):
     if caller:
-        if caller.wants_calls and digits == "1":
+        if not caller.wants_calls and digits == "1":
             response.play("dialed/subscribed")
             caller.wants_calls = True
             caller.save()
@@ -173,7 +173,7 @@ def dialed_incoming_gather_no_callers(request, digits: Form[str] = None):
         response.redirect(url_for("voicemail"))
         return response
 
-    process_subscribe_or_unsubscribe(response, caller, digits)
+    process_subscribe_or_unsubscribe_digits(response, caller, digits)
 
     if not caller:
         response.play("dialed/no-calls/blocked-caller-id")
@@ -184,7 +184,7 @@ def dialed_incoming_gather_no_callers(request, digits: Form[str] = None):
         if caller.wants_calls:
             gather.play("dialed/opt-9-unsubscribe")
         else:
-            gather.play("dialed/no-calls/greeting/opt-1-subscribe")
+            gather.play("dialed/opt-1-subscribe")
 
     gather.play("dialed/opt-star-voicemail")
     gather.play("dialed/opt-pound-repeat")
@@ -214,7 +214,7 @@ def dialed_incoming_call_done(request, dial_call_status: Form[str], dial_sip_res
         response.redirect(url_for("voicemail"))
 
     elif dial_call_status == "completed":
-        response.say("completed")
+        response.redirect(url_for("dialed_incoming_call_completed"))
 
     else:
         response.say("An unknown error occurred! Try calling again.")
@@ -231,12 +231,9 @@ def dialed_incoming_call_busy_gather(request, digits: Form[str] = None):
         response.redirect(url_for("voicemail"))
         return response
 
-    try:
-        caller = Caller.objects.get(id=request.session["caller_id"])
-    except Caller.DoesNotExist:
-        caller = None
+    caller = get_caller_from_session(request)
 
-    if process_subscribe_or_unsubscribe(response, caller, digits) or not digits:
+    if process_subscribe_or_unsubscribe_digits(response, caller, digits) or not digits:
         response.play("dialed/taking-calls/busy/opt-hold")
 
         gather = response.gather(num_digits=1, timeout=0, finish_on_key="")
@@ -260,13 +257,43 @@ def dialed_incoming_call_busy_gather(request, digits: Form[str] = None):
     return response
 
 
+@api.post("dialed/incoming/call/completed")
+def dialed_incoming_call_completed(request, digits: Form[str] = None):
+    response = VoiceResponse()
+    caller = get_caller_from_session(request)
+
+    if digits != "1":
+        response.play("dialed/thanks")
+
+    process_subscribe_or_unsubscribe_digits(response, caller, digits)
+    if caller is not None and not caller.wants_calls:
+        gather = response.gather(
+            num_digits=1,
+            action_on_empty_result=True,
+            finish_on_key="",
+        )
+        gather.play("dialed/opt-1-subscribe")
+    else:
+        response.play("dialed/goodbye")
+        response.play("fun-music")
+        response.hangup()
+    return response
+
+
 @api.post("voicemail")
-def voicemail(request, tried_again: bool = False):
+def voicemail(request, digits: Form[str] = None):
     response = VoiceResponse()
     topic = Topic.get_active()
 
-    if tried_again:
-        response.play("dialed/voicemail-erased")
+    if digits:
+        if digits == "#":
+            response.play("dialed/voicemail-erased")
+        else:
+            response.play("dialed/thanks")
+            response.play("dialed/goodbye")
+            response.play("fun-music")
+            response.hangup()
+            return response
 
     if topic is None:
         response.play("dialed/voicemail-intro-no-topic")
@@ -276,11 +303,9 @@ def voicemail(request, tried_again: bool = False):
     response.play("dialed/voicemail-instructions")
 
     response.record(
-        action=url_for("voicemail", tried_again=True),
         timeout=15,
         maxLength=60 * 5,  # 5 minutes
         recording_status_callback=url_for("voicemail_callback", caller_id=request.session["caller_id"]),
-        finish_on_key="#",
     )
 
     return response

@@ -59,7 +59,6 @@ class SkipTwilioPlayMixin:
 
         if settings.DEBUG and config.SKIP_TWILIO_PLAY:
             super().say(re.sub(r"[\W\s]+", " ", Path(url).stem if is_media else url).strip().lower())
-            super().pause(1)
         else:
             super().play(full_url, *args, **kwargs)
 
@@ -69,7 +68,7 @@ class Gather(SkipTwilioPlayMixin, TwilioGather):
 
 
 class VoiceResponse(SkipTwilioPlayMixin, TwilioVoiceResponse):
-    def gather(self, *args, **kwargs):
+    def gather(self, *args, **kwargs) -> Gather:
         return self.nest(Gather(*args, **kwargs))
 
 
