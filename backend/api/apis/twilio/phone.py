@@ -165,7 +165,7 @@ def dialed_incoming_gather_taking_calls(request, digits: Form[str] = None, run_n
 
 
 @api.post("dialed/incoming/gather/no-calls")
-def dialed_incoming_gather_no_callers(request, digits: Form[str] = None):
+def dialed_incoming_gather_no_calls(request, digits: Form[str] = None):
     response = VoiceResponse()
     caller = get_caller_from_session(request)
 
