@@ -1,4 +1,5 @@
 import datetime
+import logging
 from urllib.parse import urlencode
 
 from django import forms
@@ -18,9 +19,14 @@ from django.utils.safestring import mark_safe
 from admin_extra_buttons.api import ExtraButtonsMixin, button, confirm_action
 from durationwidget.widgets import TimeDurationWidget
 
+from .apis import twilio_phone_url_for
 from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES, SIMULATED_PREFIX
 from .models import HIT, Assignment, Caller, Topic, User, Voicemail, Worker, WorkerPageLoad
+from .twilio import twilio_client
 from .utils import block_or_unblock_workers, get_mturk_client, short_datetime_str
+
+
+logger = logging.getLogger(f"calls.{__name__}")
 
 
 ATTR_COLORS = {
@@ -816,19 +822,26 @@ class CallerAdmin(BaseModelAdmin):
     @button(
         html_attrs=attr_color("info"),
         label="Call now!",
-        permission=lambda request, caller, **kw: request.user.has_perm("api.change_caller") and caller.wants_calls,
+        permission=lambda request, caller, **kw: request.user.has_perm("api.change_caller"),
     )
     def call_now(self, request, pk):
         caller = Caller.objects.get(id=pk)
-        self.message_user(request, f'Calling "{caller}" now!', level=messages.WARNING)
+        try:
+            twilio_client.calls.create(
+                url=twilio_phone_url_for("sip_outgoing_host", called_override=caller.number, domain_name=True),
+                to=f"sip:{settings.TWILIO_SIP_HOST_USERNAME}@{settings.TWILIO_SIP_DOMAIN}",
+                from_=caller.caller_id,
+            )
+        except Exception as e:
+            logger.exception(f"Error calling {caller}...")
+            self.message_error_to_user(request, e)
+        else:
+            self.message_user(request, f'Calling "{caller}" now!', level=messages.WARNING)
         return redirect("admin:api_caller_changelist")
 
     @admin.display(description="Call")
     def call_now_btn(self, obj):
-        if obj.wants_calls:
-            return format_html(LIST_BTN_HTML, reverse("admin:api_caller_call_now", args=(obj.id,)), "Call now!")
-        else:
-            return mark_safe("<em>Doesn't want calls</em>")
+        return format_html(LIST_BTN_HTML, reverse("admin:api_caller_call_now", args=(obj.id,)), "Call now!")
 
 
 class VoicemailAdmin(BaseModelAdmin):

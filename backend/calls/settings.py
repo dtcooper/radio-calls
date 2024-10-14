@@ -16,6 +16,7 @@ BUILD_TIME = env("BUILD_TIME", default="2000-01-01T00:00:00Z")
 
 TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN")
+TWILIO_NUMBER = env("TWILIO_NUMBER")
 TWILIO_SIP_DOMAIN = env("TWILIO_SIP_DOMAIN")
 TWILIO_SIP_HOST_USERNAME = env("TWILIO_SIP_HOST_USERNAME", default="host")
 TWILIO_SIP_PICKUP_USERNAME = env("TWILIO_SIP_PICKUP_USERNAME", default="pickup")
@@ -174,6 +175,13 @@ CONSTANCE_BACKEND = "constance.backends.database.DatabaseBackend"
 
 CONSTANCE_CONFIG = {
     "TAKING_CALLS": (True, "Are hosts currently taking calls?"),
+    "ANSWERING_MACHINE_DETECTION": (
+        True,
+        (
+            "Enable answering machine detection code for outgoing consent-flow calls. Disable during development"
+            " because they can get expensive."
+        ),
+    ),
 }
 
 if DEBUG:

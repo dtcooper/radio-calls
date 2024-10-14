@@ -653,7 +653,7 @@ class Caller(BaseCallModel):
     def caller_id(self):
         s = str(self.number)
         if self.name:
-            s = f"{slugify(self.name).replace("-", ".")}.{s}"
+            s = f"{s}.{slugify(self.name).replace("-", ".")}"
         if self.location and self.location != LOCATION_UNKNOWN:
             s = f"{s}.{self.location.replace(',', '').replace(' ', '.')}"
         return s.lower()

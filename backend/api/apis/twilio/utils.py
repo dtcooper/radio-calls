@@ -45,7 +45,7 @@ class TwilioParser(Parser):
 
 
 class SkipTwilioPlayMixin:
-    def play(self, url, *args, **kwargs):
+    def play(self, url, *args, _external=False, **kwargs):
         is_media = url.startswith(settings.MEDIA_URL)
         if is_media:
             full_url = url
@@ -60,6 +60,8 @@ class SkipTwilioPlayMixin:
         if settings.DEBUG and config.SKIP_TWILIO_PLAY:
             super().say(re.sub(r"[\W\s]+", " ", Path(url).stem if is_media else url).strip().lower())
         else:
+            if _external:
+                full_url = f"https://{settings.DOMAIN_NAME}{full_url}"
             super().play(full_url, *args, **kwargs)
 
 
