@@ -217,6 +217,7 @@ def dialed_incoming_call_done(request, dial_call_status: Form[str], dial_sip_res
         response.redirect(url_for("dialed_incoming_call_completed"))
 
     else:
+        logger.warning(f"Got dial_call_status = {dial_call_status}!")
         response.say("An unknown error occurred! Try calling again.")
         response.hangup()
 

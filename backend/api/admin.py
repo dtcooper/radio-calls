@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html, format_html_join
+from django.utils.safestring import mark_safe
 
 from admin_extra_buttons.api import ExtraButtonsMixin, button, confirm_action
 from durationwidget.widgets import TimeDurationWidget
@@ -754,19 +755,36 @@ class WorkerPageLoadAdmin(BaseModelAdmin):
 
 
 PLAYER_HTML = '<audio controls src="{}" style="height: 28px" />'
+LIST_BTN_HTML = '<a type="button" class="button" style="padding: 5px 7px; margin: 0" href="{}">{}</a>'
 
 
 class TopicAdmin(BaseModelAdmin):
     change_form_template = "admin/api/topic/change_form.html"
     change_list_template = "admin/api/topic/change_list.html"
-    list_display = ("name", "is_active", "recording_player", "created_at", "created_by")
+    list_display = ("name", "is_active", "recording_player", "created_at", "created_by", "mark_active_btn")
     fields = ("name", "is_active", "recording", "recording_player", "created_by", "created_at")
-    readonly_fields = ("recording_player", "created_by", "created_at")
+    readonly_fields = ("recording_player", "mark_active_btn", "created_by", "created_at")
 
     def save_model(self, request, obj: HIT, form, change):
         if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+    @button(
+        html_attrs=attr_color("info"),
+        label="Mark active",
+        permission=lambda request, topic, **kw: request.user.has_perm("api.change_topic"),
+    )
+    def mark_active(self, request, pk):
+        topic = Topic.objects.get(id=pk)
+        topic.is_active = True
+        topic.save()
+        self.message_user(request, f'Marked topic "{topic.name}" active!"')
+        return redirect("admin:api_topic_changelist")
+
+    @admin.display(description="Activate")
+    def mark_active_btn(self, obj):
+        return format_html(LIST_BTN_HTML, reverse("admin:api_topic_mark_active", args=(obj.id,)), "Mark active")
 
     @admin.display(description="Player")
     def recording_player(self, obj):
@@ -786,24 +804,37 @@ class TopicAdmin(BaseModelAdmin):
 
 
 class CallerAdmin(BaseModelAdmin):
-    list_display = ("number", "name_display", "wants_calls", "location", "created_at")
+    list_display = ("number", "name_display", "wants_calls", "location", "created_at", "call_now_btn")
     fields = ("name", "number", "wants_calls", "location", "created_at")
-    readonly_fields = (
-        "name_display",
-        "created_at",
-    )
+    readonly_fields = ("name_display", "created_at", "call_now_btn")
     ordering = ("name",)
 
     @admin.display(description="Name", ordering="name")
     def name_display(self, obj):
-        return obj.name or "Unnamed"
+        return obj.name or mark_safe("<em>Unnamed</em>")
+
+    @button(
+        html_attrs=attr_color("info"),
+        label="Call now!",
+        permission=lambda request, caller, **kw: request.user.has_perm("api.change_caller") and caller.wants_calls,
+    )
+    def call_now(self, request, pk):
+        caller = Caller.objects.get(id=pk)
+        self.message_user(request, f'Calling "{caller}" now!', level=messages.WARNING)
+        return redirect("admin:api_caller_changelist")
+
+    @admin.display(description="Call")
+    def call_now_btn(self, obj):
+        if obj.wants_calls:
+            return format_html(LIST_BTN_HTML, reverse("admin:api_caller_call_now", args=(obj.id,)), "Call now!")
+        else:
+            return mark_safe("<em>Doesn't want calls</em>")
 
 
 class VoicemailAdmin(BaseModelAdmin):
-    empty_value_display = "Unknown caller"
-    list_display = ("caller", "url_player", "duration", "created_at")
-    fields = ("caller", "url_player", "url_link", "duration", "created_at")
-    readonly_fields = ("caller", "url_link", "url_player", "duration", "created_at")
+    list_display = ("caller_display", "url_player", "duration", "created_at")
+    fields = ("caller_display", "url_player", "url_link", "duration", "created_at")
+    readonly_fields = ("caller_display", "url_link", "url_player", "duration", "created_at")
 
     @admin.display(description="Player")
     def url_player(self, obj):
@@ -812,6 +843,10 @@ class VoicemailAdmin(BaseModelAdmin):
     @admin.display(description="URL link")
     def url_link(self, obj):
         return format_html('<a href="{}" target="_blank">External link</a>', obj.url)
+
+    @admin.display(description="Caller", ordering="caller")
+    def caller_display(self, obj):
+        return obj.caller or mark_safe("<em>Unknown caller</em>")
 
     def has_add_permission(self, request):
         return False
