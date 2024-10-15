@@ -10,10 +10,10 @@ from django.http import HttpResponse
 from constance import config
 from ninja import Form
 
-from . import api, url_for
 from ....constants import LOCATION_UNKNOWN
 from ....models import Caller, Topic, Voicemail
 from ..utils import VoiceResponse
+from .api import api, url_for
 
 
 logger = logging.getLogger(f"calls.{__name__}")
@@ -133,7 +133,7 @@ def dialed_incoming_gather_no_calls(request, digits: Form[str] = None):
     caller = get_caller_from_session(request)
 
     if digits == "*":
-        response.redirect(url_for("voicemail"))
+        response.redirect(url_for("dialed_voicemail"))
         return response
 
     process_subscribe_or_unsubscribe_digits(response, caller, digits)
@@ -174,7 +174,7 @@ def dialed_incoming_call_done(request, dial_call_status: Form[str], dial_sip_res
 
     elif dial_call_status == "no-answer" or manually_rejected:
         response.play("dialed/taking-calls/rejected-voicemail")
-        response.redirect(url_for("voicemail"))
+        response.redirect(url_for("dialed_voicemail"))
 
     elif dial_call_status == "completed":
         response.redirect(url_for("dialed_incoming_call_completed"))
@@ -192,7 +192,7 @@ def dialed_incoming_call_busy_gather(request, digits: Form[str] = None):
     response = VoiceResponse()
 
     if digits == "*":
-        response.redirect(url_for("voicemail"))
+        response.redirect(url_for("dialed_voicemail"))
         return response
 
     caller = get_caller_from_session(request)
@@ -245,7 +245,7 @@ def dialed_incoming_call_completed(request, digits: Form[str] = None):
 
 
 @api.post("dialed/voicemail")
-def voicemail(request, digits: Form[str] = None):
+def dialed_voicemail(request, digits: Form[str] = None):
     response = VoiceResponse()
     topic = Topic.get_active()
 
@@ -270,7 +270,7 @@ def voicemail(request, digits: Form[str] = None):
     response.record(
         timeout=15,
         max_length=60 * 5,  # 5 minutes
-        recording_status_callback=url_for("voicemail_callback", caller_id=request.session["caller_id"]),
+        recording_status_callback=url_for("dialed_voicemail_callback", caller_id=request.session["caller_id"]),
         play_beep=False,
     )
 
@@ -278,7 +278,7 @@ def voicemail(request, digits: Form[str] = None):
 
 
 @api.post("dialed/voicemail/callback")
-def voicemail_callback(request, recording_duration: Form[int], recording_url: Form[str], caller_id: int = None):
+def dialed_voicemail_callback(request, recording_duration: Form[int], recording_url: Form[str], caller_id: int = None):
     try:
         caller = Caller.objects.get(id=caller_id)
     except Caller.DoesNotExist:
