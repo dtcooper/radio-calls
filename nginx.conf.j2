@@ -44,11 +44,11 @@ server {
     {% else %}
         # Static files
         location /static/ {
-            alias /static/;
+            alias /serve/static/;
         }
 
         location /media/ {
-            alias /media/;
+            alias /serve/media/;
         }
 
         # Frontend static assets (immutable)
