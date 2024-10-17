@@ -1,4 +1,4 @@
-FROM python:3.12-bookworm
+FROM python:3.13-bookworm
 
 ENV DJANGO_SETTINGS_MODULE=calls.settings \
     PYTHONDONTWRITEBYTECODE=1 \

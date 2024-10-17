@@ -86,7 +86,7 @@ def sip_outgoing_host(
 
             response.say(f"Calling{name_padded} {'with consent flow' if consent_flow else 'directly'}.")
             dial = response.dial(
-                timeout=60 if consent_flow else 30,
+                timeout=40,
                 caller_id=settings.TWILIO_OUTGOING_NUMBER,
                 action=url_for("sip_outgoing_host_done", with_amd=with_answering_machine_detection),
             )

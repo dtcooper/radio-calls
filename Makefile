@@ -38,6 +38,10 @@ shell-nodeps:
 nginx-nodeps:
 	$(COMPOSE) run --no-deps --rm --service-ports nginx || true
 
+.PHONY: nginx-background
+nginx-background:
+	$(COMPOSE) up --no-deps --detach nginx
+
 .PHONY: lint-format
 lint-format:
 	@$(COMPOSE) run --no-deps --rm --entrypoint /bin/sh backend -c "black . ; isort . ; flake8 ." || true

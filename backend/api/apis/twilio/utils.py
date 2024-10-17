@@ -51,7 +51,7 @@ class SkipTwilioPlayMixin:
             full_url = url
         else:
             full_url = f"api/twilio/sounds/{url}.mp3"
-            if not finders.find(full_url):
+            if settings.DEBUG and not finders.find(full_url):
                 logger.warning(f"Couldn't find path for <Play /> verb: {full_url}!")
                 if settings.DEBUG:
                     super().say("Warning! Path does not exist. Check logs.")

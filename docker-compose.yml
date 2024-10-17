@@ -7,8 +7,7 @@ services:
       args:
         DEBUG: "${DEBUG:-0}"
     volumes:
-      - ./backend/static:/static
-      - ./backend/media:/media
+      - ./backend/serve:/serve
     env_file: .env
     mem_limit: 2048m
     depends_on:
@@ -28,41 +27,19 @@ services:
 
   nginx:
     restart: always
-    image: jonasal/nginx-certbot:5.4-alpine
+    image: ghcr.io/dtcooper/nginx-certbot-jinja:5.4.0-nginx1.27.2-alpine
     depends_on:
       - backend
     volumes:
-      - ./nginx.conf:/etc/nginx/templates/site.conf.template
+      - ./nginx.conf.j2:/etc/nginx/templates/site.conf.j2
       - ./frontend:/frontend
-      - ./backend/static:/static
-      - ./backend/media:/media
+      - ./backend/serve:/serve
       - nginx_secrets:/etc/letsencrypt
     environment:
+      DEBUG: "${DEBUG}"
       TZ: "${TZ}"
       DOMAIN_NAME: "${DOMAIN_NAME}"
       CERTBOT_EMAIL: "${CERTBOT_EMAIL}"
-      __NGINX_BACKEND_STATIC_CONF: |
-        location /static/ {
-                alias /static/;
-            }
-        location /media/ {
-                alias /media/;
-            }
-      __NGINX_FRONTEND_CONF: |
-        # Frontend static assets (immutable)
-            location /hit/_app/immutable {
-                alias /frontend/build/_app/immutable;
-                expires max;
-                add_header Cache-Control "public, immutable";
-                access_log off;
-            }
-
-            # Frontend static assets (Internal, as it's X-Accel-Redirect proxied through nginx)
-            location /__hit_passthrough__/hit {
-                internal;
-                expires 0;
-                alias /frontend/build;
-            }
     ports:
       - 80:80
       - 443:443

@@ -159,9 +159,9 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
-STATIC_ROOT = "/static/"
+STATIC_ROOT = "/serve/static/"
 MEDIA_URL = "/media/"
-MEDIA_ROOT = "/media/"
+MEDIA_ROOT = "/serve/media/"
 
 SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 

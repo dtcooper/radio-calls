@@ -1,0 +1,86 @@
+{% set DEBUG = true if DEBUG|int else false -%}
+# Variables:
+#  - DEBUG = {{ DEBUG }}
+#  - DOMAIN_NAME = "{{ DOMAIN_NAME }}"
+
+{% if DEBUG %}
+    # Needed to reverse proxy Vite in when docker-compose.dev.yml is symlinked
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+{% endif %}
+
+server {
+    server_name {{ DOMAIN_NAME }};
+
+    listen 443 ssl default_server reuseport;
+    listen [::]:443 ssl default_server reuseport;
+    http2 on;
+
+    ssl_certificate /etc/letsencrypt/live/{{ DOMAIN_NAME }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ DOMAIN_NAME }}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/{{ DOMAIN_NAME }}/chain.pem;
+    ssl_dhparam /etc/letsencrypt/dhparams/dhparam.pem;
+
+
+
+    {% if DEBUG %}
+        # Static files disabled
+
+        # Frontend dev proxy (skip the X-Accel-Redirect proxied through nginx, directly pass to vite)
+        location /hit {
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # Support hmr (hot module reload) via websockets
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+
+            # Pass to host running Vite
+            proxy_pass http://host.docker.internal:5173;
+        }
+    {% else %}
+        # Static files
+        location /static/ {
+            alias /static/;
+        }
+
+        location /media/ {
+            alias /media/;
+        }
+
+        # Frontend static assets (immutable)
+        location /hit/_app/immutable {
+            alias /frontend/build/_app/immutable;
+            expires max;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+
+        # Frontend static assets (Internal, as it's X-Accel-Redirect proxied through nginx)
+        location /__hit_passthrough__/hit {
+            internal;
+            expires 0;
+            alias /frontend/build;
+        }
+    {% endif %}
+
+    location = /favicon.ico {
+        access_log off;
+        log_not_found off;
+    }
+
+    # Otherwise, proxy to backend
+    location / {
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+        proxy_pass http://backend:8000;
+    }
+}
