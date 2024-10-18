@@ -2,6 +2,13 @@
 
 set -e
 
+if [ ! -f /.env ]; then
+    echo 'Missing /.env file! Exiting.'
+    exit 1
+fi
+
+. /.env
+
 if [ -z "$SECRET_KEY" ]; then
     echo "No SECRET_KEY set. Exiting."
     exit 1

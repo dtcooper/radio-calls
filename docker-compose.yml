@@ -7,8 +7,8 @@ services:
       args:
         DEBUG: "${DEBUG:-0}"
     volumes:
+      - ./.env:/.env:ro
       - ./backend/serve:/serve
-    env_file: .env
     mem_limit: 2048m
     depends_on:
       - db

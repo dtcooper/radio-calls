@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from constance import config
 from ninja import Form
 
-from ....constants import LOCATION_UNKNOWN, PHONE_MODE_TAKING_CALLS, PHONE_MODE_NO_CALLS
+from ....constants import LOCATION_UNKNOWN, PHONE_MODE_NO_CALLS, PHONE_MODE_TAKING_CALLS
 from ....models import Caller, Topic, Voicemail
 from ..utils import VoiceResponse
 from .api import api, url_for
