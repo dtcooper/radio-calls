@@ -189,9 +189,9 @@ def dialed_incoming_call(request, call_sid: Form[str]):
 @api.post("dial/incoming/call/forward/amd")
 def dial_incoming_call_forward_amd(request, incoming_call_sid: str, answered_by: Form[str]):
     if answered_by == "machine_start":
-        logger.info("Forwarding number went to voicemail. Sending call to to dialed_voicemail URL")
+        logger.info("Forwarding number went to voicemail. Sending call to to dialed_voicemail URL.")
         twiml = VoiceResponse()
-        twiml.play("dialed/taking-calls/rejected-voicemail")
+        twiml.play("dialed/taking-calls/rejected-voicemail", _external=True)
         twiml.redirect(url_for("dialed_voicemail", _external=True))
         twilio_client.calls(incoming_call_sid).update(twiml=twiml)
     return HttpResponse(status=204)
