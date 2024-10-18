@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from constance import config
 from ninja import Form
 
-from ....constants import LOCATION_UNKNOWN
+from ....constants import LOCATION_UNKNOWN, PHONE_MODE_TAKING_CALLS, PHONE_MODE_NO_CALLS
 from ....models import Caller, Topic, Voicemail
 from ..utils import VoiceResponse
 from .api import api, url_for
@@ -53,11 +53,11 @@ def dialed_incoming(
     try:
         phonenumbers.parse(twilio_caller)
     except phonenumbers.NumberParseException:
-        logger.warning(f"Got incoming call from unknown caller: {twilio_caller}!")
+        logger.warning(f"Got incoming call from unknown caller: {twilio_caller}! (phone mode: {config.PHONE_MODE})")
     else:
         location = ", ".join(s for s in (caller_city, caller_state, caller_country) if s) or LOCATION_UNKNOWN
         caller, _ = Caller.objects.get_or_create(number=twilio_caller, defaults={"location": location})
-        logger.info(f"Got incoming phone call from: {caller}")
+        logger.info(f"Got incoming phone call from: {caller} (phone mode: {config.PHONE_MODE})")
 
     request.session.update({
         "caller_id_display": caller.caller_id if caller else "unknown",
@@ -65,15 +65,18 @@ def dialed_incoming(
     })
 
     response.play("dialed/welcome")
-    if config.TAKING_CALLS:
+    if config.PHONE_MODE == PHONE_MODE_TAKING_CALLS:
         response.play("dialed/taking-calls/welcome")
         if topic := Topic.get_active():
             response.play("dialed/topic-intro")
             response.play(topic.recording.url)
         redirect_url = "dialed_incoming_gather_taking_calls"
-    else:
+    elif config.PHONE_MODE == PHONE_MODE_NO_CALLS:
         response.play("dialed/no-calls/welcome")
         redirect_url = "dialed_incoming_gather_no_calls"
+    else:  # PHONE_MODE_FORWARDING
+        response.say("Forward mode not implemented")
+        return response
 
     response.redirect(url_for(redirect_url))
     return response

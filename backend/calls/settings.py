@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import environ
+from api import constants as api_constants
 
 
 env = environ.Env()
@@ -172,9 +173,18 @@ ADMIN_NOTICE_TEXT_COLOR = "#000000" if DEBUG else "#ffffff"
 ADMIN_NOTICE_BACKGROUND = "#73e33c" if DEBUG else "#ff0000"
 
 CONSTANCE_BACKEND = "constance.backends.database.DatabaseBackend"
+CONSTANCE_ADDITIONAL_FIELDS = {
+    "phone_mode": [
+        "django.forms.fields.ChoiceField",
+        {
+            "widget": "django.forms.Select",
+            "choices": api_constants.PHONE_MODES,
+        },
+    ],
+}
 
 CONSTANCE_CONFIG = {
-    "TAKING_CALLS": (True, "Are hosts currently taking calls?"),
+    "PHONE_MODE": (api_constants.PHONE_MODE_TAKING_CALLS, "Phone's mode of operation", "phone_mode"),
     "ANSWERING_MACHINE_DETECTION": (
         True,
         (

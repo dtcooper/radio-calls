@@ -60,3 +60,13 @@ CALL_STEP_CALL = _data["CALL_STEP_CALL"]
 CALL_STEP_VOICEMAIL = _data["CALL_STEP_VOICEMAIL"]
 CALL_STEP_DONE = _data["CALL_STEP_DONE"]
 del _file, _data
+
+
+PHONE_MODE_TAKING_CALLS = "taking-calls"
+PHONE_MODE_FORWARDING = "forwarding"
+PHONE_MODE_NO_CALLS = "no-calls"
+PHONE_MODES = (
+    (PHONE_MODE_TAKING_CALLS, "Taking calls"),
+    (PHONE_MODE_NO_CALLS, "Not taking calls"),
+    (PHONE_MODE_FORWARDING, "Forwarding to number"),
+)
