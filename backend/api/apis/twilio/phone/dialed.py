@@ -10,8 +10,9 @@ from django.http import HttpResponse
 from constance import config
 from ninja import Form
 
-from ....constants import LOCATION_UNKNOWN, PHONE_MODE_NO_CALLS, PHONE_MODE_TAKING_CALLS
-from ....models import Caller, Topic, Voicemail
+from ....constants import LOCATION_UNKNOWN, PHONE_MODE_FORWARDING, PHONE_MODE_NO_CALLS, PHONE_MODE_TAKING_CALLS
+from ....models import Caller, CallRecording, Topic, Voicemail
+from ....twilio import twilio_client
 from ..utils import VoiceResponse
 from .api import api, url_for
 
@@ -65,7 +66,7 @@ def dialed_incoming(
     })
 
     response.play("dialed/welcome")
-    if config.PHONE_MODE == PHONE_MODE_TAKING_CALLS:
+    if config.PHONE_MODE in (PHONE_MODE_TAKING_CALLS, PHONE_MODE_FORWARDING):
         response.play("dialed/taking-calls/welcome")
         if topic := Topic.get_active():
             response.play("dialed/topic-intro")
@@ -74,9 +75,6 @@ def dialed_incoming(
     elif config.PHONE_MODE == PHONE_MODE_NO_CALLS:
         response.play("dialed/no-calls/welcome")
         redirect_url = "dialed_incoming_gather_no_calls"
-    else:  # PHONE_MODE_FORWARDING
-        response.say("Forward mode not implemented")
-        return response
 
     response.redirect(url_for(redirect_url))
     return response
@@ -158,11 +156,45 @@ def dialed_incoming_gather_no_calls(request, digits: Form[str] = None):
 
 
 @api.post("dialed/incoming/call")
-def dialed_incoming_call(request):
+def dialed_incoming_call(request, call_sid: Form[str]):
     response = VoiceResponse()
-    dial = response.dial(action=url_for("dialed_incoming_call_done"), caller_id=request.session["caller_id_display"])
-    dial.sip(f"{settings.TWILIO_SIP_HOST_USERNAME}@{settings.TWILIO_SIP_DOMAIN}")
+    kwargs = {"action": url_for("dialed_incoming_call_done")}
+
+    if config.PHONE_MODE == PHONE_MODE_TAKING_CALLS:
+        dial = response.dial(caller_id=request.session["caller_id_display"], **kwargs)
+        dial.sip(f"{settings.TWILIO_SIP_HOST_USERNAME}@{settings.TWILIO_SIP_DOMAIN}")
+    else:
+        dial = response.dial(
+            caller_id=settings.TWILIO_OUTGOING_NUMBER,
+            record="record-from-answer-dual",
+            recording_status_callback=url_for(
+                "dial_recording_callback", is_voicemail=False, caller_id=request.session["caller_id"]
+            ),
+            **kwargs,
+        )
+        number_kwargs = {}
+        if config.ANSWERING_MACHINE_DETECTION:
+            number_kwargs.update({
+                "machine_detection": "Enable",
+                # amd_status_callback seems to want an absolute URL. Created a Twilio help ticket for this.
+                "amd_status_callback": url_for(
+                    "dial_incoming_call_forward_amd", incoming_call_sid=call_sid, _external=True
+                ),
+            })
+        for number in settings.TWILIO_FORWARD_NUMBERS:
+            dial.number(number, **number_kwargs)
     return response
+
+
+@api.post("dial/incoming/call/forward/amd")
+def dial_incoming_call_forward_amd(request, incoming_call_sid: str, answered_by: Form[str]):
+    if answered_by == "machine_start":
+        logger.info("Forwarding number went to voicemail. Sending call to to dialed_voicemail URL")
+        twiml = VoiceResponse()
+        twiml.play("dialed/taking-calls/rejected-voicemail")
+        twiml.redirect(url_for("dialed_voicemail", _external=True))
+        twilio_client.calls(incoming_call_sid).update(twiml=twiml)
+    return HttpResponse(status=204)
 
 
 @api.post("dialed/incoming/call/done")
@@ -273,18 +305,23 @@ def dialed_voicemail(request, digits: Form[str] = None):
     response.record(
         timeout=15,
         max_length=60 * 5,  # 5 minutes
-        recording_status_callback=url_for("dialed_voicemail_callback", caller_id=request.session["caller_id"]),
+        recording_status_callback=url_for(
+            "dial_recording_callback", is_voicemail=True, caller_id=request.session["caller_id"]
+        ),
         play_beep=False,
     )
 
     return response
 
 
-@api.post("dialed/voicemail/callback")
-def dialed_voicemail_callback(request, recording_duration: Form[int], recording_url: Form[str], caller_id: int = None):
+@api.post("dialed/recording")
+def dial_recording_callback(
+    request, recording_duration: Form[int], recording_url: Form[str], is_voicemail: bool = True, caller_id: int = None
+):
     try:
         caller = Caller.objects.get(id=caller_id)
     except Caller.DoesNotExist:
         caller = None
-    Voicemail.objects.create(url=recording_url, duration=datetime.timedelta(seconds=recording_duration), caller=caller)
+    model = Voicemail if is_voicemail else CallRecording
+    model.objects.create(url=recording_url, duration=datetime.timedelta(seconds=recording_duration), caller=caller)
     return HttpResponse(status=204)

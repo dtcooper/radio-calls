@@ -659,13 +659,24 @@ class Caller(BaseCallModel):
         return s.lower()
 
 
-class Voicemail(BaseCallModel):
+class RecordingBase(BaseCallModel):
     caller = models.ForeignKey(Caller, on_delete=models.SET_NULL, null=True, blank=True)
     duration = models.DurationField("duration", default=datetime.timedelta(0))
     url = models.URLField("URL")
 
+    def __str__(self):
+        name = self._meta.verbose_name.removeprefix("phone ").capitalize()
+        return f"{name} from {self.caller or 'unknown caller'} ({self.duration})"
+
     class Meta(BaseCallModel.Meta):
+        abstract = True
+
+
+class Voicemail(RecordingBase):
+    class Meta(RecordingBase.Meta):
         verbose_name = "phone voicemail"
 
-    def __str__(self):
-        return f"Voicemail from {self.caller or 'unknown caller'} ({self.duration})"
+
+class CallRecording(RecordingBase):
+    class Meta(RecordingBase.Meta):
+        verbose_name = "phone call recording"

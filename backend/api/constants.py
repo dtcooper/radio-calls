@@ -68,5 +68,5 @@ PHONE_MODE_NO_CALLS = "no-calls"
 PHONE_MODES = (
     (PHONE_MODE_TAKING_CALLS, "Taking calls"),
     (PHONE_MODE_NO_CALLS, "Not taking calls"),
-    (PHONE_MODE_FORWARDING, "Forwarding to number"),
+    (PHONE_MODE_FORWARDING, "Forwarding to number(s)"),
 )

@@ -21,7 +21,7 @@ from durationwidget.widgets import TimeDurationWidget
 
 from .apis import twilio_phone_url_for
 from .constants import CORE_ENGLISH_SPEAKING_COUNTRIES, CORE_ENGLISH_SPEAKING_COUNTRIES_NAMES, SIMULATED_PREFIX
-from .models import HIT, Assignment, Caller, Topic, User, Voicemail, Worker, WorkerPageLoad
+from .models import HIT, Assignment, Caller, CallRecording, Topic, User, Voicemail, Worker, WorkerPageLoad
 from .twilio import twilio_client
 from .utils import block_or_unblock_workers, get_mturk_client, short_datetime_str
 
@@ -844,7 +844,7 @@ class CallerAdmin(BaseModelAdmin):
         return format_html(LIST_BTN_HTML, reverse("admin:api_caller_call_now", args=(obj.id,)), "Call now!")
 
 
-class VoicemailAdmin(BaseModelAdmin):
+class VoicemailAndCallRecordingAdmin(BaseModelAdmin):
     list_display = ("caller_display", "url_player", "duration", "created_at")
     fields = ("caller_display", "url_player", "url_link", "duration", "created_at")
     readonly_fields = ("caller_display", "url_link", "url_player", "duration", "created_at")
@@ -871,9 +871,10 @@ class VoicemailAdmin(BaseModelAdmin):
 admin.site.unregister(Group)
 admin.site.register(Assignment, AssignmentAdmin)
 admin.site.register(Caller, CallerAdmin)
+admin.site.register(CallRecording, VoicemailAndCallRecordingAdmin)
 admin.site.register(HIT, HITAdmin)
 admin.site.register(Topic, TopicAdmin)
 admin.site.register(User, UserAdmin)
 admin.site.register(Worker, WorkerAdmin)
 admin.site.register(WorkerPageLoad, WorkerPageLoadAdmin)
-admin.site.register(Voicemail, VoicemailAdmin)
+admin.site.register(Voicemail, VoicemailAndCallRecordingAdmin)

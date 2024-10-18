@@ -1,11 +1,30 @@
 {% extends "admin/base_site.html" %}
 
+{% load i18n %}
+
 {% block extrahead %}
   {{ block.super }}
   <link
     rel="icon"
     href="data:image/svg+xml,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22&gt;&lt;text y=%22.9em%22 font-size=%2290%22&gt;☎️&lt;/text&gt;&lt;/svg&gt;"
   >
+  <style>
+    .radio-calls-info-bar {
+      color: var(--branding-fg);
+      align-self: center;
+      margin-left: 5px;
+      font-size: 0.725rem;
+    }
+  </style>
+{% endblock %}
+
+{% block branding %}
+  {{ block.super }}
+  {% if not request.user.is_anonymous %}
+    <div class="radio-calls-info-bar">
+      Phone mode: <strong>{{ PHONE_MODE }}</strong>
+    </div>
+  {% endif %}
 {% endblock %}
 
 {% block userlinks %}
