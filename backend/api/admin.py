@@ -846,8 +846,8 @@ class CallerAdmin(BaseModelAdmin):
 
 class VoicemailAndCallRecordingAdmin(BaseModelAdmin):
     list_display = ("caller_display", "url_player", "duration", "created_at")
-    fields = ("caller_display", "url_player", "url_link", "duration", "created_at")
-    readonly_fields = ("caller_display", "url_link", "url_player", "duration", "created_at")
+    fields = ("caller_display_link", "url_player", "url_link", "duration", "created_at")
+    readonly_fields = ("caller_display", "caller_display_link", "url_link", "url_player", "duration", "created_at")
 
     @admin.display(description="Player")
     def url_player(self, obj):
@@ -860,6 +860,14 @@ class VoicemailAndCallRecordingAdmin(BaseModelAdmin):
     @admin.display(description="Caller", ordering="caller")
     def caller_display(self, obj):
         return obj.caller or mark_safe("<em>Unknown caller</em>")
+
+    @admin.display(description="Caller", ordering="caller")
+    def caller_display_link(self, obj):
+        if obj.caller is None:
+            return mark_safe("<em>Unknown caller</em>")
+        else:
+            url = reverse("admin:api_caller_change", args=(obj.caller.id,))
+            return format_html('<a href="{}">{}</a>', url, obj.caller)
 
     def has_add_permission(self, request):
         return False
