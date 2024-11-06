@@ -22,6 +22,7 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         ffmpeg \
         sox \
+        watchman \
     && rm -rf /var/lib/apt/lists/* \
     && if [ "$DEBUG" -a "$DEBUG" != '0' ]; then \
         echo "alias ls='ls --color=auto'" >> /root/.bashrc \
