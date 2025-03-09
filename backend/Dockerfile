@@ -12,7 +12,7 @@ RUN mkdir -p "$(dirname ${GEOIP2_LITE_CITY_DB_PATH})" \
     && wget -qO - https://raw.githubusercontent.com/GitSquared/node-geolite2-redist/master/redist/GeoLite2-City.tar.gz \
         | tar xvz --strip-components 1
 
-ARG POETRY_VERSION=1.8.4
+ARG POETRY_VERSION=2.1.1
 RUN wget -qO - https://install.python-poetry.org | python -
 ENV PATH="/root/.local/bin:${PATH}"
 

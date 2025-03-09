@@ -168,6 +168,7 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = "/serve/media/"
 
 SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
+SESSION_COOKIE_AGE = 315360000  # 10 years
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
